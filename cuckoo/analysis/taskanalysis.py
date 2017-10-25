@@ -5,6 +5,7 @@
 import logging
 import os
 import time
+import threading
 
 from cuckoo.common.abstracts import AnalysisManager
 from cuckoo.common.constants import faq
@@ -20,12 +21,13 @@ from cuckoo.core.log import task_log_start, task_log_stop, logger
 from cuckoo.core.resultserver import ResultServer
 from cuckoo.core.guest import GuestManager
 from cuckoo.core.plugins import RunAuxiliary
+from cuckoo.core.scheduler import Scheduler
 
 log = logging.getLogger(__name__)
 
 class TaskAnalysis(AnalysisManager):
 
-    supports = ["file", "url", "archive", "baseline"]
+    supports = ["file", "url", "archive", "baseline", "service"]
 
     def init(self, db):
         """Excuted by the scheduler. Prepares the analysis for starting"""
@@ -38,13 +40,30 @@ class TaskAnalysis(AnalysisManager):
         # was successful
         self.processing_success = False
 
+        # Keep track if the machine lock has been released
+        self.scheduler_lock_released = False
+
         if self.task.file:
             self.file = File(self.task.target)
+
+            # Get filename here so we can use it to name the copy
+            # in case the original is not available
+            file_name = self.file.get_name()
+            use_copy = False
+            if not os.path.exists(self.task.target):
+                log.warning("Original binary %s does not exist anymore."
+                            " Using copy", self.task.target)
+                use_copy = True
+                self.file = File(self.task.copied_binary)
+
+            # Verify if the file is readable and has not changed
             if not self.file_usable():
                 init_success = False
 
             self.build_options(update_with={
-                "file_name": self.file.get_name(),
+                "target": self.task.copied_binary if use_copy
+                else self.task.target,
+                "file_name": file_name,
                 "file_type": self.file.get_type(),
                 "pe_exports": ",".join(self.file.get_exported_functions()),
             })
@@ -57,7 +76,11 @@ class TaskAnalysis(AnalysisManager):
 
         self.guest_manager = GuestManager(self.machine.name, self.machine.ip,
                                           self.machine.platform, self.task.id,
-                                          self)
+                                          self, self.analysis)
+
+        self.aux = RunAuxiliary(self.task.db_task, self.machine,
+                                self.guest_manager)
+
         # Write task to disk in json file
         self.task.write_to_disk()
 
@@ -76,6 +99,15 @@ class TaskAnalysis(AnalysisManager):
             analysis_success = False
             try:
                 analysis_success = self.start_analysis()
+
+                # See if the analysis did not fail in the analysis manager
+                # and see if the status was not set to failed by
+                # the guest manager
+                if analysis_success:
+                    if self.analysis.status == Analysis.FAILED:
+                        analysis_success = False
+            except Exception as e:
+                log.error("Error in start_analysis: %s", e)
             finally:
                 self.stop_analysis()
 
@@ -115,6 +147,8 @@ class TaskAnalysis(AnalysisManager):
             })
 
         finally:
+            # Set this task as the latest symlink
+            self.task.set_latest()
             task_log_stop(self.task.id)
             self.release_scheduler_lock()
 
@@ -123,10 +157,12 @@ class TaskAnalysis(AnalysisManager):
         adding the task to the resultserver, starting the machine
         and running a guest manager"""
         # Set guest status to starting and start analysis machine
+
+        # TODO
         self.set_analysis_status(Analysis.STARTING)
 
         target = self.task.target
-        if self.file:
+        if self.task.file:
             target = self.file.get_name()
 
         log.info("Starting analysis of %s \"%s\" (task #%d, options: \"%s\")",
@@ -145,11 +181,11 @@ class TaskAnalysis(AnalysisManager):
         try:
             ResultServer().add_task(self.task.db_task, self.machine)
         except Exception as e:
+            log.exception("EXCEPTIOM AT add to resultserver: %s", e)
             self.error_queue.put(e)
             return False
 
         # Start auxiliary modules
-        self.aux = RunAuxiliary(self.task, self.machine, self.guest_manager)
         self.aux.start()
 
         # Json log for performance measurement purposes
@@ -160,7 +196,7 @@ class TaskAnalysis(AnalysisManager):
         )
 
         try:
-            self.machinery.start(self.machine.label, self.task)
+            self.machinery.start(self.machine.label, self.task.db_task)
         except CuckooMachineSnapshotError as e:
             log.error(
                 "Unable to restore to the snapshot for this Virtual Machine! "
@@ -329,8 +365,6 @@ class TaskAnalysis(AnalysisManager):
                 self.set_analysis_status(Analysis.RUNNING)
                 self.guest_manager.wait_for_completion()
 
-            self.analysis.set_status(Analysis.STOPPING)
-
     def on_status_starting(self, db):
         """Is executed by the scheduler on analysis status starting
         Stores the chosen route in the db"""
@@ -373,6 +407,7 @@ class TaskAnalysis(AnalysisManager):
         Updates the task status to the correct one and updates the
         task.json"""
         # Update task obj and write json to disk
+        log.error("VIEWING TASK WITH ID: %s", self.task.id)
         db_task = db.view_task(self.task.id)
         self.task.set_task(db_task)
         self.task.write_to_disk()
@@ -388,3 +423,13 @@ class TaskAnalysis(AnalysisManager):
             log.debug("Setting task #%s status to %s", self.task.id,
                       TASK_COMPLETED)
             db.set_status(self.task.id, TASK_REPORTED)
+
+    def release_scheduler_lock(self):
+        """Release the scheduler machine_lock. Do this when the VM has
+        started"""
+        if not self.scheduler_lock_released:
+            try:
+                Scheduler.machine_lock.release()
+                self.scheduler_lock_released = True
+            except threading.ThreadError:
+                pass
