@@ -18,6 +18,7 @@ from cuckoo.common.exceptions import CuckooDependencyError
 from cuckoo.common.objects import File, URL, Dictionary
 from cuckoo.common.utils import Singleton, classlock, json_encode
 from cuckoo.misc import cwd, format_command
+from cuckoo.core.task import Task as CoreTask
 
 from sqlalchemy import create_engine, Column, not_, func
 from sqlalchemy import Integer, String, Boolean, DateTime, Enum
@@ -175,51 +176,51 @@ class Tag(Base):
     def __init__(self, name):
         self.name = name
 
-class Guest(Base):
-    """Tracks guest run."""
-    __tablename__ = "guests"
-
-    id = Column(Integer(), primary_key=True)
-    # TODO Replace the guest.status with a more generic Task.status solution.
-    status = Column(String(16), nullable=False)
-    name = Column(String(255), nullable=False)
-    label = Column(String(255), nullable=False)
-    manager = Column(String(255), nullable=False)
-    started_on = Column(DateTime(timezone=False),
-                        default=datetime.datetime.now,
-                        nullable=False)
-    shutdown_on = Column(DateTime(timezone=False), nullable=True)
-    task_id = Column(Integer,
-                     ForeignKey("tasks.id"),
-                     nullable=False,
-                     unique=True)
-
-    def __repr__(self):
-        return "<Guest('{0}','{1}')>".format(self.id, self.name)
-
-    def to_dict(self):
-        """Converts object to dict.
-        @return: dict
-        """
-        d = {}
-        for column in self.__table__.columns:
-            value = getattr(self, column.name)
-            if isinstance(value, datetime.datetime):
-                d[column.name] = value.strftime("%Y-%m-%d %H:%M:%S")
-            else:
-                d[column.name] = value
-        return d
-
-    def to_json(self):
-        """Converts object to JSON.
-        @return: JSON data
-        """
-        return json.dumps(self.to_dict())
-
-    def __init__(self, name, label, manager):
-        self.name = name
-        self.label = label
-        self.manager = manager
+# class Guest(Base):
+#     """Tracks guest run."""
+#     __tablename__ = "guests"
+#
+#     id = Column(Integer(), primary_key=True)
+#     # TODO Replace the guest.status with a more generic Task.status solution.
+#     status = Column(String(16), nullable=False)
+#     name = Column(String(255), nullable=False)
+#     label = Column(String(255), nullable=False)
+#     manager = Column(String(255), nullable=False)
+#     started_on = Column(DateTime(timezone=False),
+#                         default=datetime.datetime.now,
+#                         nullable=False)
+#     shutdown_on = Column(DateTime(timezone=False), nullable=True)
+#     task_id = Column(Integer,
+#                      ForeignKey("tasks.id"),
+#                      nullable=False,
+#                      unique=True)
+#
+#     def __repr__(self):
+#         return "<Guest('{0}','{1}')>".format(self.id, self.name)
+#
+#     def to_dict(self):
+#         """Converts object to dict.
+#         @return: dict
+#         """
+#         d = {}
+#         for column in self.__table__.columns:
+#             value = getattr(self, column.name)
+#             if isinstance(value, datetime.datetime):
+#                 d[column.name] = value.strftime("%Y-%m-%d %H:%M:%S")
+#             else:
+#                 d[column.name] = value
+#         return d
+#
+#     def to_json(self):
+#         """Converts object to JSON.
+#         @return: JSON data
+#         """
+#         return json.dumps(self.to_dict())
+#
+#     def __init__(self, name, label, manager):
+#         self.name = name
+#         self.label = label
+#         self.manager = manager
 
 class Submit(Base):
     """Submitted files details."""
@@ -349,7 +350,7 @@ class Task(Base):
     route = Column(String(16), nullable=True)
     sample = relationship("Sample", backref="tasks")
     submit = relationship("Submit", backref="tasks")
-    guest = relationship("Guest", uselist=False, backref="tasks", cascade="save-update, delete")
+    # guest = relationship("Guest", uselist=False, backref="tasks", cascade="save-update, delete")
     errors = relationship("Error", backref="tasks", cascade="save-update, delete")
 
     def duration(self):
@@ -386,14 +387,14 @@ class Task(Base):
         # Tags are a relation so no column to iterate.
         d["tags"] = [tag.name for tag in self.tags]
         d["duration"] = self.duration()
-        d["guest"] = {}
+        # d["guest"] = {}
 
-        if self.guest:
-            # Get machine description.
-            d["guest"] = machine = self.guest.to_dict()
-            # Remove superfluous fields.
-            del machine["task_id"]
-            del machine["id"]
+        # if self.guest:
+        #     # Get machine description.
+        #     d["guest"] = machine = self.guest.to_dict()
+        #     # Remove superfluous fields.
+        #     del machine["task_id"]
+        #     del machine["id"]
 
         return d
 
@@ -581,6 +582,8 @@ class Database(object):
         finally:
             session.close()
 
+
+
     @classlock
     def add_machine(self, name, label, ip, platform, options, tags, interface,
                     snapshot, resultserver_ip, resultserver_port):
@@ -676,7 +679,7 @@ class Database(object):
             session.close()
 
     @classlock
-    def fetch(self, machine=None, service=True):
+    def fetch(self, machine=None, service=True, lock=True, exclude=[]):
         """Fetches a task waiting to be processed and locks it for running.
         @return: None or task
         """
@@ -690,8 +693,11 @@ class Database(object):
             if not service:
                 q = q.filter(not_(Task.tags.any(name="service")))
 
+            if len(exclude) > 0:
+                q = q.filter(Task.id.in_(exclude))
+
             row = q.order_by(Task.priority.desc(), Task.added_on).first()
-            if row:
+            if row and lock:
                 self.set_status(task_id=row.id, status=TASK_RUNNING)
                 session.refresh(row)
 
@@ -702,100 +708,100 @@ class Database(object):
         finally:
             session.close()
 
-    @classlock
-    def guest_start(self, task_id, name, label, manager):
-        """Logs guest start.
-        @param task_id: task identifier
-        @param name: vm name
-        @param label: vm label
-        @param manager: vm manager
-        @return: guest row id
-        """
-        session = self.Session()
-        guest = Guest(name, label, manager)
-        try:
-            guest.status = "init"
-            session.query(Task).get(task_id).guest = guest
-            session.commit()
-            session.refresh(guest)
-            return guest.id
-        except SQLAlchemyError as e:
-            log.debug("Database error logging guest start: {0}".format(e))
-            session.rollback()
-            return None
-        finally:
-            session.close()
+    # @classlock
+    # def guest_start(self, task_id, name, label, manager):
+    #     """Logs guest start.
+    #     @param task_id: task identifier
+    #     @param name: vm name
+    #     @param label: vm label
+    #     @param manager: vm manager
+    #     @return: guest row id
+    #     """
+    #     session = self.Session()
+    #     guest = Guest(name, label, manager)
+    #     try:
+    #         guest.status = "init"
+    #         session.query(Task).get(task_id).guest = guest
+    #         session.commit()
+    #         session.refresh(guest)
+    #         return guest.id
+    #     except SQLAlchemyError as e:
+    #         log.debug("Database error logging guest start: {0}".format(e))
+    #         session.rollback()
+    #         return None
+    #     finally:
+    #         session.close()
 
-    @classlock
-    def guest_get_status(self, task_id):
-        """Logs guest start.
-        @param task_id: task id
-        @return: guest status
-        """
-        session = self.Session()
-        try:
-            guest = session.query(Guest).filter_by(task_id=task_id).first()
-            return guest.status if guest else None
-        except SQLAlchemyError as e:
-            log.debug("Database error logging guest start: {0}".format(e))
-            session.rollback()
-            return
-        finally:
-            session.close()
+    # @classlock
+    # def guest_get_status(self, task_id):
+    #     """Logs guest start.
+    #     @param task_id: task id
+    #     @return: guest status
+    #     """
+    #     session = self.Session()
+    #     try:
+    #         guest = session.query(Guest).filter_by(task_id=task_id).first()
+    #         return guest.status if guest else None
+    #     except SQLAlchemyError as e:
+    #         log.debug("Database error logging guest start: {0}".format(e))
+    #         session.rollback()
+    #         return
+    #     finally:
+    #         session.close()
 
-    @classlock
-    def guest_set_status(self, task_id, status):
-        """Logs guest start.
-        @param task_id: task identifier
-        @param status: status
-        """
-        session = self.Session()
-        try:
-            guest = session.query(Guest).filter_by(task_id=task_id).first()
-            guest.status = status
-            session.commit()
-            session.refresh(guest)
-        except SQLAlchemyError as e:
-            log.debug("Database error logging guest start: {0}".format(e))
-            session.rollback()
-            return None
-        finally:
-            session.close()
-
-    @classlock
-    def guest_remove(self, guest_id):
-        """Removes a guest start entry."""
-        session = self.Session()
-        try:
-            guest = session.query(Guest).get(guest_id)
-            session.delete(guest)
-            session.commit()
-        except SQLAlchemyError as e:
-            log.debug("Database error logging guest remove: {0}".format(e))
-            session.rollback()
-            return None
-        finally:
-            session.close()
-
-    @classlock
-    def guest_stop(self, guest_id):
-        """Logs guest stop.
-        @param guest_id: guest log entry id
-        """
-        session = self.Session()
-        try:
-            guest = session.query(Guest).get(guest_id)
-            guest.status = "stopped"
-            guest.shutdown_on = datetime.datetime.now()
-            session.commit()
-        except SQLAlchemyError as e:
-            log.debug("Database error logging guest stop: {0}".format(e))
-            session.rollback()
-        except TypeError:
-            log.warning("Data inconsistency in guests table detected, it might be a crash leftover. Continue")
-            session.rollback()
-        finally:
-            session.close()
+    # @classlock
+    # def guest_set_status(self, task_id, status):
+    #     """Logs guest start.
+    #     @param task_id: task identifier
+    #     @param status: status
+    #     """
+    #     session = self.Session()
+    #     try:
+    #         guest = session.query(Guest).filter_by(task_id=task_id).first()
+    #         guest.status = status
+    #         session.commit()
+    #         session.refresh(guest)
+    #     except SQLAlchemyError as e:
+    #         log.debug("Database error logging guest start: {0}".format(e))
+    #         session.rollback()
+    #         return None
+    #     finally:
+    #         session.close()
+    #
+    # @classlock
+    # def guest_remove(self, guest_id):
+    #     """Removes a guest start entry."""
+    #     session = self.Session()
+    #     try:
+    #         guest = session.query(Guest).get(guest_id)
+    #         session.delete(guest)
+    #         session.commit()
+    #     except SQLAlchemyError as e:
+    #         log.debug("Database error logging guest remove: {0}".format(e))
+    #         session.rollback()
+    #         return None
+    #     finally:
+    #         session.close()
+    #
+    # @classlock
+    # def guest_stop(self, guest_id):
+    #     """Logs guest stop.
+    #     @param guest_id: guest log entry id
+    #     """
+    #     session = self.Session()
+    #     try:
+    #         guest = session.query(Guest).get(guest_id)
+    #         guest.status = "stopped"
+    #         guest.shutdown_on = datetime.datetime.now()
+    #         session.commit()
+    #     except SQLAlchemyError as e:
+    #         log.debug("Database error logging guest stop: {0}".format(e))
+    #         session.rollback()
+    #     except TypeError:
+    #         log.warning("Data inconsistency in guests table detected, it might be a crash leftover. Continue")
+    #         session.rollback()
+    #     finally:
+    #         session.close()
 
     @classlock
     def list_machines(self, locked=False):
@@ -1005,16 +1011,51 @@ class Database(object):
         finally:
             session.close()
 
-    # The following functions are mostly used by external utils.
+    def add_sample(self, file_obj):
+        """Add a new sample to the database.
+        @param file_obj: cuckoo.common.objects.File object of the sample
+        """
+        if not isinstance(file_obj, File):
+            log.error("Cannot store sample. %s is not a file object", file_obj)
+            return None
 
+        sample = Sample(
+            md5=file_obj.get_md5(), crc32=file_obj.get_crc32(),
+            sha1=file_obj.get_sha1(), sha256=file_obj.get_sha256(),
+            sha512=file_obj.get_sha512(), file_size=file_obj.get_size(),
+            file_type=file_obj.get_type(), ssdeep=file_obj.get_ssdeep()
+        )
+
+        # Search if a sample with this file's sha256 hash already exists
+        existing = self.find_sample(sha256=sample.sha256)
+
+        if existing:
+            return existing
+
+        session = self.Session()
+
+        try:
+            session.add(sample)
+            session.commit()
+        except SQLAlchemyError as e:
+            session.rollback()
+            log.debug("Database error storing new sample: %s", e)
+            return None
+        finally:
+            session.close()
+
+        return sample
+
+    # The following functions are mostly used by external utils.
     @classlock
-    def add(self, obj, timeout=0, package="", options="", priority=1,
+    def add(self, target, timeout=0, package="", options="", priority=1,
             custom="", owner="", machine="", platform="", tags=None,
             memory=False, enforce_timeout=False, clock=None, category=None,
-            submit_id=None):
+            submit_id=None, sample_id=None):
         """Add a task to database.
         @param obj: object to add (File or URL).
         @param timeout: selected timeout.
+        @param package: the analysis package to use
         @param options: analysis options.
         @param priority: analysis priority.
         @param custom: custom options.
@@ -1027,91 +1068,31 @@ class Database(object):
         @param clock: virtual machine clock time
         @return: cursor or None.
         """
-        # TODO: parameter `package` is not mentioned in the function docstring
         session = self.Session()
 
-        # Convert empty strings and None values to a valid int
-        if not timeout:
-            timeout = 0
-        if not priority:
-            priority = 1
-
-        if isinstance(obj, File):
-            sample = Sample(md5=obj.get_md5(),
-                            crc32=obj.get_crc32(),
-                            sha1=obj.get_sha1(),
-                            sha256=obj.get_sha256(),
-                            sha512=obj.get_sha512(),
-                            file_size=obj.get_size(),
-                            file_type=obj.get_type(),
-                            ssdeep=obj.get_ssdeep())
-            session.add(sample)
-
-            try:
-                session.commit()
-            except IntegrityError:
-                session.rollback()
-                try:
-                    sample = session.query(Sample).filter_by(md5=obj.get_md5()).first()
-                except SQLAlchemyError as e:
-                    log.debug("Error querying sample for hash: {0}".format(e))
-                    session.close()
-                    return None
-            except SQLAlchemyError as e:
-                log.debug("Database error adding task: {0}".format(e))
-                session.close()
-                return None
-
-            task = Task(obj.file_path)
-            task.sample_id = sample.id
-        elif isinstance(obj, URL):
-            task = Task(obj.url)
-        else:
-            task = Task("none")
-
-        task.category = category
+        task = Task(target=target, category=category)
         task.timeout = timeout
-        task.package = package
-        task.options = options
         task.priority = priority
         task.custom = custom
         task.owner = owner
         task.machine = machine
+        task.package = package
+        task.options = options
         task.platform = platform
         task.memory = memory
         task.enforce_timeout = enforce_timeout
+        task.clock = clock
         task.submit_id = submit_id
+        task.sample_id = sample_id
 
         if tags:
-            if isinstance(tags, basestring):
-                for tag in tags.split(","):
-                    if tag.strip():
-                        task.tags.append(self._get_or_create(
-                            session, Tag, name=tag.strip()
-                        ))
-
-            if isinstance(tags, (tuple, list)):
-                for tag in tags:
-                    if isinstance(tag, basestring) and tag.strip():
-                        task.tags.append(self._get_or_create(
-                            session, Tag, name=tag.strip()
-                        ))
-
-        if clock:
-            if isinstance(clock, basestring):
-                try:
-                    task.clock = datetime.datetime.strptime(clock, "%m-%d-%Y %H:%M:%S")
-                except ValueError:
-                    log.warning("The date you specified has an invalid format, using current timestamp.")
-                    task.clock = datetime.datetime.now()
-            else:
-                task.clock = clock
+            for tag in tags:
+                task.tags.append(self._get_or_create(session, Tag, name=tag))
 
         session.add(task)
 
         try:
             session.commit()
-            task_id = task.id
         except SQLAlchemyError as e:
             log.debug("Database error adding task: {0}".format(e))
             session.rollback()
@@ -1119,7 +1100,7 @@ class Database(object):
         finally:
             session.close()
 
-        return task_id
+        return task
 
     def add_path(self, file_path, timeout=0, package="", options="",
                  priority=1, custom="", owner="", machine="", platform="",
@@ -1443,7 +1424,6 @@ class Database(object):
         try:
             if details:
                 task = session.query(Task).options(
-                    joinedload("guest"),
                     joinedload("errors"),
                     joinedload("tags")
                 ).get(task_id)
@@ -1468,7 +1448,6 @@ class Database(object):
         session = self.Session()
         try:
             tasks = session.query(Task).options(
-                joinedload("guest"),
                 joinedload("errors"),
                 joinedload("tags")
             ).filter(Task.id.in_(task_ids)).order_by(Task.id).all()
