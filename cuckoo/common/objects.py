@@ -5,6 +5,7 @@
 
 import base64
 import binascii
+import datetime
 import hashlib
 import logging
 import mmap
@@ -395,6 +396,14 @@ class File(object):
         f = open(self.file_path, "rb")
         return list(set(re.findall(PUBPRIVKEY, self.mmap(f.fileno()))))
 
+    def same_as(self, sha256):
+        """Compare given hash with hash of the current file"""
+        return self.get_sha256() == sha256
+
+    def is_readable(self):
+        """Is the file readable"""
+        return os.access(self.file_path, os.R_OK)
+
     def get_all(self):
         """Get all information available.
         @return: information dict.
@@ -472,3 +481,39 @@ class ExtractedMatch(object):
         # Raw payload.
         self.raw = match.get("raw")
         self.info = match["info"]
+
+class Analysis(object):
+
+    INIT = "init"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    FAILED = "failed"
+
+    def __init__(self, task_id, name, label, manager):
+        self.task_id = task_id
+        self.name = name
+        self.label = label
+        self.manager = manager
+        self.started_on = None
+        self.status = None
+        self.shutdown_on = None
+        self.changed = False
+
+    def set_status(self, status):
+        log.debug("Setting analysis status to %s for task #%s", status,
+                  self.task_id)
+
+        self.status = status
+
+        if status == Analysis.STARTING:
+            self.started_on = datetime.datetime.now()
+        elif status == Analysis.STOPPED:
+            self.shutdown_on = datetime.datetime.now()
+
+        self.changed = True
+
+    def get_status(self):
+        self.changed = False
+        return self.status
