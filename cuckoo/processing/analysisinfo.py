@@ -77,7 +77,6 @@ class AnalysisInfo(Processing):
             category=task["category"],
             custom=task["custom"],
             owner=task["owner"],
-            machine=task["guest"],
             package=task["package"],
             platform=task["platform"],
             options=emit_options(task["options"]),

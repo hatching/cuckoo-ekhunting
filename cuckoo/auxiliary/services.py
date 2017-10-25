@@ -8,6 +8,7 @@ import time
 
 from cuckoo.common.abstracts import Auxiliary
 from cuckoo.common.config import Config
+from cuckoo.common.objects import Analysis
 from cuckoo.core.database import Database
 
 log = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class Services(Auxiliary):
 
     def stop_service(self, task_id):
         """Stop a VM containing one or more services."""
-        db.guest_set_status(task_id, "stop")
+        self.guest_manager.analysis.set_status(Analysis.STOPPED)
 
     def start(self):
         self.tasks = []
@@ -57,7 +58,7 @@ class Services(Auxiliary):
         # some reason stopped.
         wait_states = "starting", "running", "stopping"
         for task_id, service in self.tasks:
-            while db.guest_get_status(task_id) not in wait_states:
+            while self.guest_manager.analysis.status not in wait_states:
                 time.sleep(1)
 
         # Wait an additional timeout before starting the actual analysis.

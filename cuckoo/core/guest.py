@@ -22,12 +22,11 @@ from cuckoo.common.constants import (
 from cuckoo.common.exceptions import (
     CuckooGuestError, CuckooGuestCriticalTimeout
 )
+from cuckoo.common.objects import Analysis
 from cuckoo.common.utils import TimeoutServer
-from cuckoo.core.database import Database
 from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
-db = Database()
 
 def analyzer_zipfile(platform, monitor):
     """Creates the Zip file that is sent to the Guest."""
@@ -93,7 +92,7 @@ class OldGuestManager(object):
     virtual machine.
     """
 
-    def __init__(self, vm_id, ip, platform, task_id):
+    def __init__(self, vm_id, ip, platform, task_id, analysis):
         """@param ip: guest's IP address.
         @param platform: guest's operating system type.
         """
@@ -101,6 +100,7 @@ class OldGuestManager(object):
         self.ip = ip
         self.platform = platform
         self.task_id = task_id
+        self.analysis = analysis
 
         # initialized in start_analysis so we can update the critical timeout
         # TODO, pull options parameter into __init__ so we can do this here
@@ -117,7 +117,7 @@ class OldGuestManager(object):
         end = time.time() + self.timeout
         self.server._set_timeout(self.timeout)
 
-        while db.guest_get_status(self.task_id) == "starting":
+        while self.analysis.status == Analysis.STARTING:
             # Check if we've passed the timeout.
             if time.time() > end:
                 raise CuckooGuestCriticalTimeout(
@@ -233,7 +233,7 @@ class OldGuestManager(object):
         end = time.time() + self.timeout
         self.server._set_timeout(self.timeout)
 
-        while db.guest_get_status(self.task_id) == "running":
+        while self.analysis.status == Analysis.RUNNING:
             time.sleep(1)
 
             # If the analysis hits the critical timeout, just return straight
@@ -267,18 +267,20 @@ class GuestManager(object):
     """This class represents the new Guest Manager. It operates on the new
     Cuckoo Agent which features a more abstract but more feature-rich API."""
 
-    def __init__(self, vmid, ipaddr, platform, task_id, analysis_manager):
+    def __init__(self, vmid, ipaddr, platform, task_id, analysis_manager,
+                 analysis):
         self.vmid = vmid
         self.ipaddr = ipaddr
         self.port = CUCKOO_GUEST_PORT
         self.platform = platform
         self.task_id = task_id
         self.analysis_manager = analysis_manager
+        self.analysis = analysis
         self.timeout = None
 
         # Just in case we have an old agent inside the Virtual Machine. This
         # allows us to remain backwards compatible (for now).
-        self.old = OldGuestManager(vmid, ipaddr, platform, task_id)
+        self.old = OldGuestManager(vmid, ipaddr, platform, task_id, analysis)
         self.is_old = False
 
         # We maintain the path of the Cuckoo Analyzer on the host.
@@ -334,7 +336,7 @@ class GuestManager(object):
         """Wait until the Virtual Machine is available for usage."""
         end = time.time() + self.timeout
 
-        while db.guest_get_status(self.task_id) == "starting":
+        while self.analysis.status == Analysis.STARTING:
             try:
                 socket.create_connection((self.ipaddr, self.port), 1).close()
                 break
@@ -427,7 +429,7 @@ class GuestManager(object):
 
         # Could be beautified a bit, but basically we have to perform the
         # same check here as we did in wait_available().
-        if db.guest_get_status(self.task_id) != "starting":
+        if self.analysis.status != Analysis.STARTING:
             return
 
         # Check whether this is the new Agent or the old one (by looking at
@@ -451,7 +453,7 @@ class GuestManager(object):
                 "Cuckoo Developers. HTTP response headers: %s",
                 r.status_code, json.dumps(dict(r.headers)),
             )
-            db.guest_set_status(self.task_id, "failed")
+            self.analysis_manager.set_analysis_status(Analysis.FAILED)
             return
 
         try:
@@ -465,7 +467,7 @@ class GuestManager(object):
                 "go through the documentation once more and otherwise inform "
                 "the Cuckoo Developers of your issue."
             )
-            db.guest_set_status(self.task_id, "failed")
+            self.analysis_manager.set_analysis_status(Analysis.FAILED)
             return
 
         log.info("Guest is running Cuckoo Agent %s (id=%s, ip=%s)",
@@ -523,7 +525,7 @@ class GuestManager(object):
 
         end = time.time() + self.timeout
 
-        while db.guest_get_status(self.task_id) == "running":
+        while self.analysis.status == Analysis.RUNNING:
             log.debug("%s: analysis still processing", self.vmid)
 
             time.sleep(1)
