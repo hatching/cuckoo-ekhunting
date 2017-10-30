@@ -11,7 +11,9 @@ import Queue
 import cuckoo
 
 from cuckoo.common.config import Config, config
-from cuckoo.common.exceptions import CuckooCriticalError, CuckooMachineError
+from cuckoo.common.exceptions import (
+    CuckooCriticalError, CuckooMachineError, CuckooOperationalError
+)
 from cuckoo.core.database import (
     Database, TASK_RUNNING, TASK_PENDING
 )
@@ -54,7 +56,7 @@ class Scheduler(object):
         })
 
         # Create the machine manager
-        self.machinery = cuckoo.machinery.plugins[machinery_name](self.db)
+        self.machinery = cuckoo.machinery.plugins[machinery_name]()
 
         # Provide a dictionary with the configuration options to the
         # machine manager instance.
@@ -253,13 +255,19 @@ class Scheduler(object):
                 if task is None:
                     break
 
-                machine = self.machinery.acquire(machine_id=task.machine,
-                                                 platform=task.platform,
-                                                 tags=task.tags)
+                try:
+                    machine = self.machinery.acquire(machine_id=task.machine,
+                                                     platform=task.platform,
+                                                     tags=task.tags)
+                except CuckooOperationalError:
+                    log.error("Task #%s cannot be started, no machine with"
+                              " matching requirements for this task exists."
+                              " Requirements: %s",
+                              task.id, Task.requirements_str(task))
                 if not machine:
-                    log.debug("No matching machine found for requirements "
-                              "(name, tags, platform) of task #%s. Skipping "
-                              "task until one is available", task.id)
+                    log.debug("No matching machine for task #%s. Skipping task"
+                              " until machine is available. Requirements: %s",
+                              task.id, Task.requirements_str(task))
                     exclude.append(task.id)
 
         if not task or not machine:
@@ -294,7 +302,7 @@ class Scheduler(object):
         # Increment the total of analyses
         self.total_analysis_count += 1
 
-        analysis_manager.deamon = True
+        analysis_manager.daemon = True
         if not analysis_manager.init(self.db):
             Scheduler.machine_lock.release()
         else:
@@ -312,8 +320,13 @@ class Scheduler(object):
         analysis_manager = None
         for manager in managers:
             if db_task.category in manager.supports:
-                sample = self.db.view_sample(db_task.sample_id)
                 core_task = Task(db_task)
+                sample = None
+
+                # Check if this task is a file
+                if core_task.file:
+                    sample = self.db.view_sample(db_task.sample_id)
+
                 analysis_manager = manager(machine,
                                            self.error_queue,
                                            self.machinery, sample)
@@ -328,18 +341,21 @@ class Scheduler(object):
         list of analysis managers to untrack"""
         remove = []
         for manager in self.managers:
+
             if manager.action_requested():
                 status = manager.get_analysis_status()
                 status_action = getattr(manager, "on_status_%s" % status, None)
                 try:
                     if status_action:
+                        log.debug("Executing requested action by task #%s for"
+                                  " status \'%s\'", manager.task.id, status)
                         status_action(self.db)
                     else:
-                        log.error("Analysis manager for task #%s requested "
-                                  "action for status %s, but no action is "
-                                  "implemented", manager.task.id, status)
+                        log.error("Analysis manager for task #%s requested"
+                                  " action for status \'%s\', but no action is"
+                                  " implemented", manager.task.id, status)
                 finally:
-                    manager.release_action_lock()
+                    manager.release_locks()
 
             if not manager.isAlive():
                 manager.finalize(self.db)

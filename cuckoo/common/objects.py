@@ -15,6 +15,7 @@ import re
 import sflock
 import shutil
 import tempfile
+import threading
 import zipfile
 
 from cuckoo.common.whitelist import is_whitelisted_domain
@@ -483,6 +484,9 @@ class ExtractedMatch(object):
         self.info = match["info"]
 
 class Analysis(object):
+    """Object to keep track of a running analysis. Once instance should
+    exist per running task. The status is used by analysis managers and other
+    modules to request scheduler actions"""
 
     INIT = "init"
     STARTING = "starting"
@@ -500,10 +504,21 @@ class Analysis(object):
         self.status = None
         self.shutdown_on = None
         self.changed = False
+        self.status_lock = threading.Lock()
 
-    def set_status(self, status):
-        log.debug("Setting analysis status to %s for task #%s", status,
+    def set_status(self, status, use_lock=True):
+        """Set the status of the analysis. Uses lock by default. If use_lock
+        is disabled, the lock should be managed externally.
+        This can be used to prevent status changing until the
+        scheduler executes an action requested by an analysis manager
+        @param status: the status to set the analysis to
+        @param use_lock: first acquire status lock before changing status
+        """
+        log.debug("Setting analysis status to \'%s\' for task #%s", status,
                   self.task_id)
+
+        if use_lock:
+            self.status_lock.acquire()
 
         self.status = status
 
@@ -514,6 +529,11 @@ class Analysis(object):
 
         self.changed = True
 
+        if use_lock:
+            self.status_lock.release()
+
     def get_status(self):
+        """Returns the current analysis status and marks the status as read.
+        This is so that it can be marked as unread again"""
         self.changed = False
         return self.status

@@ -13,13 +13,14 @@ import xml.etree.ElementTree as ET
 
 from cuckoo.common.config import config, Config, emit_options
 from cuckoo.common.exceptions import CuckooCriticalError
+from cuckoo.common.exceptions import CuckooDependencyError
 from cuckoo.common.exceptions import CuckooMachineError
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.exceptions import CuckooReportError
-from cuckoo.common.exceptions import CuckooDependencyError
 from cuckoo.common.files import Folders
 from cuckoo.misc import cwd, make_list
 from cuckoo.common.objects import Dictionary, File, Analysis
+from cuckoo.core.database import Database
 from cuckoo.core.rooter import rooter
 from cuckoo.misc import cwd
 
@@ -146,9 +147,8 @@ class Machinery(object):
     # way.
     LABEL = "label"
 
-    def __init__(self, db):
-        # Pass in constructor to prevent circular imports of the db class
-        self.db = db
+    def __init__(self):
+        self.db = Database()
         self.options = None
         self.remote_control = False
         # Machine table is cleaned to be filled from configuration file
@@ -218,7 +218,8 @@ class Machinery(object):
                 interface=interface,
                 snapshot=options.snapshot,
                 resultserver_ip=ip,
-                resultserver_port=port
+                resultserver_port=port,
+                manager=module_name
             )
 
     def _initialize_check(self):
@@ -1488,6 +1489,7 @@ class AnalysisManager(threading.Thread):
         self.rt_table = None
         self.interface = None
         self.file = None
+        self.override_status = None
 
     def set_task(self, task):
         """Set core task object"""
@@ -1497,6 +1499,10 @@ class AnalysisManager(threading.Thread):
                                  self.machine.label,
                                  self.machine.__class__.__name__)
         self.path = task.path
+
+        # Set thread name
+        self.name = "Task_#%s_%s_Thread" % (self.task.id,
+                                            self.__class__.__name__)
 
     def file_usable(self):
         """Verify if the target file is readable and has not been changed
@@ -1695,12 +1701,17 @@ class AnalysisManager(threading.Thread):
         while self.analysis.status == Analysis.RUNNING:
             time.sleep(1)
 
-    def request_scheduler_action(self):
+    def request_scheduler_action(self, for_status=None):
         """"Block execution until scheduler executes logic for the
-        current analysis status"""
+        current analysis status
+        @param for_status: request action for this status instead of actual
+        status
+        """
+        log_status = for_status or self.analysis.status
+        log.debug("Task #%s is requesting scheduler action for analysis status"
+                  " \'%s\'", self.task.id, log_status)
 
-        log.debug("Requesting scheduler action for analysis status \'%s\'",
-                  self.analysis.status)
+        self.override_status = for_status
         if not self.action_lock.locked():
             # First acquire non-blocking to be sure it is locked
             self.action_lock.acquire(False)
@@ -1709,26 +1720,44 @@ class AnalysisManager(threading.Thread):
         # resume after the scheduler releases this lock
         self.action_lock.acquire(True)
 
+        # Execution will resume after acquiring lock. Immediately release
+        # is again so it is unlocked again.
+        self.action_lock.release()
+
+        # Reset override status
+        self.override_status = None
+
     def set_analysis_status(self, status, request_scheduler_action=False):
         """Update the status of the analysis. If wait_scheduler_action
         is True, the execution will block until the scheduler releases
-        the lock. It will do so after executing the method for the status
+        the lock.
+        It will do so after executing the method for the status
         the analysis was set to.
         @param status: The status to set the analysis to
         @param request_scheduler_action: Block execution until the scheduler
         releases the lock
         """
-        self.analysis.set_status(status)
+        # If a scheduler action is required, keep the analysis status lock,
+        # so it cannot be changed while waiting. It is release by the scheduler
+        # after executing the requested action. Should prevent race condition
         if request_scheduler_action:
+            self.analysis.status_lock.acquire()
+            self.analysis.set_status(status, use_lock=False)
             self.request_scheduler_action()
+        else:
+            self.analysis.set_status(status)
 
-    def release_action_lock(self):
-        """Is called by the scheduler. Releases the action lock
-        that was locked by requesting the scheduler for an action."""
+    def release_locks(self):
+        """Is called by the scheduler. Releases the action and status lock
+        that were locked by requesting the scheduler for an action."""
         try:
+            # status lock is not always locked. Scheduler action can be
+            # called for without changing status
+            if self.analysis.status_lock.locked():
+                self.analysis.status_lock.release()
             self.action_lock.release()
-        except threading.ThreadError:
-            pass
+        except threading.ThreadError as e:
+            log.error("Error while releasing thread lock: %s", e)
 
     def action_requested(self):
         """Returns True if the analysis status was changed and the
@@ -1736,9 +1765,12 @@ class AnalysisManager(threading.Thread):
         return self.analysis.changed and self.action_lock.locked()
 
     def get_analysis_status(self):
-        """Returns the analysis status and causes the analysis obj to set
-        changed to False again"""
-        return self.analysis.get_status()
+        """Returns the current analysis status and sets it to unchanged in the
+        analysis object. Returns the overridden status instead if it was set"""
+        if self.override_status:
+            return self.override_status
+        else:
+            return self.analysis.get_status()
 
     def init(self, db):
         """Is always called by the scheduler thread before the analysis
