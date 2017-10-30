@@ -108,7 +108,7 @@ class TaskAnalysis(AnalysisManager):
                 if analysis_success:
                     if self.analysis.status == Analysis.FAILED:
                         analysis_success = False
-            except KeyboardInterrupt as e:
+            except Exception as e:
                 log.error("Error in start_analysis: %s", e)
             finally:
                 self.stop_analysis()
