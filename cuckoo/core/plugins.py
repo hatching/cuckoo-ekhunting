@@ -18,6 +18,7 @@ from cuckoo.common.exceptions import (
 )
 from cuckoo.common.objects import YaraMatch, ExtractedMatch
 from cuckoo.common.utils import supported_version
+from cuckoo.core.database import Database
 from cuckoo.core.extract import ExtractManager
 from cuckoo.misc import cwd, version as cuckoo_version
 
@@ -268,15 +269,21 @@ class RunProcessing(object):
         return None, None
 
     def populate_machine_info(self):
-        if not self.task.get("guest"):
+        if not self.task.get("machine"):
             return
+
+        machine = Database().view_machine(self.task["machine"])
+        if not machine:
+            return
+
+        machine = machine.to_dict()
 
         # TODO Actually fill out all of the fields as done for this analysis.
         try:
-            self.machine["name"] = self.task["guest"]["name"]
+            self.machine["name"] = machine["name"]
             self.machine.update(config2(
-                self.task["guest"]["manager"].lower(),
-                self.task["guest"]["name"]
+                machine["manager"].lower(),
+                machine["name"]
             ))
         except CuckooConfigurationError:
             pass
