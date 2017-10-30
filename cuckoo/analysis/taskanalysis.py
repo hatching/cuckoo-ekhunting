@@ -9,18 +9,18 @@ import threading
 
 from cuckoo.common.abstracts import AnalysisManager
 from cuckoo.common.constants import faq
-from cuckoo.core.database import (
-    TASK_COMPLETED, TASK_REPORTED, TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING
-)
+from cuckoo.common.objects import File, Analysis
 from cuckoo.common.exceptions import (
     CuckooMachineSnapshotError, CuckooMachineError, CuckooGuestError,
     CuckooGuestCriticalTimeout
 )
-from cuckoo.common.objects import File, Analysis
-from cuckoo.core.log import task_log_start, task_log_stop, logger
-from cuckoo.core.resultserver import ResultServer
+from cuckoo.core.database import (
+    TASK_COMPLETED, TASK_REPORTED, TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING
+)
 from cuckoo.core.guest import GuestManager
+from cuckoo.core.log import task_log_start, task_log_stop, logger
 from cuckoo.core.plugins import RunAuxiliary
+from cuckoo.core.resultserver import ResultServer
 from cuckoo.core.scheduler import Scheduler
 
 log = logging.getLogger(__name__)
@@ -37,8 +37,8 @@ class TaskAnalysis(AnalysisManager):
         self.lock_released = False
 
         # Used at the processing and final stage to determine is processing
-        # was successful
-        self.processing_success = False
+        # was run and successful
+        self.processing_success = None
 
         # Keep track if the machine lock has been released
         self.scheduler_lock_released = False
@@ -78,7 +78,7 @@ class TaskAnalysis(AnalysisManager):
                                           self.machine.platform, self.task.id,
                                           self, self.analysis)
 
-        self.aux = RunAuxiliary(self.task.db_task, self.machine,
+        self.aux = RunAuxiliary(self.task.db_task.to_dict(), self.machine,
                                 self.guest_manager)
 
         # Write task to disk in json file
@@ -97,6 +97,7 @@ class TaskAnalysis(AnalysisManager):
         try:
             task_log_start(self.task.id)
             analysis_success = False
+
             try:
                 analysis_success = self.start_analysis()
 
@@ -106,7 +107,7 @@ class TaskAnalysis(AnalysisManager):
                 if analysis_success:
                     if self.analysis.status == Analysis.FAILED:
                         analysis_success = False
-            except Exception as e:
+            except KeyboardInterrupt as e:
                 log.error("Error in start_analysis: %s", e)
             finally:
                 self.stop_analysis()
@@ -128,6 +129,9 @@ class TaskAnalysis(AnalysisManager):
                         "Task reporting finished",
                         action="task.report", status="finished"
                     )
+                else:
+                    log.debug("Cuckoo process_results is set to 'no',"
+                              " not processing results")
 
                 log.info(
                     "Task #%d: analysis procedure completed",
@@ -157,8 +161,6 @@ class TaskAnalysis(AnalysisManager):
         adding the task to the resultserver, starting the machine
         and running a guest manager"""
         # Set guest status to starting and start analysis machine
-
-        # TODO
         self.set_analysis_status(Analysis.STARTING)
 
         target = self.task.target
@@ -181,7 +183,6 @@ class TaskAnalysis(AnalysisManager):
         try:
             ResultServer().add_task(self.task.db_task, self.machine)
         except Exception as e:
-            log.exception("EXCEPTIOM AT add to resultserver: %s", e)
             self.error_queue.put(e)
             return False
 
@@ -235,7 +236,7 @@ class TaskAnalysis(AnalysisManager):
         self.release_scheduler_lock()
 
         # Request scheduler action for status 'starting'
-        self.request_scheduler_action()
+        self.request_scheduler_action(for_status=Analysis.STARTING)
 
         # Choose the correct way of waiting or managing the agent and
         # execute it
@@ -272,6 +273,7 @@ class TaskAnalysis(AnalysisManager):
         dumping VM memory, stopping the VM and deleting the task from
         the resultserver"""
         self.set_analysis_status(Analysis.STOPPING)
+
         # Stop all Auxiliary modules
         self.aux.stop()
 
@@ -351,13 +353,16 @@ class TaskAnalysis(AnalysisManager):
         to be taken of an analysis."""
 
         if "noagent" in self.machine.options:
+            log.debug("Usage handler for the \'noagent\' option")
             self.set_analysis_status(Analysis.RUNNING)
             self.wait_finish()
 
         elif self.task.category == "baseline":
+            log.debug("Sleeping until timeout for baseline")
+            self.set_analysis_status(Analysis.RUNNING)
             time.sleep(self.options["timeout"])
         else:
-            self.analysis.set_status(Analysis.STARTING)
+            log.debug("Using guest manager")
             monitor = self.task.options.get("monitor", "latest")
             self.guest_manager.start_analysis(self.options, monitor)
 
@@ -368,17 +373,18 @@ class TaskAnalysis(AnalysisManager):
     def on_status_starting(self, db):
         """Is executed by the scheduler on analysis status starting
         Stores the chosen route in the db"""
-        if self.route:
-            log.info("Using route \'%s\' for task #%s", self.route,
+        log.info("Using route \'%s\' for task #%s", self.route,
                      self.task.id)
         # Propagate the taken route to the database.
         db.set_route(self.task.id, self.route)
+
+        # Store used machine in the task
+        db.set_machine(self.task.id, self.machine.name)
 
     def on_status_stopped(self, db):
         """Is executed by the scheduler on analysis status stopped
         Sets the task to completed, writes task json to analysis folder
         and releases machine if it is locked"""
-
         log.debug("Setting task #%s status to %s", self.task.id,
                   TASK_COMPLETED)
         db.set_status(self.task.id, TASK_COMPLETED)
@@ -407,22 +413,20 @@ class TaskAnalysis(AnalysisManager):
         Updates the task status to the correct one and updates the
         task.json"""
         # Update task obj and write json to disk
-        log.error("VIEWING TASK WITH ID: %s", self.task.id)
         db_task = db.view_task(self.task.id)
         self.task.set_task(db_task)
         self.task.write_to_disk()
 
-        if self.cfg.cuckoo.process_results:
+        if self.cfg.cuckoo.process_results and \
+                        self.processing_success is not None:
             if self.processing_success:
-                log.debug("Setting task $%s status to %s", self.task.id,
+                log.debug("Setting task #%s status to %s", self.task.id,
                           TASK_REPORTED)
+                db.set_status(self.task.id, TASK_REPORTED)
             else:
                 log.debug("Setting task #%s status to %s", self.task.id,
                           TASK_FAILED_PROCESSING)
-        else:
-            log.debug("Setting task #%s status to %s", self.task.id,
-                      TASK_COMPLETED)
-            db.set_status(self.task.id, TASK_REPORTED)
+                db.set_status(self.task.id, TASK_FAILED_PROCESSING)
 
     def release_scheduler_lock(self):
         """Release the scheduler machine_lock. Do this when the VM has
