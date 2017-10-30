@@ -20,9 +20,10 @@ from cuckoo.common.files import Folders
 from cuckoo.common.mongo import mongo
 from cuckoo.common.utils import list_of_strings, list_of_ints
 from cuckoo.core.database import (
-    Database, Task, TASK_RUNNING, TASK_REPORTED, TASK_COMPLETED
+    Database, Task as DbTask, TASK_RUNNING, TASK_REPORTED, TASK_COMPLETED
 )
 from cuckoo.core.feedback import CuckooFeedback
+from cuckoo.core.task import Task
 from cuckoo.misc import cwd
 from cuckoo.web.utils import (
     api_post, api_get, file_response, json_error_response,
@@ -51,16 +52,12 @@ class AnalysisApi(object):
 
         for row in db.list_tasks(limit=limit, details=True, offset=offset,
                                  completed_after=completed_after, owner=owner,
-                                 status=status, order_by=Task.completed_on.asc()):
+                                 status=status, order_by=DbTask.completed_on.asc()):
             task = row.to_dict()
 
             # Sanitize the target in case it contains non-ASCII characters as we
             # can't pass along an encoding to flask's jsonify().
             task["target"] = task["target"].decode("latin-1")
-
-            task["guest"] = {}
-            if row.guest:
-                task["guest"] = row.guest.to_dict()
 
             task["errors"] = []
             for error in row.errors:
@@ -133,7 +130,7 @@ class AnalysisApi(object):
         if not db.view_task(task_id):
             return json_error_response("There is no analysis with the specified ID")
 
-        new_task_id = db.reschedule(task_id, priority)
+        new_task_id = Task().reschedule(task_id, priority)
         if new_task_id:
             return JsonResponse({"status": True, "task_id": new_task_id}, safe=False)
         else:
@@ -376,11 +373,11 @@ class AnalysisApi(object):
         if not isinstance(days, int):
             return json_error_response("parameter \"days\" not an integer")
 
-        q = db.Session().query(Task)
-        q = q.filter(Task.added_on.between(
+        q = db.Session().query(DbTask)
+        q = q.filter(DbTask.added_on.between(
             now - datetime.timedelta(days=days), now)
         )
-        q = q.order_by(sqlalchemy.asc(Task.added_on))
+        q = q.order_by(sqlalchemy.asc(DbTask.added_on))
         tasks = q.all()
 
         def _rtn_structure(start):

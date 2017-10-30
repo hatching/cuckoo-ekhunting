@@ -14,6 +14,7 @@ from cuckoo.common.files import Folders, Files, Storage
 from cuckoo.common.utils import validate_url, validate_hash
 from cuckoo.common.virustotal import VirusTotalAPI
 from cuckoo.core.database import Database, TASK_COMPLETED
+from cuckoo.core.task import Task
 from cuckoo.misc import cwd, mkdir
 
 log = logging.getLogger(__name__)
@@ -237,7 +238,7 @@ class SubmitManager(object):
             }
 
             if entry["type"] == "url":
-                ret.append(db.add_url(
+                ret.append(Task().add_url(
                     url=info["filename"], **kw
                 ))
                 continue
@@ -252,7 +253,7 @@ class SubmitManager(object):
 
                 filepath = Files.copy(path, path_dest=path_dest)
 
-                ret.append(db.add_path(
+                ret.append(Task().add_path(
                     file_path=filepath, **kw
                 ))
             elif len(info["extrpath"]) == 1:
@@ -276,7 +277,7 @@ class SubmitManager(object):
                     arc, os.path.basename(info["arcname"])
                 )
 
-                ret.append(db.add_archive(
+                ret.append(Task().add_archive(
                     file_path=arcpath, filename=info["relaname"], **kw
                 ))
             else:
@@ -301,7 +302,7 @@ class SubmitManager(object):
                     os.path.basename(info["extrpath"][-2])
                 )
 
-                ret.append(db.add_archive(
+                ret.append(Task().add_archive(
                     file_path=arcpath, filename=info["relaname"], **kw
                 ))
 
@@ -354,7 +355,7 @@ class SubmitManager(object):
             )
 
         if info["category"] == "url":
-            task_id = db.add_url(
+            task_id = Task().add_url(
                 url=info["target"], package=info["package"],
                 timeout=info["timeout"], options=info["options"],
                 priority=info["priority"], custom=info["custom"],
@@ -372,7 +373,7 @@ class SubmitManager(object):
                 filepath = Files.temp_put("")
 
             # We'll be updating the target shortly.
-            task_id = db.add_path(
+            task_id = Task().add_path(
                 file_path=filepath, package=info["package"],
                 timeout=info["timeout"], options=info["options"],
                 priority=info["priority"], custom=info["custom"],

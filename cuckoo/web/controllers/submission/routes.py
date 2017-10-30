@@ -10,6 +10,7 @@ from django.shortcuts import redirect
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.core.database import Database
 from cuckoo.core.submit import SubmitManager
+from cuckoo.core.task import Task
 from cuckoo.web.utils import view_error, render_template, dropped_filepath
 
 log = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class SubmissionRoutes(object):
         # TODO Dummy usage, should probably be improved.
         submit_id = Database().add_submit(None, None, None)
 
-        task_id = Database().add_reboot(task_id=task_id, submit_id=submit_id)
+        task_id = Task().add_reboot(task_id=task_id, submit_id=submit_id)
         if not task_id:
             return view_error(request, "Error adding reboot analysis!")
 

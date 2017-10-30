@@ -17,10 +17,11 @@ from flask import Flask, request, jsonify, make_response
 from cuckoo.common.config import config, parse_options
 from cuckoo.common.files import Files, Folders
 from cuckoo.common.utils import parse_bool
-from cuckoo.core.database import Database, Task
+from cuckoo.core.database import Database, Task as DbTask
 from cuckoo.core.database import TASK_REPORTED, TASK_COMPLETED, TASK_RUNNING
 from cuckoo.core.rooter import rooter
 from cuckoo.core.submit import SubmitManager
+from cuckoo.core.task import Task
 from cuckoo.misc import cwd, version, decide_cwd, Pidfile
 
 db = Database()
@@ -81,7 +82,7 @@ def tasks_create_file():
 
     temp_file_path = Files.temp_named_put(content, data.filename)
 
-    task_id = db.add_path(
+    task_id = Task().add_path(
         file_path=temp_file_path,
         package=package,
         timeout=timeout,
@@ -123,7 +124,7 @@ def tasks_create_url():
 
     clock = request.form.get("clock", None)
 
-    task_id = db.add_url(
+    task_id = Task().add_url(
         url=url,
         package=package,
         timeout=timeout,
@@ -229,16 +230,11 @@ def tasks_list(limit=None, offset=None, sample_id=None):
     tasks = db.list_tasks(
         limit=limit, details=True, offset=offset,
         completed_after=completed_after, owner=owner,
-        status=status, sample_id=sample_id,
-        order_by=Task.completed_on.asc()
+        status=status, sample_id=sample_id, order_by=DbTask.completed_on.asc()
     )
 
     for row in tasks:
         task = row.to_dict(dt=True)
-
-        task["guest"] = {}
-        if row.guest:
-            task["guest"] = row.guest.to_dict()
 
         task["errors"] = []
         for error in row.errors:
@@ -263,9 +259,6 @@ def tasks_view(task_id):
         return json_error(404, "Task not found")
 
     entry = task.to_dict()
-    entry["guest"] = {}
-    if task.guest:
-        entry["guest"] = task.guest.to_dict()
 
     entry["errors"] = []
     for error in task.errors:
@@ -289,7 +282,7 @@ def tasks_reschedule(task_id, priority=None):
     if not db.view_task(task_id):
         return json_error(404, "There is no analysis with the specified ID")
 
-    new_task_id = db.reschedule(task_id, priority)
+    new_task_id = Task().reschedule(task_id, priority)
     if not new_task_id:
         return json_error(
             500, "An error occurred while trying to reschedule the task"
@@ -430,7 +423,7 @@ def rereport(task_id):
 
 @app.route("/tasks/reboot/<int:task_id>")
 def reboot(task_id):
-    reboot_id = Database().add_reboot(task_id=task_id)
+    reboot_id = Task().add_reboot(task_id=task_id)
     if not reboot_id:
         return json_error(404, "Error creating reboot task")
 
