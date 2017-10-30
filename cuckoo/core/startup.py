@@ -27,6 +27,7 @@ from cuckoo.core.feedback import CuckooFeedbackObject
 from cuckoo.core.log import init_logger
 from cuckoo.core.plugins import RunSignatures
 from cuckoo.core.rooter import rooter
+from cuckoo.core.task import Task
 from cuckoo.misc import cwd, version, getuser, mkdir
 
 log = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ def init_tasks():
     log.debug("Checking for locked tasks..")
     for task in db.list_tasks(status=TASK_RUNNING):
         if config("cuckoo:cuckoo:reschedule"):
-            task_id = db.reschedule(task.id)
+            task_id = Task(task).reschedule()
             log.info(
                 "Rescheduled task with ID %s and target %s: task #%s",
                 task.id, task.target, task_id

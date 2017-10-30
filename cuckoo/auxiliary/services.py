@@ -10,6 +10,7 @@ from cuckoo.common.abstracts import Auxiliary
 from cuckoo.common.config import Config
 from cuckoo.common.objects import Analysis
 from cuckoo.core.database import Database
+from cuckoo.core.task import Task
 
 log = logging.getLogger(__name__)
 db = Database()
@@ -27,7 +28,7 @@ class Services(Auxiliary):
         timeout += 300
         tags = "service,%s" % service
 
-        return db.add_service(timeout, self.task.owner, tags)
+        return Task().add_service(timeout, self.task.owner, tags)
 
     def stop_service(self, task_id):
         """Stop a VM containing one or more services."""
