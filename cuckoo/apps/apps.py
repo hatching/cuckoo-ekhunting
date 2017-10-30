@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tarfile
 import time
+import traceback
 
 from cuckoo.common.colors import bold, red, yellow
 from cuckoo.common.config import config, emit_options, Config
@@ -23,15 +24,15 @@ from cuckoo.common.exceptions import (
     CuckooOperationalError, CuckooDatabaseError, CuckooDependencyError
 )
 from cuckoo.common.mongo import mongo
-from cuckoo.common.objects import Dictionary, File
+from cuckoo.common.objects import File
 from cuckoo.common.utils import to_unicode
 from cuckoo.core.database import (
     Database, TASK_FAILED_PROCESSING, TASK_REPORTED
 )
 from cuckoo.core.init import write_cuckoo_conf
 from cuckoo.core.log import task_log_start, task_log_stop, logger
-from cuckoo.core.plugins import RunProcessing, RunSignatures, RunReporting
 from cuckoo.core.startup import init_console_logging
+from cuckoo.core.task import Task
 from cuckoo.misc import cwd, mkdir
 
 log = logging.getLogger(__name__)
@@ -117,7 +118,7 @@ def enumerate_files(path, pattern):
 def submit_tasks(target, options, package, custom, owner, timeout, priority,
                  machine, platform, memory, enforce_timeout, clock, tags,
                  remote, pattern, maxcount, is_unique, is_url, is_baseline,
-                 is_shuffle):
+                 is_shuffle, start_on):
     db = Database()
 
     data = dict(
@@ -134,14 +135,23 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
         enforce_timeout="1" if enforce_timeout else "0",
         clock=clock,
         unique="1" if is_unique else "0",
+        start_on=start_on
     )
+
+    if start_on:
+        try:
+            data["start_on"] = datetime.datetime.strptime(start_on,
+                                                          "%Y-%m-%d %H:%M")
+        except ValueError:
+            print "\'start on\' format should be: \'YYYY-M-D H:M\'"
+            return
 
     if is_baseline:
         if remote:
             print "Remote baseline support has not yet been implemented."
             return
 
-        task_id = db.add_baseline(timeout, owner, machine, memory)
+        task_id = Task().add_baseline(timeout, owner, machine, memory)
         yield "Baseline", machine, task_id
         return
 
@@ -153,7 +163,7 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
         for url in target:
             if not remote:
                 data.pop("unique", None)
-                task_id = db.add_url(to_unicode(url), **data)
+                task_id = Task().add_url(to_unicode(url), **data)
                 yield "URL", url, task_id
                 continue
 
@@ -195,7 +205,7 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
                         continue
 
                 data.pop("unique", None)
-                task_id = db.add_path(file_path=filepath, **data)
+                task_id = Task().add_path(file_path=filepath, **data)
                 yield "File", filepath, task_id
                 continue
 
@@ -215,36 +225,11 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
                 )
                 continue
 
-def process(target, copy_path, task):
-    results = RunProcessing(task=task).run()
-    RunSignatures(results=results).run()
-    RunReporting(task=task, results=results).run()
-
-    if config("cuckoo:cuckoo:delete_original"):
-        try:
-            if target and os.path.exists(target):
-                os.remove(target)
-        except OSError as e:
-            log.error(
-                "Unable to delete original file at path \"%s\": %s",
-                target, e
-            )
-
-    if config("cuckoo:cuckoo:delete_bin_copy"):
-        try:
-            if copy_path and os.path.exists(copy_path):
-                os.remove(copy_path)
-        except OSError as e:
-            log.error(
-                "Unable to delete the copy of the original file at "
-                "path \"%s\": %s", copy_path, e
-            )
-
 def process_task(task):
     db = Database()
 
     try:
-        task_log_start(task["id"])
+        task_log_start(task.id)
 
         logger(
             "Starting task reporting",
@@ -254,26 +239,33 @@ def process_task(task):
             custom=task["custom"]
         )
 
-        if task["category"] == "file" and task.get("sample_id"):
-            sample = db.view_sample(task["sample_id"])
-            copy_path = cwd("storage", "binaries", sample.sha256)
-        else:
-            copy_path = None
+        if not task.dir_exists():
+            log.error("Task #%s directory %s does not exist,"
+                      " cannot process it", task.id, task.path)
+            db.set_status(task.id, TASK_FAILED_PROCESSING)
+            return
 
+        success = False
         try:
-            process(task["target"], copy_path, task)
-            db.set_status(task["id"], TASK_REPORTED)
+            success = task.process()
         except Exception as e:
-            log.exception("Task #%d: error reporting: %s", task["id"], e)
-            db.set_status(task["id"], TASK_FAILED_PROCESSING)
+            traceback.print_exc()
+            log.error("Failed to process task #%s. Error: %s", task.id, e)
+            return
 
-        log.info("Task #%d: reports generation completed", task["id"], extra={
-            "action": "task.report", "status": "success",
-        })
+        if success:
+            log.info("Task #%d: reports generation completed", task.id, extra={
+                         "action": "task.report", "status": "success",
+                     })
+            db.set_status(task.id, TASK_REPORTED)
+        else:
+            log.error("Failed to process task #%s", task.id)
+            db.set_status(task.id, TASK_FAILED_PROCESSING)
+
     except Exception as e:
         log.exception("Caught unknown exception: %s", e)
     finally:
-        task_log_stop(task["id"])
+        task_log_stop(task.id)
 
 def process_task_range(tasks):
     db, task_ids = Database(), []
@@ -290,21 +282,22 @@ def process_task_range(tasks):
             log.warning("Invalid range provided: %s", entry)
 
     for task_id in sorted(set(task_ids)):
-        task = db.view_task(task_id)
-        if not task:
-            task = {
+        db_task = db.view_task(task_id)
+        task = Task()
+        if not db_task:
+           task.load_task_dict({
                 "id": task_id,
                 "category": "file",
                 "target": "",
                 "options": {},
                 "package": None,
                 "custom": None,
-            }
+            })
         else:
-            task = task.to_dict()
+            task.set_task(db_task)
 
-        if os.path.isdir(cwd(analysis=task_id)):
-            process_task(Dictionary(task))
+        # if os.path.isdir(cwd(analysis=task_id)):
+        process_task(task)
 
 def process_tasks(instance, maxcount):
     count = 0
@@ -319,11 +312,11 @@ def process_tasks(instance, maxcount):
                 time.sleep(1)
                 continue
 
-            task = db.view_task(task_id)
+            task = Task(db.view_task(task_id))
 
             log.info("Task #%d: reporting task", task.id)
 
-            process_task(task.to_dict())
+            process_task(task)
             count += 1
     except Exception as e:
         log.exception("Caught unknown exception: %s", e)
@@ -445,7 +438,7 @@ def cuckoo_machine(vmname, action, ip, platform, options, tags,
 
         db.add_machine(
             vmname, vmname, ip, platform, options, tags, interface, snapshot,
-            resultserver_ip, int(resultserver_port)
+            resultserver_ip, int(resultserver_port), machinery
         )
         db.unlock_machine(vmname)
 
