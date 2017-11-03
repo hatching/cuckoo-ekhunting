@@ -15,7 +15,7 @@ from cuckoo.common.exceptions import (
     CuckooCriticalError, CuckooMachineError, CuckooOperationalError
 )
 from cuckoo.core.database import (
-    Database, TASK_RUNNING, TASK_PENDING
+    Database, TASK_RUNNING, TASK_PENDING, TASK_FAILED_ANALYSIS
 )
 from cuckoo.core.rooter import rooter
 from cuckoo.core.log import logger
@@ -265,6 +265,11 @@ class Scheduler(object):
                               " matching requirements for this task exists."
                               " Requirements: %s",
                               task.id, Task.requirements_str(task))
+                    # No machine with required tags, name etc exists
+                    # Set analysis to failed.
+                    # TODO Use another status so it might be recovered
+                    # on next Cuckoo startup if the machine exists by then
+                    self.db.set_status(task.id, TASK_FAILED_ANALYSIS)
                 if not machine:
                     log.debug("No matching machine for task #%s. Skipping task"
                               " until machine is available. Requirements: %s",

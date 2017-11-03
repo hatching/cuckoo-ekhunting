@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 class Task(object):
 
     files = ["file", "archive"]
+    dirs = ["shots", "logs", "files", "extracted", "buffer", "memory"]
     latest_symlink_lock = threading.Lock()
 
     def __init__(self, db_task=None):
@@ -67,20 +68,29 @@ class Task(object):
 
     def create_empty(self):
         """Create task directory and copy files to binary folder"""
-        log.debug("Creating empty task directory for task #%s", self.id)
+        log.debug("Creating directories for task #%s", self.id)
         self.create_dirs()
         self.bin_copy_and_symlink()
 
     def create_dirs(self):
-        """Create the folder for this analysis"""
-        if self.dir_exists():
+        """Create the folders for this analysis. Returns True if
+        all folders were created. False if not"""
+        missing = self.dirs_missing()
+        if not self.dir_exists():
+            missing.append(self.path)
+        elif len(missing) < 1:
             return
 
-        try:
-            Folders.create(self.path)
-        except CuckooOperationalError as e:
-            log.error("Unable to create analysis folder for task #%s. "
-                      "Error: %s", self.id, e)
+        created = 0
+        for dir in missing:
+            try:
+                Folders.create(dir)
+                created += 1
+            except CuckooOperationalError as e:
+                log.error("Unable to create folder \'%s\' for task #%s. "
+                          "Error: %s", dir, self.id, e)
+
+        return created == len(missing)
 
     def bin_copy_and_symlink(self, copyto=None):
         """Create a copy of the submitted sample to the binaries directory
@@ -185,6 +195,17 @@ class Task(object):
         """Checks if the analysis folder for this task id exists"""
         return os.path.exists(self.path)
 
+    def dirs_missing(self):
+        """Returns a list of directories that are missing in the task
+        directory. logs, shots etc. Full path is returned"""
+        missing = []
+        for dir in Task.dirs:
+            path = os.path.join(self.path, dir)
+            if not os.path.exists(path):
+                missing.append(path)
+
+        return missing
+
     def is_reported(self):
         """Checks if a JSON report exists for this task"""
         return os.path.exists(os.path.join(self.path, "reports",
@@ -202,10 +223,7 @@ class Task(object):
             fw.write(self.db_task.to_json())
 
     def process(self):
-        """Process, run signatures and reports the results for this task
-        @param dict_task: dictionary containing task id, category,
-        and target. This overwrites information already in the Task obj.
-        Usable in case the task does not exist in the db"""
+        """Process, run signatures and reports the results for this task"""
         if self.db_task:
             dict_task = self.db_task.to_dict()
         else:
@@ -223,11 +241,12 @@ class Task(object):
             self.delete_original_sample()
 
         if self.cfg.cuckoo.delete_bin_copy:
-            self.delete_original_sample()
+            self.delete_copied_sample()
 
         return True
 
-    def _get_tags_list(self, tags):
+    @staticmethod
+    def get_tags_list(tags):
         """Check tags and into usable format"""
         _tags = []
         if isinstance(tags, basestring):
@@ -297,7 +316,7 @@ class Task(object):
         task = self.db.add(
             target, timeout=timeout, package=package, options=options,
             priority=priority, custom=custom, owner=owner, machine=machine,
-            platform=platform, tags=self._get_tags_list(tags), memory=memory,
+            platform=platform, tags=self.get_tags_list(tags), memory=memory,
             enforce_timeout=enforce_timeout, clock=clock, category=category,
             submit_id=submit_id, sample_id=sample_id, start_on=start_on
         )
@@ -479,7 +498,7 @@ class Task(object):
 
         return add(self.target, self.timeout, self.package, options, priority,
                    self.custom, self.owner, self.machine, self.platform,
-                   self._get_tags_list(self.tags), self.memory,
+                   self.get_tags_list(self.tags), self.memory,
                    self.enforce_timeout, self.clock)
 
     @staticmethod

@@ -44,6 +44,16 @@ class TaskAnalysis(AnalysisManager):
         # Keep track if the machine lock has been released
         self.scheduler_lock_released = False
 
+        # If dir creation failed on submission, create them now
+        if not self.task.create_dirs():
+            log.error("Unable to create missing directories. Task #%s failed",
+                      self.task.id)
+            db.set_status(self.task.id, TASK_FAILED_ANALYSIS)
+            return False
+        else:
+            log.debug("Created missing task directories for task #%s",
+                      self.task.id)
+
         if self.task.file:
             self.file = File(self.task.target)
 

@@ -18,7 +18,6 @@ from cuckoo.common.config import config
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.exceptions import CuckooCriticalError
 from cuckoo.common.exceptions import CuckooResultError
-from cuckoo.common.files import Folders
 from cuckoo.common.netlog import BsonParser
 from cuckoo.common.utils import Singleton
 from cuckoo.core.log import task_log_start, task_log_stop
@@ -255,9 +254,6 @@ class ResultHandler(SocketServer.BaseRequestHandler):
         task, _ = self.server.get_ctx_for_ip(ip)
         task_log_start(task.id)
 
-        # Create all missing folders for this analysis.
-        self.create_folders()
-
         try:
             # Initialize the protocol handler class for this connection.
             self.negotiate_protocol()
@@ -309,15 +305,6 @@ class ResultHandler(SocketServer.BaseRequestHandler):
         self.rawlogfd = open(filepath, "wb")
         self.rawlogfd.write(self.startbuf)
 
-    def create_folders(self):
-        folders = "shots", "files", "logs", "buffer", "extracted"
-
-        try:
-            Folders.create(self.storagepath, folders)
-        except CuckooOperationalError as e:
-            log.error("Issue creating analyses folders: %s", e)
-            return False
-
 class FileUpload(ProtocolHandler):
     RESTRICTED_DIRECTORIES = "reports/",
     lock = threading.Lock()
@@ -356,11 +343,12 @@ class FileUpload(ProtocolHandler):
                     "FileUpload failure, banned path."
                 )
 
-        try:
-            Folders.create(self.storagepath, dir_part)
-        except CuckooOperationalError:
-            log.error("Unable to create folder %s", dir_part)
-            return
+        dump_dir = os.path.join(self.storagepath, dir_part)
+        if not os.path.exists(dump_dir):
+            raise CuckooOperationalError(
+                "FileUpload failure. Directory %s does not exist,"
+                " cannot upload file" % dump_dir
+            )
 
         file_path = os.path.join(self.storagepath, dump_path)
 
