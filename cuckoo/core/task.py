@@ -79,7 +79,7 @@ class Task(object):
         if not self.dir_exists():
             missing.append(self.path)
         elif len(missing) < 1:
-            return
+            return True
 
         created = 0
         for dir in missing:
