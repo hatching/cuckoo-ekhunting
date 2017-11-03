@@ -7,7 +7,7 @@ import logging
 import os
 import threading
 
-from cuckoo.common.config import Config, emit_options
+from cuckoo.common.config import Config
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.files import Folders, Files
 from cuckoo.common.objects import Dictionary, File, URL
@@ -386,7 +386,6 @@ class Task(object):
         options = options or {}
         options["filename"] = filename
 
-        options = emit_options(options)
         return self.add(File(file_path), timeout, package, options, priority,
                         custom, owner, machine, platform, tags, memory,
                         enforce_timeout, clock, "archive", submit_id, start_on)
@@ -490,13 +489,12 @@ class Task(object):
                       self.category)
             return None
 
-        options = emit_options(self.options)
         priority = priority or self.priority
 
         # Change status to recovered
         self.db.set_status(self.id, TASK_RECOVERED)
 
-        return add(self.target, self.timeout, self.package, options, priority,
+        return add(self.target, self.timeout, self.package, self.options, priority,
                    self.custom, self.owner, self.machine, self.platform,
                    self.get_tags_list(self.tags), self.memory,
                    self.enforce_timeout, self.clock)

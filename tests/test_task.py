@@ -292,12 +292,17 @@ class TestTask:
     def test_get_tags_list(self):
         tags = " doge,stuff,things"
         tags2 = ("doge", "things ")
+        tags3 = "foo,,bar"
+        tags4 = ["tag1", 1, "", "tag2"]
 
         assert Task.get_tags_list(tags) == ["doge", "stuff", "things"]
         assert Task.get_tags_list(tags2) == ["doge", "things"]
+        assert Task.get_tags_list(tags3) == ["foo", "bar"]
+        assert Task.get_tags_list(tags4) == ["tag1", "tag2"]
         assert Task.get_tags_list("") == []
         assert Task.get_tags_list([]) == []
         assert Task.get_tags_list(()) == []
+        assert Task.get_tags_list(1)is None
 
     def test_set_latest(self):
         id, sample = self.add_task()
@@ -471,8 +476,9 @@ class TestTask:
 
     def test_add_reboot(self):
         id, sample = self.add_task(**{"owner": "MrDoge"})
+        sid = self.db.add_submit(None, None, None)
         task = Task()
-        newid = task.add_reboot(id, owner="Doge")
+        newid = task.add_reboot(id, owner="Doge", submit_id=sid)
         task_path = cwd("storage", "analyses", str(newid))
         db_task = self.db.view_task(newid)
 
@@ -485,6 +491,7 @@ class TestTask:
         assert db_task.custom == "%s" % id
         assert db_task.memory == False
         assert db_task.target == sample
+        assert db_task.submit_id == sid
 
     def test_add_reboot_nonexistant(self):
         task = Task()

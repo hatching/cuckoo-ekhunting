@@ -2,6 +2,7 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import datetime
 import mock
 import os
 import pytest
@@ -10,6 +11,7 @@ import tempfile
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from cuckoo.common.files import Files
+from cuckoo.common.objects import File
 from cuckoo.core.database import Database, Task, AlembicVersion, SCHEMA_VERSION
 from cuckoo.core.startup import init_yara
 from cuckoo.distributed.app import create_app
@@ -27,23 +29,19 @@ class DatabaseEngine(object):
         self.d.connect(dsn=self.URI)
 
     def add_url(self, url, priority=1, status="pending"):
-        task_id = self.d.add_url(url, priority=priority)
+        task_id = self.d.add(url, priority=priority, category="url")
         self.d.set_status(task_id, status)
         return task_id
 
-    def test_add_tasks(self):
+    def test_add_task(self):
         fd, sample_path = tempfile.mkstemp()
         os.write(fd, "hehe")
         os.close(fd)
 
         # Add task.
         count = self.d.Session().query(Task).count()
-        self.d.add_path(sample_path)
+        self.d.add(sample_path, category="file")
         assert self.d.Session().query(Task).count() == count + 1
-
-        # Add url.
-        self.d.add_url("http://foo.bar")
-        assert self.d.Session().query(Task).count() == count + 2
 
     def test_processing_get_task(self):
         # First reset all existing rows so that earlier exceptions don't affect
@@ -109,8 +107,10 @@ class DatabaseEngine(object):
 
     def test_view_submit_tasks(self):
         submit_id = self.d.add_submit(None, None, None)
-        t1 = self.d.add_path(__file__, custom="1", submit_id=submit_id)
-        t2 = self.d.add_path(__file__, custom="2", submit_id=submit_id)
+        t1 = self.d.add(__file__, custom="1", submit_id=submit_id,
+                        category="file")
+        t2 = self.d.add(__file__, custom="2", submit_id=submit_id,
+                        category="file")
 
         submit = self.d.view_submit(submit_id)
         assert submit.id == submit_id
@@ -125,35 +125,14 @@ class DatabaseEngine(object):
         assert tasks[1][1].id == t2
         assert tasks[1][1].custom == "2"
 
-    def test_add_reboot(self):
-        t0 = self.d.add_path(__file__)
-        s0 = self.d.add_submit(None, None, None)
-        t1 = self.d.add_reboot(task_id=t0, submit_id=s0)
-
-        t = self.d.view_task(t1)
-        assert t.custom == "%s" % t0
-        assert t.submit_id == s0
-
     def test_task_set_options(self):
-        t0 = self.d.add_path(__file__, options={"foo": "bar"})
-        t1 = self.d.add_path(__file__, options="foo=bar")
+        t0 = self.d.add(__file__, options={"foo": "bar"}, category="file")
+        t1 = self.d.add(__file__, options="foo=bar", category="file")
         assert self.d.view_task(t0).options == {"foo": "bar"}
         assert self.d.view_task(t1).options == {"foo": "bar"}
 
-    def test_task_tags_str(self):
-        task = self.d.add_path(__file__, tags="foo,,bar")
-        tag0, tag1 = self.d.view_task(task).tags
-        assert sorted((tag0.name, tag1.name)) == ["bar", "foo"]
-
-    def test_task_tags_list(self):
-        task = self.d.add_path(__file__, tags=["tag1", "tag2", "", 1, "tag3"])
-        tag0, tag1, tag2 = self.d.view_task(task).tags
-        assert sorted((tag0.name, tag1.name, tag2.name)) == [
-            "tag1", "tag2", "tag3"
-        ]
-
     def test_error_action(self):
-        task_id = self.d.add_path(__file__)
+        task_id = self.d.add(__file__, category="file")
         self.d.add_error("message1", task_id)
         self.d.add_error("message2", task_id, "actionhere")
         e1, e2 = self.d.view_errors(task_id)
@@ -163,8 +142,8 @@ class DatabaseEngine(object):
         assert e2.action == "actionhere"
 
     def test_view_tasks(self):
-        t1 = self.d.add_path(__file__)
-        t2 = self.d.add_url("http://google.com/")
+        t1 = self.d.add(__file__, category="file")
+        t2 = self.d.add("http://google.com/", category="url")
         tasks = self.d.view_tasks([t1, t2])
         assert tasks[0].to_dict() == self.d.view_task(t1).to_dict()
         assert tasks[1].to_dict() == self.d.view_task(t2).to_dict()
@@ -172,19 +151,19 @@ class DatabaseEngine(object):
     def test_add_machine(self):
         self.d.add_machine(
             "name1", "label", "1.2.3.4", "windows", None,
-            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043
+            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
         self.d.add_machine(
             "name2", "label", "1.2.3.4", "windows", "",
-            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043
+            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
         self.d.add_machine(
             "name3", "label", "1.2.3.4", "windows", "opt1 opt2",
-            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043
+            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
         self.d.add_machine(
             "name4", "label", "1.2.3.4", "windows", ["opt3", "opt4"],
-            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043
+            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
         m1 = self.d.view_machine("name1")
         m2 = self.d.view_machine("name2")
@@ -194,6 +173,34 @@ class DatabaseEngine(object):
         assert m2.options == []
         assert m3.options == ["opt1", "opt2"]
         assert m4.options == ["opt3", "opt4"]
+        assert m1.manager == "virtualbox"
+
+    def test_add(self):
+        now = datetime.datetime.now()
+        id = self.d.add(__file__, 0, "py", "free=yes", 3, "custom", "owner",
+                        "machine1", "DogeOS", ["tag1"], False,
+                        False, now, "file", None, 1, now)
+
+        task = self.d.view_task(id)
+        assert id is not None
+        assert task.target == __file__
+        assert task.timeout == 0
+        assert task.package == "py"
+        assert task.options == {"free": "yes"}
+        assert task.priority == 3
+        assert task.custom == "custom"
+        assert task.owner == "owner"
+        assert task.machine == "machine1"
+        assert task.platform == "DogeOS"
+        assert len(task.tags) == 1
+        assert task.tags[0].name == "tag1"
+        assert task.memory == False
+        assert task.enforce_timeout == False
+        assert task.clock == now
+        assert task.category == "file"
+        assert task.submit_id is None
+        assert task.sample_id == 1
+        assert task.start_on == now
 
     def test_set_machine_rcparams(self):
         self.d.add_machine(
@@ -218,6 +225,102 @@ class DatabaseEngine(object):
     def test_add_sample(self, p):
         p.from_file.return_value = ""
         assert self.d.add_path(Files.temp_put(os.urandom(16))) is not None
+
+    def test_add_sample(self):
+        fd, sample_path = tempfile.mkstemp()
+        os.write(fd, os.urandom(64))
+        os.close(fd)
+        sample = File(sample_path)
+
+        id = self.d.add_sample(sample)
+
+        db_sample = self.d.view_sample(id)
+
+        assert id is not None
+        assert db_sample.file_size == sample.get_size()
+        assert db_sample.file_type == sample.get_type()
+        assert db_sample.md5 == sample.get_md5()
+        assert db_sample.crc32 == sample.get_crc32()
+        assert db_sample.sha1 == sample.get_sha1()
+        assert db_sample.sha256 == sample.get_sha256()
+        assert db_sample.sha512 == sample.get_sha512()
+        assert db_sample.ssdeep == sample.get_ssdeep()
+
+    def test_add_sample_existing(self):
+        fd, sample_path = tempfile.mkstemp()
+        os.write(fd, os.urandom(64))
+        os.close(fd)
+        sample_file = File(sample_path)
+        id = self.d.add_sample(sample_file)
+        id2 = self.d.add_sample(sample_file)
+
+        assert id2 == id
+
+    def test_add_sample_incorrect(self):
+        id = self.d.add_sample("A"*20)
+        assert id is None
+
+    def test_fetch_with_machine(self):
+        future = datetime.datetime(2200, 5, 12, 12, 12)
+        t1 = self.d.add(__file__, category="file", tags=["service"])
+        t2 = self.d.add(__file__, category="file", machine="machine1")
+        t3 = self.d.add(__file__, category="file", start_on=future)
+        t4 = self.d.add(__file__, category="file", priority=999)
+
+        assert self.d.fetch(machine="machine1", service=False).id == t2
+
+    def test_fetch_service_false(self):
+        self.d.add(__file__, category="file", tags=["service"],
+                         priority=999)
+        t2 = self.d.add(__file__, category="file", priority=9999)
+
+        assert self.d.fetch(service=False).id == t2
+
+    def test_fetch_service_true(self):
+        future = datetime.datetime(2200, 5, 12, 12, 12)
+        t1 = self.d.add(__file__, category="file", tags=["service"],
+                        priority=9999)
+        self.d.add(__file__, category="file", machine="machine1",
+                   priority=9999)
+        self.d.add(__file__, category="file", start_on=future, priority=9999)
+        self.d.add(__file__, category="file", priority=9999)
+
+        task = self.d.fetch()
+        assert task.id == t1
+        assert task.status == "running"
+
+    def test_fetch_no_lock(self):
+        future = datetime.datetime(2200, 5, 12, 12, 12)
+        self.d.add(__file__, category="file", tags=["service"], priority=9999)
+        self.d.add(__file__, category="file", machine="machine1",
+                   priority=9999)
+        self.d.add(__file__, category="file", start_on=future, priority=9999)
+        self.d.add(__file__, category="file", priority=9999)
+
+        assert self.d.fetch(lock=False, service=False).status == "pending"
+
+    def test_fetch_use_start_on(self):
+        future = datetime.datetime(2200, 5, 12, 12, 12)
+        self.d.add(__file__, category="file", start_on=future, priority=999)
+        t2 = self.d.add(__file__, category="file", priority=9999)
+
+        assert self.d.fetch(service=False).id == t2
+
+    def test_fetch_use_start_on_false(self):
+        future = datetime.datetime(2200, 5, 12, 12, 12)
+        t1 = self.d.add(__file__, category="file", start_on=future,
+                         priority=9999)
+        self.d.add(__file__, category="file", priority=9999)
+
+        assert self.d.fetch(use_start_on=False, service=False).id == t1
+
+    def test_fetch_use_exclude(self):
+        t1 = self.d.add(__file__, category="file", priority=9999)
+        t2 = self.d.add(__file__, category="file", priority=9999)
+        t3 = self.d.add(__file__, category="file", priority=9999)
+        t4 = self.d.add(__file__, category="file", priority=9998)
+
+        assert self.d.fetch(service=False, exclude=[t1,t2,t3]).id == t4
 
 class TestConnectOnce(object):
     def setup(self):
@@ -305,21 +408,22 @@ class DatabaseMigrationEngine(object):
         assert version[0][0] == SCHEMA_VERSION
 
     def test_long_error(self):
-        task_id = self.d.add_url("http://google.com/")
+        task_id = self.d.add("http://google.com/", category="url")
         self.d.add_error("A"*1024, task_id)
         err = self.d.view_errors(task_id)
         assert err and len(err[0].message) == 1024
 
     def test_long_options_custom(self):
-        task_id = self.d.add_url(
-            "http://google.com/", options="A"*1024, custom="B"*1024
+        task_id = self.d.add(
+            "http://google.com/", options="A"*1024, custom="B"*1024,
+            category="url"
         )
         task = self.d.view_task(task_id)
         assert task._options == "A"*1024
         assert task.custom == "B"*1024
 
     def test_empty_submit_id(self):
-        task_id = self.d.add_url("http://google.com/")
+        task_id = self.d.add("http://google.com/", category="url")
         task = self.d.view_task(task_id)
         assert task.submit_id is None
 
