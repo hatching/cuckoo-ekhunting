@@ -38,6 +38,7 @@ class TestTask:
     def get_file(self):
         fd, target = tempfile.mkstemp()
         os.write(fd, os.urandom(64))
+        os.close(fd)
         self.files.append(target)
         return target
 
@@ -369,14 +370,14 @@ class TestTask:
 
     def test_requirement_str(self):
         id, sample = self.add_task(**{
-            "tags": ["doge", "stuff"],
+            "tags": ["doge"],
             "platform": "DogeOS",
             "machine": "Doge1"
         })
         task = Task()
         task.load_from_id(id)
         assert task.requirements_str(task.db_task) ==\
-               "Machine name: Doge1 Platform: DogeOS Tags: doge stuff "
+               "Machine name: Doge1 Platform: DogeOS Tags: doge "
 
     def test_reschedule_file(self):
         id, sample = self.add_task()
