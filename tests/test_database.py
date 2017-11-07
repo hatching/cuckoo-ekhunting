@@ -9,6 +9,7 @@ import pytest
 import tempfile
 
 from sqlalchemy.orm.exc import DetachedInstanceError
+from sqlalchemy import MetaData
 
 from cuckoo.common.files import Files
 from cuckoo.common.objects import File
@@ -25,8 +26,23 @@ class DatabaseEngine(object):
     def setup_class(self):
         set_cwd(tempfile.mkdtemp())
 
+    def setup(self):
         self.d = Database()
         self.d.connect(dsn=self.URI)
+
+    def teardown(self):
+        # Clear all tables without dropping them
+        # This is done after each test to ensure a test doesn't fail because
+        # of data of a previous test
+        meta = MetaData()
+        meta.reflect(self.d.engine)
+        ses = self.d.Session()
+        try:
+            for t in reversed(meta.sorted_tables):
+                ses.execute(t.delete())
+            ses.commit()
+        finally:
+            ses.close()
 
     def add_url(self, url, priority=1, status="pending"):
         task_id = self.d.add(url, priority=priority, category="url")
@@ -262,63 +278,57 @@ class DatabaseEngine(object):
 
     def test_fetch_with_machine(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
-        t1 = self.d.add(__file__, category="file", tags=["service"])
+        self.d.add(__file__, category="file", tags=["service"])
         t2 = self.d.add(__file__, category="file", machine="machine1")
-        t3 = self.d.add(__file__, category="file", start_on=future)
-        t4 = self.d.add(__file__, category="file", priority=999)
+        self.d.add(__file__, category="file", start_on=future)
+        self.d.add(__file__, category="file")
 
         assert self.d.fetch(machine="machine1", service=False).id == t2
 
     def test_fetch_service_false(self):
-        self.d.add(__file__, category="file", tags=["service"],
-                         priority=999)
-        t2 = self.d.add(__file__, category="file", priority=9999)
+        self.d.add(__file__, category="file", tags=["service"])
+        t2 = self.d.add(__file__, category="file")
 
         assert self.d.fetch(service=False).id == t2
 
     def test_fetch_service_true(self):
-        future = datetime.datetime(2200, 5, 12, 12, 12)
-        t1 = self.d.add(__file__, category="file", tags=["service"],
-                        priority=9999)
-        self.d.add(__file__, category="file", machine="machine1",
-                   priority=9999)
-        self.d.add(__file__, category="file", start_on=future, priority=9999)
-        self.d.add(__file__, category="file", priority=9999)
+        t1 = self.d.add(__file__, category="file", tags=["service"])
+        self.d.add(__file__, category="file", machine="machine1")
+        self.d.add(__file__, category="file")
+        self.d.add(__file__, category="file",)
 
         task = self.d.fetch()
         assert task.id == t1
         assert task.status == "running"
 
     def test_fetch_no_lock(self):
-        future = datetime.datetime(2200, 5, 12, 12, 12)
-        self.d.add(__file__, category="file", tags=["service"], priority=9999)
-        self.d.add(__file__, category="file", machine="machine1",
-                   priority=9999)
-        self.d.add(__file__, category="file", start_on=future, priority=9999)
-        self.d.add(__file__, category="file", priority=9999)
+        self.d.add(__file__, category="file", tags=["service"])
+        self.d.add(__file__, category="file", machine="machine1")
+        self.d.add(__file__, category="file")
+        self.d.add(__file__, category="file")
 
         assert self.d.fetch(lock=False, service=False).status == "pending"
 
-    def test_fetch_use_start_on(self):
+    def test_fetch_use_start_on_true(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
         self.d.add(__file__, category="file", start_on=future, priority=999)
-        t2 = self.d.add(__file__, category="file", priority=9999)
+        t2 = self.d.add(__file__, category="file")
 
         assert self.d.fetch(service=False).id == t2
 
     def test_fetch_use_start_on_false(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
         t1 = self.d.add(__file__, category="file", start_on=future,
-                         priority=9999)
-        self.d.add(__file__, category="file", priority=9999)
+                        priority=999)
+        self.d.add(__file__, category="file")
 
         assert self.d.fetch(use_start_on=False, service=False).id == t1
 
     def test_fetch_use_exclude(self):
-        t1 = self.d.add(__file__, category="file", priority=9999)
-        t2 = self.d.add(__file__, category="file", priority=9999)
-        t3 = self.d.add(__file__, category="file", priority=9999)
-        t4 = self.d.add(__file__, category="file", priority=9998)
+        t1 = self.d.add(__file__, category="file", priority=999)
+        t2 = self.d.add(__file__, category="file", priority=999)
+        t3 = self.d.add(__file__, category="file", priority=999)
+        t4 = self.d.add(__file__, category="file", priority=998)
 
         assert self.d.fetch(service=False, exclude=[t1,t2,t3]).id == t4
 
