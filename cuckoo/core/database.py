@@ -32,7 +32,7 @@ Base = declarative_base()
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = "cb1024e614b7"
+SCHEMA_VERSION = "15740ce250e6"
 TASK_PENDING = "pending"
 TASK_RUNNING = "running"
 TASK_COMPLETED = "completed"
@@ -103,7 +103,7 @@ class Machine(Base):
     resultserver_ip = Column(String(255), nullable=False)
     resultserver_port = Column(Integer(), nullable=False)
     _rcparams = Column("rcparams", Text(), nullable=True)
-    manager = Column(String(255), nullable=False)
+    manager = Column(String(255), nullable=True)
 
     def __repr__(self):
         return "<Machine('{0}','{1}')>".format(self.id, self.name)
