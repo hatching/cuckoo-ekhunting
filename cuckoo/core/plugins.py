@@ -277,16 +277,7 @@ class RunProcessing(object):
             return
 
         machine = machine.to_dict()
-
-        # TODO Actually fill out all of the fields as done for this analysis.
-        try:
-            self.machine["name"] = machine["name"]
-            self.machine.update(config2(
-                machine["manager"].lower(),
-                machine["name"]
-            ))
-        except CuckooConfigurationError:
-            pass
+        self.machine.update(machine)
 
     def run(self):
         """Run all processing modules and all signatures.
