@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2017 Cuckoo Foundation.
+# Copyright (C) 2017 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -45,14 +45,15 @@ class TaskAnalysis(AnalysisManager):
         self.scheduler_lock_released = False
 
         # If dir creation failed on submission, create them now
-        if not self.task.create_dirs():
-            log.error("Unable to create missing directories. Task #%s failed",
-                      self.task.id)
-            db.set_status(self.task.id, TASK_FAILED_ANALYSIS)
-            return False
-        else:
-            log.debug("Created missing task directories for task #%s",
-                      self.task.id)
+        if len(self.task.dirs_missing()) > 0:
+            if not self.task.create_dirs():
+                log.error("Unable to create missing directories."
+                          " Task #%s failed", self.task.id)
+
+                return False
+            else:
+                log.debug("Created missing task directories for task #%s",
+                          self.task.id)
 
         if self.task.file:
             self.file = File(self.task.target)
@@ -71,17 +72,21 @@ class TaskAnalysis(AnalysisManager):
             if not self.file_usable():
                 init_success = False
 
-            self.build_options(update_with={
-                "target": self.task.copied_binary if use_copy
-                else self.task.target,
-                "file_name": file_name,
-                "file_type": self.file.get_type(),
-                "pe_exports": ",".join(self.file.get_exported_functions()),
-            })
-
-            if self.task.category == "file":
+            else:
+                options = {}
                 package, activity = self.file.get_apk_entry()
-                self.task.options["apk_entry"] = "%s:%s" % (package, activity)
+                if package and activity:
+                    options["apk_entry"] = "%s:%s" % (package, activity)
+
+                self.build_options(update_with={
+                    "target": self.task.copied_binary if use_copy
+                    else self.task.target,
+                    "file_name": file_name,
+                    "file_type": self.file.get_type(),
+                    "pe_exports": ",".join(self.file.get_exported_functions()),
+                    "options": options
+                })
+
         else:
             self.build_options()
 
@@ -94,12 +99,6 @@ class TaskAnalysis(AnalysisManager):
 
         # Write task to disk in json file
         self.task.write_to_disk()
-
-        if not init_success:
-            log.info("Failed to initialize analysis manager for task #%s. "
-                     "Setting task status to analysis failed",
-                     self.task.id)
-            db.set_status(self.task.id, TASK_FAILED_ANALYSIS)
 
         return init_success
 
@@ -133,6 +132,8 @@ class TaskAnalysis(AnalysisManager):
                         "Starting task reporting",
                         action="task.report", status="pending"
                     )
+                    log.info("Processing and reporting results for task #%s",
+                             self.task.id)
 
                     self.processing_success = self.task.process()
 
@@ -393,7 +394,7 @@ class TaskAnalysis(AnalysisManager):
 
         # After all this, we can make the ResultServer forget about the
         # internal state for this analysis task.
-        ResultServer().del_task(self.task, self.machine)
+        ResultServer().del_task(self.task.db_task, self.machine)
 
         # Drop the network routing rules if any.
         self.unroute_network()
