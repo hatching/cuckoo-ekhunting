@@ -23,6 +23,7 @@ from cuckoo.core.startup import (
     init_modules, check_version, init_rooter, init_routing, init_yara,
     init_tasks, init_binaries, ensure_tmpdir
 )
+from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, load_signatures, cwd, is_linux
 
@@ -44,7 +45,7 @@ def test_init_tasks():
 
         tasks = []
         for status in statuses:
-            task_id = Database().add_path(__file__)
+            task_id = Task().add_path(__file__)
             Database().set_status(task_id, status)
             tasks.append(task_id)
 

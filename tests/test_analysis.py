@@ -65,7 +65,6 @@ class TestTaskAnalysis:
 
         assert manager.task == task
         assert manager.analysis is not None
-        assert manager.path == task.path
         assert manager.name == "Task_#%s_TaskAnalysis_Thread" % task.id
 
 

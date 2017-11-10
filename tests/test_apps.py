@@ -15,7 +15,7 @@ import tempfile
 import cuckoo
 
 from cuckoo.apps.apps import (
-    process, process_task, cuckoo_clean, process_task_range, cuckoo_machine,
+    process_task, cuckoo_clean, process_task_range, cuckoo_machine,
     migrate_cwd
 )
 from cuckoo.common.config import config
@@ -23,7 +23,10 @@ from cuckoo.common.exceptions import CuckooConfigurationError
 from cuckoo.common.files import Files
 from cuckoo.core.database import Database
 from cuckoo.core.log import logger
-from cuckoo.core.startup import init_logfile, init_console_logging, init_yara
+from cuckoo.core.task import Task
+from cuckoo.core.startup import (
+    init_logfile, init_console_logging, init_yara, init_logging
+)
 from cuckoo.main import main, cuckoo_create, cuckoo_init
 from cuckoo.misc import set_cwd, decide_cwd, cwd, mkdir, is_linux
 from tests.utils import chdir
@@ -264,7 +267,7 @@ class TestProcessingTasks(object):
     def setup(self):
         set_cwd(tempfile.mkdtemp())
         cuckoo_create()
-        init_yara()
+        Database().connect()
 
     @mock.patch("cuckoo.main.load_signatures")
     @mock.patch("cuckoo.main.process_task_range")
@@ -287,111 +290,108 @@ class TestProcessingTasks(object):
         out, _ = capsys.readouterr()
         assert "Aborting (re-)processing of your analyses" in out
 
-    @mock.patch("cuckoo.apps.apps.process")
-    def test_process_once_deeper(self, p):
+    @mock.patch("cuckoo.apps.apps.process_task")
+    @mock.patch("cuckoo.apps.apps.Task")
+    def test_process_once_deeper(self, t, p):
         mkdir(cwd(analysis=1234))
         process_task_range("1234")
-        p.assert_called_once_with("", None, {
-            "id": 1234,
-            "category": "file",
-            "target": "",
-            "options": {},
-            "package": None,
-            "custom": None,
-        })
+        p.assert_called_once()
+        t.set_task.assert_not_called()
+        t.assert_has_calls([
+            mock.call().load_task_dict({
+                "id": 1234,
+                "category": "file",
+                "target": "",
+                "options": {},
+                "package": None,
+                "custom": None,
+            })
+        ])
 
     @mock.patch("cuckoo.apps.apps.process_task")
-    def test_process_task_range_single(self, p):
-        mkdir(cwd(analysis=1234))
-        process_task_range("1234")
-        p.assert_called_once_with({
-            "id": 1234,
-            "category": "file",
-            "target": "",
-            "options": {},
-            "package": None,
-            "custom": None,
-        })
+    @mock.patch("cuckoo.apps.apps.Task")
+    def test_process_task_range_single_db(self, mt, mp):
+        task = Task()
+        id = task.add_path(__file__)
+        process_task_range(str(id))
+        mt.assert_has_calls([
+            mock.call().set_task(mock.ANY)
+        ])
+        mp.assert_called_once()
 
     @mock.patch("cuckoo.apps.apps.process_task")
-    def test_process_task_range_single_noanal(self, p):
-        process_task_range("1234")
-        p.assert_not_called()
-
-    @mock.patch("cuckoo.apps.apps.Database")
-    def test_process_task_range_single_db(self, p):
-        mkdir(cwd(analysis=1234))
-        p.return_value.view_task.return_value = {}
-        process_task_range("1234")
-        p.return_value.view_task.assert_called_once_with(1234)
-
-    @mock.patch("cuckoo.apps.apps.process_task")
-    def test_process_task_range_multi(self, p):
+    @mock.patch("cuckoo.apps.apps.Task")
+    def test_process_task_range_multi(self, mt, mp):
         mkdir(cwd(analysis=1234))
         mkdir(cwd(analysis=2345))
         process_task_range("1234,2345")
-        assert p.call_count == 2
-        p.assert_any_call({
-            "id": 1234,
-            "category": "file",
-            "target": "",
-            "options": {},
-            "package": None,
-            "custom": None,
-        })
-        p.assert_any_call({
-            "id": 2345,
-            "category": "file",
-            "target": "",
-            "options": {},
-            "package": None,
-            "custom": None,
-        })
-
-    @mock.patch("cuckoo.apps.apps.Database")
-    def test_process_task_range_multi_db(self, p):
-        mkdir(cwd(analysis=1234))
-        mkdir(cwd(analysis=2345))
-        p.return_value.view_task.return_value = {}
-        process_task_range("2345")
-        p.return_value.view_task.assert_called_once_with(2345)
+        assert mp.call_count == 2
+        mt.assert_has_calls([
+            mock.call(),
+            mock.call().load_task_dict({
+                "id": 1234,
+                "category": "file",
+                "target": "",
+                "options": {},
+                "package": None,
+                "custom": None,
+            }), mock.call(),
+            mock.call().load_task_dict({
+                "id": 2345,
+                "category": "file",
+                "target": "",
+                "options": {},
+                "package": None,
+                "custom": None,
+            })
+        ])
 
     @mock.patch("cuckoo.apps.apps.process_task")
-    def test_process_task_range_range(self, p):
+    @mock.patch("cuckoo.apps.apps.Task")
+    def test_process_task_range_multi_db(self, mt, mp):
+        task1, task2 = Task(), Task()
+        id1, id2 = task1.add_path(__file__), task2.add_path(__file__)
+        process_task_range("%s,%s" % (id1, id2))
+        assert mp.call_count == 2
+        mt.assert_has_calls([
+            mock.call(), mock.call().set_task(mock.ANY), mock.call(),
+            mock.call().set_task(mock.ANY)
+        ])
+
+    @mock.patch("cuckoo.apps.apps.Database.set_status")
+    @mock.patch("cuckoo.apps.apps.task_log_start")
+    def test_process_task(self, mt, mdb):
+        tasks = []
+        for x in range(1, 10):
+            task = mock.MagicMock()
+            task.id = x
+            tasks.append(task)
+
+        taskx = mock.MagicMock()
+        taskx.dir_exists.return_value = False
+        tasks.append(taskx)
+
+        for task in tasks:
+            process_task(task)
+            task.dir_exists.assert_called_once()
+            if task is taskx:
+                # The task dir for this task does not exist. It should
+                # not be processed
+                task.process.assert_not_called()
+                mdb.assert_any_call(task.id, "failed_processing")
+            else:
+                task.process.assert_called_once()
+                mdb.assert_any_call(task.id, "reported")
+
+    @mock.patch("cuckoo.apps.apps.process_task")
+    @mock.patch("cuckoo.apps.apps.Task")
+    def test_process_task_range_range(self, mt, p):
         mkdir(cwd(analysis=3))
         for x in xrange(10, 101):
             mkdir(cwd(analysis=x))
-        process_task_range("3,5,10-100")
-        assert p.call_count == 92  # 101-10+1
-        p.assert_any_call({
-            "id": 3,
-            "category": "file",
-            "target": "",
-            "options": {},
-            "package": None,
-            "custom": None,
-        })
-
-        # We did not create an analysis directory for analysis=5.
-        with pytest.raises(AssertionError):
-            p.assert_any_call({
-                "id": 5,
-                "category": "file",
-                "target": "",
-                "options": {},
-                "package": None,
-                "custom": None,
-            })
-
-        for x in xrange(10, 101):
-            p.assert_any_call({
-                "id": x,
-                "category": "file",
-                "target": "",
-                "options": {},
-                "package": None,
-                "custom": None,
-            })
+        process_task_range("3,10-100")
+        assert p.call_count == 92
+        assert mt.call_count == 92
 
     @mock.patch("cuckoo.apps.apps.Database")
     def test_process_task_range_duplicate(self, p):
@@ -411,25 +411,20 @@ class TestProcessingTasks(object):
         q.assert_called_once()
 
     @mock.patch("cuckoo.apps.apps.Database")
-    @mock.patch("cuckoo.apps.apps.process")
     @mock.patch("cuckoo.apps.apps.logger")
-    def test_logger(self, p, q, r):
-        process_task({
-            "id": 123,
-            "target": "foo",
-            "category": "bar",
-            "package": "baz",
-            "options": {
-                "a": "b",
-            },
-            "custom": "foobar",
-        })
+    def test_logger(self, p, q):
+        task = Task()
+        task.process = mock.MagicMock()
+        task.add_path(__file__, options={"a": "b"}, custom="foobar",
+                      package="baz")
+        process_task(task)
+
         p.assert_called_once()
         assert p.call_args[1] == {
             "action": "task.report",
             "status": "pending",
-            "target": "foo",
-            "category": "bar",
+            "target": __file__,
+            "category": "file",
             "package": "baz",
             "options": "a=b",
             "custom": "foobar",
@@ -447,79 +442,30 @@ class TestProcessingTasks(object):
     def test_empty_reprocess(self):
         db.connect()
         mkdir(cwd(analysis=1))
+        init_logging(logging.INFO)
+        init_console_logging(logging.INFO)
         process_task_range("1")
         assert os.path.exists(cwd("reports", "report.json", analysis=1))
         obj = json.load(open(cwd("reports", "report.json", analysis=1), "rb"))
         assert "contact back" in obj["debug"]["errors"][0]
 
-@mock.patch("cuckoo.apps.apps.RunProcessing")
-@mock.patch("cuckoo.apps.apps.RunSignatures")
-@mock.patch("cuckoo.apps.apps.RunReporting")
-def test_process_nodelete(r, s, p):
-    set_cwd(tempfile.mkdtemp())
-    cuckoo_create(cfg={
-        "cuckoo": {
-            "cuckoo": {
-                "delete_original": False,
-                "delete_bin_copy": False,
-            },
-        },
-    })
-
-    filepath1 = Files.temp_put("hello world")
-    filepath2 = Files.create(cwd("storage", "binaries"), "A"*40, "binary")
-
-    process(filepath1, filepath2, 1)
-    assert os.path.exists(filepath1)
-    assert os.path.exists(filepath2)
-
-@mock.patch("cuckoo.apps.apps.RunProcessing")
-@mock.patch("cuckoo.apps.apps.RunSignatures")
-@mock.patch("cuckoo.apps.apps.RunReporting")
-def test_process_dodelete(r, s, p):
-    set_cwd(tempfile.mkdtemp())
-    cuckoo_create(cfg={
-        "cuckoo": {
-            "cuckoo": {
-                "delete_original": True,
-                "delete_bin_copy": True,
-            },
-        },
-    })
-
-    filepath1 = Files.temp_put("hello world")
-    filepath2 = Files.create(cwd("storage", "binaries"), "A"*40, "binary")
-
-    process(filepath1, filepath2, 1)
-    assert not os.path.exists(filepath1)
-    assert not os.path.exists(filepath2)
-
-@mock.patch("cuckoo.apps.apps.process")
-@mock.patch("cuckoo.apps.apps.Database")
-def test_process_log_taskid(p, q):
+def test_process_log_taskid():
     set_cwd(tempfile.mkdtemp())
     cuckoo_create()
+    db.connect()
 
     init_console_logging(logging.DEBUG)
     init_logfile("process-p0.json")
 
-    def log_something(target, copy_path, task):
-        logger("test message", action="hello.world", status="success")
-
-    q.side_effect = log_something
-    process_task({
-        "id": 12345,
-        "category": "url",
-        "target": "http://google.com/",
-        "package": "ie",
-        "options": {},
-        "custom": None,
-    })
+    task = Task()
+    task.add_url("http://google.com/", package="ie")
+    task.process = mock.MagicMock()
+    process_task(task)
 
     for line in open(cwd("log", "process-p0.json"), "rb"):
         obj = json.loads(line)
-        if obj["action"] == "hello.world":
-            assert obj["task_id"] == 12345
+        if obj["action"] == "task.report":
+            assert obj["task_id"] == task.id
             break
     else:
         raise
@@ -612,14 +558,16 @@ def test_config_load_once():
     cuckoo_create()
 
     db.connect()
-    t0 = db.add_path(__file__)
-    t1 = db.add_path(__file__)
+    t0 = Task().add_path(__file__)
+    t1 = Task().add_path(__file__)
+    shutil.rmtree(cwd(analysis=t0))
+    shutil.rmtree(cwd(analysis=t1))
     shutil.copytree("tests/files/sample_analysis_storage", cwd(analysis=t0))
     shutil.copytree("tests/files/sample_analysis_storage", cwd(analysis=t1))
 
     with mock.patch("cuckoo.common.config.ConfigParser.ConfigParser") as p:
         process_task_range("%d,%d" % (t0, t1))
-        assert p.return_value.read.call_count == 2
+        assert p.return_value.read.call_count == 4
         p.return_value.read.assert_any_call(cwd("conf", "processing.conf"))
         p.return_value.read.assert_any_call(cwd("conf", "reporting.conf"))
 

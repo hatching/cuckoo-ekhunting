@@ -12,6 +12,7 @@ from cuckoo.core.log import logger
 from cuckoo.core.startup import (
     init_logging, init_logfile, init_console_logging, init_yara
 )
+from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create, main
 from cuckoo.misc import set_cwd, cwd
 
@@ -157,7 +158,7 @@ def test_log_error_action():
     reset_logging()
     init_console_logging(logging.DEBUG)
 
-    task_id = db.add_path(__file__)
+    task_id = Task().add_path(__file__)
     assert db.view_errors(task_id) == []
 
     logging.getLogger(__name__).error("message1", extra={

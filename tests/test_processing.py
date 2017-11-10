@@ -22,6 +22,7 @@ from cuckoo.core.database import Database
 from cuckoo.core.extract import ExtractManager
 from cuckoo.core.plugins import RunProcessing
 from cuckoo.core.startup import init_console_logging, init_yara
+from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, cwd, mkdir
 from cuckoo.processing.behavior import (
@@ -66,7 +67,7 @@ class TestProcessing(object):
         init_console_logging()
 
         db.connect(dsn="sqlite:///:memory:")
-        db.add_url("http://google.com/")
+        Task().add_url("http://google.com/")
         db.add_error("foo", 1)
         db.add_error("bar", 1)
         db.add_error("bar", 1)
@@ -786,33 +787,52 @@ class TestProcessingMachineInfo(object):
     def test_machine_info_cuckoo1(self):
         set_cwd(tempfile.mkdtemp())
         cuckoo_create()
+        db.connect()
+        db.add_machine(
+            "cuckoo1", "cuckoo1", "192.168.56.101", "windows", None, None,
+            None, None, "192.168.56.1", 2042, "VirtualBox"
+        )
 
         rp = RunProcessing({
             "id": 1,
-            "guest": {
-                "manager": "VirtualBox",
-                "name": "cuckoo1",
-            },
+            "machine": "cuckoo1",
         })
         rp.populate_machine_info()
         assert rp.machine["name"] == "cuckoo1"
         assert rp.machine["label"] == "cuckoo1"
         assert rp.machine["ip"] == "192.168.56.101"
+        assert rp.machine["manager"] == "VirtualBox"
 
     def test_machine_info_cuckoo2(self):
         set_cwd(tempfile.mkdtemp())
         cuckoo_create()
+        db.connect()
+        db.add_machine(
+            "cuckoo2", "cuckoo2", "192.168.56.101", "windows", None, None,
+            None, None, "192.168.56.1", 2042, "VirtualBox"
+        )
 
         rp = RunProcessing({
             "id": 1,
-            "guest": {
-                "manager": "VirtualBox",
-                "name": "cuckoo2",
-            },
+            "machine": "cuckoo2",
         })
         rp.populate_machine_info()
+
         assert rp.machine == {
+            "status": None,
+            "resultserver_port": 2042,
+            "tags": [], "ip": "192.168.56.101",
+            "resultserver_ip": "192.168.56.1",
+            "manager": "VirtualBox",
+            "interface": None,
+            "status_changed_on": None,
+            "id": 1, "locked": False,
             "name": "cuckoo2",
+            "label": "cuckoo2",
+            "locked_changed_on": None,
+            "platform": "windows",
+            "snapshot": None,
+            "options": []
         }
 
 class TestBehavior(object):

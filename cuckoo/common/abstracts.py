@@ -1479,7 +1479,6 @@ class AnalysisManager(threading.Thread):
         self.machine = machine
         self.error_queue = error_queue
         self.machinery = machinery
-        self.path = None
         self.analysis = None
         self.options = {}
         self.cfg = Config()
@@ -1499,7 +1498,6 @@ class AnalysisManager(threading.Thread):
         self.analysis = Analysis(task.id, self.machine.name,
                                  self.machine.label,
                                  self.machine.manager)
-        self.path = task.path
 
         # Set thread name
         self.name = "Task_#%s_%s_Thread" % (self.task.id,

@@ -329,7 +329,7 @@ class TaskAnalysis(AnalysisManager):
             )
 
             try:
-                dump_path = os.path.join(self.path, "memory.dmp")
+                dump_path = os.path.join(self.task.path, "memory.dmp")
                 self.machinery.dump_memory(self.machine.label, dump_path)
 
                 # Json log for performance measurement purposes
