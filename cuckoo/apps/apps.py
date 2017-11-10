@@ -285,7 +285,7 @@ def process_task_range(tasks):
         db_task = db.view_task(task_id)
         task = Task()
         if not db_task:
-           task.load_task_dict({
+            task.load_task_dict({
                 "id": task_id,
                 "category": "file",
                 "target": "",
@@ -296,7 +296,6 @@ def process_task_range(tasks):
         else:
             task.set_task(db_task)
 
-        # if os.path.isdir(cwd(analysis=task_id)):
         process_task(task)
 
 def process_tasks(instance, maxcount):
