@@ -82,7 +82,32 @@ class TestTaskAnalysis:
             "target": "/home/ricardo/scheduler/cuckoo-internal"
                       "/tests/test_analysis.py",
             "pe_exports": "",
-            "options": {"apk_entry": ":"}
+            "options": {}
+        })
+
+        mf.assert_called_once()
+        assert result
+        assert manager.file is not None
+        assert isinstance(manager.guest_manager, GuestManager)
+        assert isinstance(manager.aux, RunAuxiliary)
+        assert os.path.isfile(os.path.join(manager.task.path, "task.json"))
+
+    @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
+    @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
+    @mock.patch("cuckoo.analysis.taskanalysis.File.get_apk_entry")
+    def test_init_apk_options(self, mae, mb, mf):
+        manager = self.get_manager()
+        mae.return_value= ("package", "activity")
+        result = manager.init(self.db)
+
+        mb.assert_called_once_with(update_with={
+            "file_type": "Python script, ASCII text executable,"
+                         " with CRLF line terminators",
+            "file_name": "test_analysis.py",
+            "target": "/home/ricardo/scheduler/cuckoo-internal"
+                      "/tests/test_analysis.py",
+            "pe_exports": "",
+            "options": {"apk_entry": "package:activity"}
         })
 
         mf.assert_called_once()
