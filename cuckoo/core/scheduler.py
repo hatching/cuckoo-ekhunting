@@ -20,7 +20,7 @@ from cuckoo.core.database import (
 from cuckoo.core.rooter import rooter
 from cuckoo.core.log import logger
 from cuckoo.core.task import Task
-from cuckoo.misc import cwd
+from cuckoo.misc import cwd, get_free_disk
 
 log = logging.getLogger(__name__)
 
@@ -40,14 +40,11 @@ class Scheduler(object):
 
     def initialize(self):
         machinery_name = self.cfg.cuckoo.machinery
-        max_vmstartup_count = self.cfg.cuckoo.max_vmstartup_count
+        max_vmstartup = self.cfg.cuckoo.max_vmstartup_count or 1
 
         # Initialize a semaphore or lock to prevent to many VMs from
         # starting at the same time.
-        if max_vmstartup_count:
-            Scheduler.machine_lock = threading.Semaphore(max_vmstartup_count)
-        else:
-            Scheduler.machine_lock = threading.Lock()
+        Scheduler.machine_lock = threading.Semaphore(max_vmstartup)
 
         log.info("Using \"%s\" as machine manager", machinery_name, extra={
             "action": "init.machinery",
@@ -74,7 +71,7 @@ class Scheduler(object):
         if not machines:
             raise CuckooCriticalError("No machines available.")
 
-        log.info("Loaded %s machine/s", len(machines), extra={
+        log.info("Loaded %s machines", len(machines), extra={
             "action": "init.machines",
             "status": "success",
             "count": len(machines),
@@ -93,9 +90,19 @@ class Scheduler(object):
                         " Please read the documentation about the "
                         "`Processing Utility`.")
 
-        # Drop all existing packet forwarding rules for each VM. Just in case
-        # Cuckoo was terminated for some reason and various forwarding rules
-        # have thus not been dropped yet.
+        self.drop_forwarding_rules()
+
+        # Message queue with threads to transmit exceptions (used as IPC).
+        self.error_queue = Queue.Queue()
+
+        # Command-line overrides the configuration file.
+        if self.maxcount is None:
+            self.maxcount = self.cfg.cuckoo.max_analysis_count
+
+    def drop_forwarding_rules(self):
+        """Drop all existing packet forwarding rules for each VM. Just in case
+        Cuckoo was terminated for some reason and various forwarding rules
+        have thus not been dropped yet."""
         for machine in self.machinery.machines():
             if not machine.interface:
                 log.info("Unable to determine the network interface for VM "
@@ -121,51 +128,15 @@ class Scheduler(object):
                     config("routing:routing:internet"), machine.ip
                 )
 
-        # Message queue with threads to transmit exceptions (used as IPC).
-        self.error_queue = Queue.Queue()
-
-        # Command-line overrides the configuration file.
-        if self.maxcount is None:
-            self.maxcount = self.cfg.cuckoo.max_analysis_count
-
     def stop(self):
         """Stop scheduler."""
         self.running = False
         # Shutdown machine manager (used to kill machines that still alive).
         self.machinery.shutdown()
 
-    def _min_disk_available(self):
-        # Resolve the full base path to the analysis folder, just in
-        # case somebody decides to make a symbolic link out of it.
-        dir_path = cwd("storage", "analyses")
-
-        # TODO: Windows support
-        if hasattr(os, "statvfs"):
-            dir_stats = os.statvfs(dir_path.encode("utf8"))
-
-            # Calculate the free disk space in megabytes.
-            space_available = dir_stats.f_bavail * dir_stats.f_frsize
-            space_available /= 1024 * 1024
-
-            if space_available < self.cfg.cuckoo.freespace:
-                log.error(
-                    "Not enough free disk space! (Only %d MB!)",
-                    space_available, extra={
-                        "action": "scheduler.diskspace",
-                        "status": "error",
-                        "available": space_available,
-                    }
-                )
-                return False
-            return True
-
-    def handle_pending(self):
-        """Handles pending tasks. Checks if a new task can be started. Eg:
-        not too many machines already running, disk space left etc. Selects a
-        machine matching the task requirements and creates
-        a matching analysis manager for the category of the selected pending
-        task"""
-
+    def ready_for_new_run(self):
+        """Performs checks to see if Cuckoo should start a new
+        pending task or not"""
         # Wait until the machine lock is not locked. This is only the case
         # when all machines are fully running, rather that about to start
         # or still busy starting. This way we won't have race conditions
@@ -176,12 +147,27 @@ class Scheduler(object):
                 "Could not acquire machine lock",
                 action="scheduler.machine_lock", status="busy"
             )
-            return
+            return False
 
         Scheduler.machine_lock.release()
 
-        if self.cfg.cuckoo.freespace and not self._min_disk_available():
-            return
+        # Verify if the minimum amount of disk space is available
+        if self.cfg.cuckoo.freespace:
+            try:
+                freespace = get_free_disk(cwd("storage", "analyses"))
+                if freespace <= self.cfg.cuckoo.freespace:
+                    log.error(
+                        "Not enough free disk space! (Only %d MB!)",
+                        freespace, extra={
+                            "action": "scheduler.diskspace",
+                            "status": "error",
+                            "available": freespace,
+                        }
+                    )
+                    return False
+            except OSError as e:
+                # Ignore this check, since we cannot determine it now
+                log.error("Error determining free disk space. Error: %s", e)
 
         max_vm = self.cfg.cuckoo.max_machines_count
 
@@ -191,7 +177,7 @@ class Scheduler(object):
                 "Already maxed out on running machines",
                 action="scheduler.machines", status="maxed"
             )
-            return
+            return False
 
         # Stops the scheduler if the max_analysis_count in the configuration
         # file has been reached.
@@ -203,7 +189,7 @@ class Scheduler(object):
                         "limit": self.total_analysis_count,
                     })
                     self.stop()
-                    return
+                    return False
             else:
                 log.debug("Maximum analysis hit, awaiting active to"
                           "finish off. Still active: %s", len(self.managers))
@@ -212,20 +198,28 @@ class Scheduler(object):
                     action="scheduler.max_analysis", status="busy",
                     active=len(self.managers)
                 )
-                return
+                return False
 
         if not self.machinery.availables():
             logger(
                 "No available machines",
                 action="scheduler.machines", status="none"
             )
-            return
+            return False
 
-        else:
-            # Acquire machine lock non-blocking. This is because the scheduler
-            # also handles requests made by analysis manager. A blocking lock
-            # could cause a deadlock
-            Scheduler.machine_lock.acquire()
+        return True
+
+    def handle_pending(self):
+        """Handles pending tasks. Checks if a new task can be started. Eg:
+        not too many machines already running, disk space left etc. Selects a
+        machine matching the task requirements and creates
+        a matching analysis manager for the category of the selected pending
+        task"""
+        # Acquire machine lock non-blocking. This is because the scheduler
+        # also handles requests made by analysis manager. A blocking lock
+        # could cause a deadlock
+        if not Scheduler.machine_lock.acquire(False):
+            return
 
         # Select task that is specifically for one of the available machines
         # possibly a service machine
@@ -270,6 +264,7 @@ class Scheduler(object):
                     # TODO Use another status so it might be recovered
                     # on next Cuckoo startup if the machine exists by then
                     self.db.set_status(task.id, TASK_FAILED_ANALYSIS)
+
                 if not machine:
                     log.debug("No matching machine for task #%s. Skipping task"
                               " until machine is available. Requirements: %s",
@@ -310,6 +305,10 @@ class Scheduler(object):
 
         analysis_manager.daemon = True
         if not analysis_manager.init(self.db):
+            self.db.set_status(task.id, TASK_FAILED_ANALYSIS)
+            log.error("Failed to initialize analysis manager for task #%s",
+                      task.id)
+
             Scheduler.machine_lock.release()
         else:
             # If initialization succeeded, start the analysis manager
@@ -335,8 +334,8 @@ class Scheduler(object):
 
                 analysis_manager = manager(machine,
                                            self.error_queue,
-                                           self.machinery, sample)
-                analysis_manager.set_task(core_task)
+                                           self.machinery)
+                analysis_manager.set_task(core_task, sample)
                 break
 
         return analysis_manager
@@ -381,13 +380,18 @@ class Scheduler(object):
             # analysis manager. The manager is started added to tracked
             # analysis managers
             if self.db.count_tasks(status=TASK_PENDING) > 0:
-                self.handle_pending()
+                # Check if the max amount of VMs are running, if there is
+                # enough disk space, etc
+                if self.ready_for_new_run():
+
+                    # Grab a pending task, find a machine that matches, find
+                    # a matching analysis manager and start the analysis
+                    self.handle_pending()
 
             # Handles actions requested by analysis managers and performs
             # finalization actions for the managers if they exit.
-            untrack = self.handle_managers()
-            for manager in untrack:
-                self.managers.remove(manager)
+            for untrack_manager in self.handle_managers():
+                self.managers.remove(untrack_manager)
 
             try:
                 raise self.error_queue.get(block=False)
