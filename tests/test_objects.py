@@ -3,6 +3,8 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import datetime
+import mock
 import os
 import pytest
 import re
@@ -10,7 +12,7 @@ import tempfile
 
 from cuckoo.common.files import Files
 from cuckoo.common.objects import (
-    Dictionary, File, Archive, Buffer, YaraMatch, URL_REGEX
+    Dictionary, File, Archive, Buffer, YaraMatch, URL_REGEX, Analysis
 )
 from cuckoo.core.startup import init_yara
 from cuckoo.main import cuckoo_create
@@ -324,3 +326,48 @@ class TestYaraMatch(object):
         assert ym.string("b", 0) == "baz"
         assert ym.strings("a") == ["bar", "foo"]
         assert ym.strings("b") == ["baz"]
+
+class TestAnalysis:
+
+    def test_statuses(self):
+        assert Analysis.INIT == "init"
+        assert Analysis.STARTING == "starting"
+        assert Analysis.RUNNING == "running"
+        assert Analysis.STOPPING == "stopping"
+        assert Analysis.STOPPED == "stopped"
+        assert Analysis.FAILED == "failed"
+
+    def test_set_status(self):
+        a = Analysis(1, "machine1", "machine1", "virtualbox")
+        a.status_lock = mock.MagicMock()
+
+        assert not a.changed
+        a.set_status(Analysis.STARTING)
+
+        a.status_lock.acquire.assert_called_once()
+        assert a.status == "starting"
+        assert isinstance(a.started_on, datetime.datetime)
+        assert a.changed
+        a.status_lock.release.assert_called_once()
+
+    def test_set_status_stopped(self):
+        a = Analysis(1, "machine1", "machine1", "virtualbox")
+        a.status_lock = mock.MagicMock()
+
+        assert not a.changed
+        a.set_status(Analysis.STOPPED)
+
+        a.status_lock.acquire.assert_called_once()
+        assert a.status == "stopped"
+        assert isinstance(a.shutdown_on, datetime.datetime)
+        assert a.changed
+        a.status_lock.release.assert_called_once()
+
+    def test_get_status(self):
+        a = Analysis(1, "machine1", "machine1", "virtualbox")
+        a.status_lock = mock.MagicMock()
+        a.status = "starting"
+        a.changed = True
+
+        assert a.get_status() == "starting"
+        assert not a.changed
