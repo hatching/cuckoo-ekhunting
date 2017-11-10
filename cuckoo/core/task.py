@@ -529,11 +529,13 @@ class Task(object):
 
     def __getitem__(self, item):
         """Make Task readable as dictionary"""
-        attr = getattr(self, item, None)
-        if attr is None:
+        try:
+            return getattr(self, item)
+        except AttributeError:
             return self.__getattr__(item)
-        else:
-            return attr
 
     def __repr__(self):
-        return "<core.Task('{0}','{1}')>".format(self.id, self.target)
+        try:
+            return "<core.Task('{0}','{1}')>".format(self.id, self.target)
+        except AttributeError:
+            return "<core.Task>"
