@@ -2,20 +2,20 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import mock
 import os
 import pytest
-import tempfile
 import shutil
-import mock
+import tempfile
 
 from cuckoo.common import abstracts
+from cuckoo.common import config
 from cuckoo.common.objects import Analysis
-from cuckoo.misc import set_cwd, cwd
-from cuckoo.core.task import Task
 from cuckoo.core.database import Database
 from cuckoo.core.init import write_cuckoo_conf
+from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
-from cuckoo.common import config
+from cuckoo.misc import set_cwd
 
 class TestProcessing(object):
     def setup(self):
