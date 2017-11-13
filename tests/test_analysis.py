@@ -457,7 +457,8 @@ class TestTaskAnalysis:
 
     def test_finalize(self):
         manager = self.get_manager()
-        task_json_path = cwd("storage", "analyses", str(manager.task.id), "task.json")
+        task_json_path = cwd("storage", "analyses", str(manager.task.id),
+                             "task.json")
         manager.init(self.db)
         manager.cfg.cuckoo.process_results = True
         manager.processing_success = True
@@ -470,6 +471,24 @@ class TestTaskAnalysis:
         db_task = self.db.view_task(manager.task.id)
         assert manager.task.db_task is not db_task
         assert db_task.status == "reported"
+        assert os.path.isfile(task_json_path)
+
+    def test_finalize_analysis_failed(self):
+        manager = self.get_manager()
+        task_json_path = cwd("storage", "analyses", str(manager.task.id),
+                             "task.json")
+        manager.init(self.db)
+        manager.cfg.cuckoo.process_results = False
+        manager.analysis.status = "running"
+        # Remove because init creates it. We need to check if it was created
+        # on status stopped
+        os.remove(task_json_path)
+
+        manager.finalize(self.db)
+
+        db_task = self.db.view_task(manager.task.id)
+        assert manager.task.db_task is not db_task
+        assert db_task.status == "failed_analysis"
         assert os.path.isfile(task_json_path)
 
     def test_finalize_process_failed(self):

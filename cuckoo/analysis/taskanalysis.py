@@ -463,6 +463,14 @@ class TaskAnalysis(AnalysisManager):
         """Executed by the scheduler when the analysis manager thread exists.
         Updates the task status to the correct one and updates the
         task.json"""
+        # If, at this point, the analysis is not stopped or failed. It cannot
+        # succeeded, since the manager thread already exited. Set status to
+        # failed to prevent running tasks that are not running
+        if self.analysis.status not in [Analysis.STOPPED, Analysis.FAILED]:
+            log.debug("Analysis status is still \'%s\' after exit. Setting"
+                      " task to failed", self.analysis.status)
+            db.set_status(self.task.id, TASK_FAILED_ANALYSIS)
+
         # Update task obj and write json to disk
         db_task = db.view_task(self.task.id)
         self.task.set_task(db_task)
