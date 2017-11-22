@@ -150,7 +150,7 @@ class TestAnalysisManager:
         assert a.task == task
         assert a.sample == sample
         assert isinstance(a.analysis, Analysis)
-        assert a.name == "Task_#%s_AnalysisManager_Thread" % task.id
+        assert a.name == "task_#%s_AnalysisManager_Thread" % task.id
 
     def test_file_usable(self):
         task = Task()
@@ -163,7 +163,7 @@ class TestAnalysisManager:
         a.set_task(task, sample)
 
         normal = a.file_usable()
-        a.file = None
+        a.f = None
         # Change file to trigger error
         os.write(fd, os.urandom(32))
         modified = a.file_usable()

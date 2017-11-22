@@ -78,7 +78,7 @@ class TestTask:
         assert task.category == "file"
         assert task.path == cwd("storage", "analyses", str(id))
         assert task.db_task == db_task
-        assert task.file
+        assert task.is_file
 
     def test_set_task(self):
         id, sample = self.add_task()
@@ -91,7 +91,7 @@ class TestTask:
         assert task.path == cwd("storage", "analyses", str(id))
         assert task.db_task == db_task
         assert task.target == sample
-        assert task.file
+        assert task.is_file
 
     def test_load_task_from_dict(self):
         task_dict = {
@@ -590,7 +590,7 @@ class TestTask:
         assert task.id == id
         assert task.target == sample
         assert task.category == "file"
-        assert task.file
+        assert task.is_file
 
     def test_add_url(self):
         task = Task()
@@ -606,7 +606,7 @@ class TestTask:
         assert task.id == id
         assert task.target == "http://example.com/42"
         assert task.category == "url"
-        assert not task.file
+        assert not task.is_file
 
     def test_estimate_export_size(self):
         fake_task = cwd(analysis=1)

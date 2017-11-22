@@ -10,7 +10,7 @@ import shutil
 import tempfile
 import threading
 
-from cuckoo.analysis.taskanalysis import TaskAnalysis
+from cuckoo.analysis.regular import Regular
 from cuckoo.common import config
 from cuckoo.common.exceptions import CuckooCriticalError
 from cuckoo.core.database import Database
@@ -330,7 +330,7 @@ class TestScheduler:
         task.add_path(__file__)
         manager = s.get_analysis_manager(task.db_task, Machine())
 
-        assert isinstance(manager, TaskAnalysis)
+        assert isinstance(manager, Regular)
 
     def test_get_analysis_manager_unsupportedcategory(self):
         s = Scheduler()

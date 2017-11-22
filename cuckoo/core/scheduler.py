@@ -330,7 +330,7 @@ class Scheduler(object):
                 sample = None
 
                 # Check if this task is a file
-                if core_task.file:
+                if core_task.is_file:
                     sample = self.db.view_sample(db_task.sample_id)
 
                 analysis_manager = manager(machine,

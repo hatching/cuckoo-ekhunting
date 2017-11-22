@@ -42,7 +42,7 @@ class Task(object):
         @param db_task: Task Db object"""
         self.db_task = db_task
         self.path = cwd("storage", "analyses", str(db_task.id))
-        self.file = db_task.category in Task.files
+        self.is_file = db_task.category in Task.files
         self._read_copied_binary()
 
     def load_task_dict(self, task_dict):
@@ -54,7 +54,7 @@ class Task(object):
         self.target = task_dict.get("target")
 
         self.path = cwd("storage", "analyses", str(task_dict["id"]))
-        self.file = self.category in Task.files
+        self.is_file = self.category in Task.files
         self._read_copied_binary()
 
         # Map all remaining values in the dict as attributes
@@ -105,7 +105,7 @@ class Task(object):
         the file
         """
         symlink = os.path.join(self.path, "binary")
-        if not self.file or os.path.exists(symlink):
+        if not self.is_file or os.path.exists(symlink):
             return
 
         copy_to = cwd("storage", "binaries", File(self.target).get_sha256())

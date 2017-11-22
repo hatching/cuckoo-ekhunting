@@ -1488,7 +1488,7 @@ class AnalysisManager(threading.Thread):
         self.route = None
         self.rt_table = None
         self.interface = None
-        self.file = None
+        self.f = None
         self.override_status = None
 
     def set_task(self, task, sample=None):
@@ -1499,24 +1499,25 @@ class AnalysisManager(threading.Thread):
                                  self.machine.label,
                                  self.machine.manager)
 
+
         # Set thread name
-        self.name = "Task_#%s_%s_Thread" % (self.task.id,
+        self.name = "task_#%s_%s_Thread" % (self.task.id,
                                             self.__class__.__name__)
 
     def file_usable(self):
         """Verify if the target file is readable and has not been changed
         since submission"""
 
-        if not self.file:
-            self.file = File(self.task.target)
+        if not self.f:
+            self.f = File(self.task.target)
 
-        if not self.file.is_readable():
+        if not self.f.is_readable():
             log.error("Unable to read target file %s, please check if it "
                       "is readable for the user executing Cuckoo Sandbox",
                       self.task.target)
             return False
 
-        if not self.file.same_as(self.sample.sha256):
+        if not self.f.same_as(self.sample.sha256):
             log.error("Target file has been modified after submission: \'%s\'",
                       self.task.target)
             return False

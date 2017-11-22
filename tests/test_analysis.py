@@ -8,7 +8,7 @@ import pytest
 import shutil
 import tempfile
 
-from cuckoo.analysis.taskanalysis import TaskAnalysis
+from cuckoo.analysis.regular import Regular
 from cuckoo.common.objects import File
 from cuckoo.core.database import Database
 from cuckoo.core.guest import GuestManager
@@ -49,11 +49,16 @@ class TestTaskAnalysis:
         sample = None
         if task is None:
             task = Task()
-            task.add_path(__file__)
+            fd, fpath = tempfile.mkstemp()
+            os.write(fd, os.urandom(64))
+            os.close(fd)
+            newname = os.path.join(os.path.dirname(fpath), "testanalysis.exe")
+            os.rename(fpath, newname)
+            task.add_path(newname)
         if task.category == "file" or task.category == "archive":
             sample = self.db.view_sample(task.sample_id)
 
-        manager = TaskAnalysis(Machine(), mock.MagicMock(), mock.MagicMock())
+        manager = Regular(Machine(), mock.MagicMock(), mock.MagicMock())
         manager.set_task(task, sample)
         return manager
 
@@ -65,7 +70,7 @@ class TestTaskAnalysis:
 
         assert manager.task == task
         assert manager.analysis is not None
-        assert manager.name == "Task_#%s_TaskAnalysis_Thread" % task.id
+        assert manager.name == "task_#%s_Regular_Thread" % task.id
 
 
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
@@ -75,43 +80,39 @@ class TestTaskAnalysis:
         result = manager.init(self.db)
 
         mb.assert_called_once_with(update_with={
-            "file_type": "Python script, ASCII text executable,"
-                         " with CRLF line terminators",
-            "file_name": "test_analysis.py",
-            "target": "/home/ricardo/scheduler/cuckoo-internal"
-                      "/tests/test_analysis.py",
+            "file_type": "data",
+            "file_name": "testanalysis.exe",
+            "target": "/tmp/testanalysis.exe",
             "pe_exports": "",
             "options": {}
         })
 
         mf.assert_called_once()
         assert result
-        assert manager.file is not None
+        assert manager.f is not None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(manager.task.path, "task.json"))
 
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
-    @mock.patch("cuckoo.analysis.taskanalysis.File.get_apk_entry")
+    @mock.patch("cuckoo.analysis.regular.File.get_apk_entry")
     def test_init_apk_options(self, mae, mb, mf):
         manager = self.get_manager()
         mae.return_value= ("package", "activity")
         result = manager.init(self.db)
 
         mb.assert_called_once_with(update_with={
-            "file_type": "Python script, ASCII text executable,"
-                         " with CRLF line terminators",
-            "file_name": "test_analysis.py",
-            "target": "/home/ricardo/scheduler/cuckoo-internal"
-                      "/tests/test_analysis.py",
+            "file_type": "data",
+            "file_name": "testanalysis.exe",
+            "target": "/tmp/testanalysis.exe",
             "pe_exports": "",
             "options": {"apk_entry": "package:activity"}
         })
 
         mf.assert_called_once()
         assert result
-        assert manager.file is not None
+        assert manager.f is not None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(manager.task.path, "task.json"))
@@ -127,7 +128,7 @@ class TestTaskAnalysis:
         mb.assert_called_once()
         mf.assert_not_called()
         assert result
-        assert manager.file is None
+        assert manager.f is None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(task.path, "task.json"))
@@ -148,7 +149,7 @@ class TestTaskAnalysis:
 
         result = manager.init(self.db)
         assert result
-        assert manager.file is not None
+        assert manager.f is not None
         assert manager.options["target"] == copy_path
         assert manager.options["file_name"] == tmpfile_obj.get_name()
         assert isinstance(manager.guest_manager, GuestManager)
@@ -172,7 +173,7 @@ class TestTaskAnalysis:
         assert not result
         assert os.path.isfile(os.path.join(task.path, "task.json"))
 
-    @mock.patch("cuckoo.analysis.taskanalysis.ResultServer")
+    @mock.patch("cuckoo.analysis.regular.ResultServer")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
@@ -209,7 +210,7 @@ class TestTaskAnalysis:
         manager.guest_manager.wait_for_completion.assert_called_once()
         assert result
 
-    @mock.patch("cuckoo.analysis.taskanalysis.ResultServer")
+    @mock.patch("cuckoo.analysis.regular.ResultServer")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
@@ -249,7 +250,7 @@ class TestTaskAnalysis:
         manager.guest_manager.wait_for_completion.assert_called_once()
         assert result
 
-    @mock.patch("cuckoo.analysis.taskanalysis.ResultServer")
+    @mock.patch("cuckoo.analysis.regular.ResultServer")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
@@ -285,7 +286,7 @@ class TestTaskAnalysis:
         mts.assert_called_once_with(manager.options["timeout"])
         assert result
 
-    @mock.patch("cuckoo.analysis.taskanalysis.ResultServer")
+    @mock.patch("cuckoo.analysis.regular.ResultServer")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
@@ -322,7 +323,7 @@ class TestTaskAnalysis:
         mwf.assert_called_once()
         assert result
 
-    @mock.patch("cuckoo.analysis.taskanalysis.ResultServer")
+    @mock.patch("cuckoo.analysis.regular.ResultServer")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.unroute_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     def test_stop_analysis(self, msas, murn, mrs):
@@ -345,7 +346,7 @@ class TestTaskAnalysis:
                                              manager.machine)
         murn.assert_called_once()
 
-    @mock.patch("cuckoo.analysis.taskanalysis.ResultServer")
+    @mock.patch("cuckoo.analysis.regular.ResultServer")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.unroute_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     def test_stop_analysis_dump_mem(self, msas, murn, mrs):
