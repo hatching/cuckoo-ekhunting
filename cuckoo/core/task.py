@@ -3,7 +3,6 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import datetime
-import fnmatch
 import logging
 import os
 import threading
