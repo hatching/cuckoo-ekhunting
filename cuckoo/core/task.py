@@ -10,7 +10,7 @@ import zipfile
 import io
 import json
 
-from cuckoo.common.config import Config
+from cuckoo.common.config import config
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.files import Folders, Files
 from cuckoo.common.objects import Dictionary, File, URL
@@ -28,7 +28,6 @@ class Task(object):
     latest_symlink_lock = threading.Lock()
 
     def __init__(self, db_task=None):
-        self.cfg = Config()
         self.db = Database()
         self.db_task = None
         self.copied_binary = None
@@ -241,10 +240,10 @@ class Task(object):
         RunSignatures(results=results).run()
         RunReporting(task=dict_task, results=results).run()
 
-        if self.cfg.cuckoo.delete_original:
+        if config("cuckoo:cuckoo:delete_original"):
             self.delete_original_sample()
 
-        if self.cfg.cuckoo.delete_bin_copy:
+        if config("cuckoo:cuckoo:delete_bin_copy"):
             self.delete_copied_sample()
 
         return True

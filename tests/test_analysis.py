@@ -32,25 +32,35 @@ class Machine(object):
         self.locked = True
 
 class TestTaskAnalysis:
+
+    createcwd = True
+
     def setup_class(self):
-        self.cwd = tempfile.mkdtemp()
-        set_cwd(self.cwd)
-        cuckoo_create()
+        self.remove_paths = []
+        self.db = Database()
+
+    def create_cwd(self, cfg=None):
+        if not TestTaskAnalysis.createcwd and cfg is None:
+            return
+
+        TestTaskAnalysis.createcwd = False
+        newcwd = tempfile.mkdtemp()
+        set_cwd(newcwd)
+        cuckoo_create(cfg=cfg)
+        self.remove_paths.append(newcwd)
+        self.db.connect()
 
     def teardown_class(self):
-        if os.path.isdir(self.cwd):
-            shutil.rmtree(self.cwd)
-
-    def setup(self):
-        self.db = Database()
-        self.db.connect()
+        for path in self.remove_paths:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
 
     def get_manager(self, task=None):
         sample = None
         if task is None:
             task = Task()
             fd, fpath = tempfile.mkstemp()
-            os.write(fd, os.urandom(64))
+            os.write(fd, b"\x00"*32)
             os.close(fd)
             newname = os.path.join(os.path.dirname(fpath), "testanalysis.exe")
             os.rename(fpath, newname)
@@ -63,6 +73,7 @@ class TestTaskAnalysis:
         return manager
 
     def test_set_task(self):
+        self.create_cwd()
         task = Task()
         task.add_path(__file__)
         manager = self.get_manager()
@@ -76,6 +87,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
     def test_init(self, mb, mf):
+        self.create_cwd()
         manager = self.get_manager()
         result = manager.init(self.db)
 
@@ -98,6 +110,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
     @mock.patch("cuckoo.analysis.regular.File.get_apk_entry")
     def test_init_apk_options(self, mae, mb, mf):
+        self.create_cwd()
         manager = self.get_manager()
         mae.return_value= ("package", "activity")
         result = manager.init(self.db)
@@ -120,6 +133,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
     def test_init_non_file(self, mb, mf):
+        self.create_cwd()
         task = Task()
         task.add_url("http://example.com/42")
         manager = self.get_manager(task)
@@ -134,6 +148,7 @@ class TestTaskAnalysis:
         assert os.path.isfile(os.path.join(task.path, "task.json"))
 
     def test_init_use_bin_copy(self):
+        self.create_cwd()
         task = Task()
         fd, tmpfile = tempfile.mkstemp()
         os.write(fd, os.urandom(64))
@@ -157,6 +172,7 @@ class TestTaskAnalysis:
         assert os.path.isfile(os.path.join(task.path, "task.json"))
 
     def test_init_fail(self):
+        self.create_cwd()
         task = Task()
         fd, tmpfile = tempfile.mkstemp()
         os.write(fd, os.urandom(64))
@@ -180,6 +196,7 @@ class TestTaskAnalysis:
                 "request_scheduler_action")
     @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
     def test_start_analysis(self, mml, mrsa, msas, mrn, mrs):
+        self.create_cwd()
         manager = self.get_manager()
         # Mock resultserver obj so we can check if add_task was called
         resulserver_obj = mock.MagicMock()
@@ -217,6 +234,7 @@ class TestTaskAnalysis:
                 "request_scheduler_action")
     @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
     def test_start_analysis_url(self, mml, mrsa, msas, mrn, mrs):
+        self.create_cwd()
         task = Task()
         task.add_url("http://example.com/42")
 
@@ -258,6 +276,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
     @mock.patch("time.sleep")
     def test_start_analysis_baseline(self, mts, mml, mrsa, msas, mrn, mrs):
+        self.create_cwd()
         task = Task()
         task.add_baseline()
 
@@ -294,6 +313,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.wait_finish")
     def test_start_analysis_noagent(self, mwf, mml, mrsa, msas, mrn, mrs):
+        self.create_cwd()
         task = Task()
         task.add_service(owner="1", tags="service,mitm", timeout=120)
 
@@ -327,6 +347,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.unroute_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     def test_stop_analysis(self, msas, murn, mrs):
+        self.create_cwd()
         # Mock resultserver obj so we can check if del_task was called
         resulserver_obj = mock.MagicMock()
         mrs.return_value = resulserver_obj
@@ -350,6 +371,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.unroute_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     def test_stop_analysis_dump_mem(self, msas, murn, mrs):
+        self.create_cwd()
         task = Task()
         task.add_path(__file__, memory=True)
 
@@ -377,6 +399,8 @@ class TestTaskAnalysis:
         murn.assert_called_once()
 
     def test_run(self):
+        self.create_cwd()
+
         manager = self.get_manager()
         manager.init(self.db)
 
@@ -385,7 +409,6 @@ class TestTaskAnalysis:
         manager.task.process = mock.MagicMock(return_value=True)
         manager.set_analysis_status = mock.MagicMock()
         manager.release_scheduler_lock = mock.MagicMock()
-        manager.cfg.cuckoo.process_results = True
 
         manager.run()
 
@@ -398,6 +421,7 @@ class TestTaskAnalysis:
         manager.release_scheduler_lock.assert_called_once()
 
     def test_run_fail(self):
+        self.create_cwd()
         manager = self.get_manager()
         manager.init(self.db)
 
@@ -406,7 +430,6 @@ class TestTaskAnalysis:
         manager.task.process = mock.MagicMock(return_value=True)
         manager.set_analysis_status = mock.MagicMock()
         manager.release_scheduler_lock = mock.MagicMock()
-        manager.cfg.cuckoo.process_results = True
 
         manager.run()
 
@@ -461,7 +484,6 @@ class TestTaskAnalysis:
         task_json_path = cwd("storage", "analyses", str(manager.task.id),
                              "task.json")
         manager.init(self.db)
-        manager.cfg.cuckoo.process_results = True
         manager.processing_success = True
         # Remove because init creates it. We need to check if it was created
         # on status stopped
@@ -475,11 +497,17 @@ class TestTaskAnalysis:
         assert os.path.isfile(task_json_path)
 
     def test_finalize_analysis_failed(self):
+        self.create_cwd(cfg={
+            "cuckoo": {
+                "cuckoo": {
+                    "process_results": False
+                }
+            }
+        })
         manager = self.get_manager()
         task_json_path = cwd("storage", "analyses", str(manager.task.id),
                              "task.json")
         manager.init(self.db)
-        manager.cfg.cuckoo.process_results = False
         manager.analysis.status = "running"
         # Remove because init creates it. We need to check if it was created
         # on status stopped
@@ -493,11 +521,12 @@ class TestTaskAnalysis:
         assert os.path.isfile(task_json_path)
 
     def test_finalize_process_failed(self):
+        TestTaskAnalysis.createcwd = True
+        self.create_cwd()
         manager = self.get_manager()
         task_json_path = cwd("storage", "analyses", str(manager.task.id),
                              "task.json")
         manager.init(self.db)
-        manager.cfg.cuckoo.process_results = True
         manager.processing_success = False
         # Remove because init creates it. We need to check if it was created
         # on status stopped
@@ -511,11 +540,17 @@ class TestTaskAnalysis:
         assert os.path.isfile(task_json_path)
 
     def test_finalize_process_disabled(self):
+        self.create_cwd(cfg={
+            "cuckoo": {
+                "cuckoo": {
+                    "process_results": False
+                }
+            }
+        })
         manager = self.get_manager()
         task_json_path = cwd("storage", "analyses", str(manager.task.id),
                              "task.json")
         manager.init(self.db)
-        manager.cfg.cuckoo.process_results = False
         manager.processing_success = None
         # Remove because init creates it. We need to check if it was created
         # on status stopped

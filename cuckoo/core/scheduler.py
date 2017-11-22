@@ -5,7 +5,6 @@
 
 import time
 import logging
-import os
 import threading
 import Queue
 
@@ -31,7 +30,6 @@ class Scheduler(object):
 
     def __init__(self, maxcount=None):
         self.running = True
-        self.cfg = Config()
         self.db = Database()
         self.maxcount = maxcount
         self.total_analysis_count = 0
@@ -40,8 +38,8 @@ class Scheduler(object):
         self.managers = []
 
     def initialize(self):
-        machinery_name = self.cfg.cuckoo.machinery
-        max_vmstartup = self.cfg.cuckoo.max_vmstartup_count or 1
+        machinery_name = config("cuckoo:cuckoo:machinery")
+        max_vmstartup = config("cuckoo:cuckoo:max_vmstartup_count") or 1
 
         # Initialize a semaphore or lock to prevent to many VMs from
         # starting at the same time.
@@ -84,7 +82,7 @@ class Scheduler(object):
                         "a PostgreSQL database as SQLite might cause some "
                         "issues.")
 
-        if len(machines) > 4 and self.cfg.cuckoo.process_results:
+        if len(machines) > 4 and config("cuckoo:cuckoo:process_results"):
             log.warning("When running many virtual machines it is recommended "
                         "to process the results in separate 'cuckoo process' "
                         "instances increase throughput and stability."
@@ -98,7 +96,7 @@ class Scheduler(object):
 
         # Command-line overrides the configuration file.
         if self.maxcount is None:
-            self.maxcount = self.cfg.cuckoo.max_analysis_count
+            self.maxcount = config("cuckoo:cuckoo:max_analysis_count")
 
     def drop_forwarding_rules(self):
         """Drop all existing packet forwarding rules for each VM. Just in case
@@ -153,10 +151,10 @@ class Scheduler(object):
         Scheduler.machine_lock.release()
 
         # Verify if the minimum amount of disk space is available
-        if self.cfg.cuckoo.freespace:
+        if config("cuckoo:cuckoo:freespace"):
             try:
                 freespace = get_free_disk(cwd("storage", "analyses"))
-                if freespace <= self.cfg.cuckoo.freespace:
+                if freespace <= config("cuckoo:cuckoo:freespace"):
                     log.error(
                         "Not enough free disk space! (Only %d MB!)",
                         freespace, extra={
@@ -170,7 +168,7 @@ class Scheduler(object):
                 # Ignore this check, since we cannot determine it now
                 log.error("Error determining free disk space. Error: %s", e)
 
-        max_vm = self.cfg.cuckoo.max_machines_count
+        max_vm = config("cuckoo:cuckoo:max_machines_count")
 
         if max_vm and len(self.machinery.running()) >= max_vm:
             log.debug("Maximum amount of machines is running")

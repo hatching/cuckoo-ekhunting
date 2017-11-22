@@ -186,9 +186,17 @@ class TestScheduler:
 
     @mock.patch("cuckoo.core.scheduler.get_free_disk")
     def test_ready_for_new_run_max_running(self, mfd):
+        set_cwd(tempfile.mkdtemp())
+        cuckoo_create(cfg={
+            "cuckoo": {
+                "cuckoo": {
+                    "max_machines_count": 1
+                }
+            }
+        })
+        Database().connect()
         mfd.return_value = 10000
         s = Scheduler()
-        s.cfg.cuckoo.max_machines_count = 1
         Scheduler.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
         s.machinery.running.return_value = [Machine(), Machine()]
