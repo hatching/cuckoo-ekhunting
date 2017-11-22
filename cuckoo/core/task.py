@@ -3,9 +3,13 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import datetime
+import fnmatch
 import logging
 import os
 import threading
+import zipfile
+import io
+import json
 
 from cuckoo.common.config import Config
 from cuckoo.common.exceptions import CuckooOperationalError
@@ -14,6 +18,7 @@ from cuckoo.common.objects import Dictionary, File, URL
 from cuckoo.core.database import Database, TASK_RECOVERED
 from cuckoo.core.plugins import RunProcessing, RunSignatures, RunReporting
 from cuckoo.misc import cwd
+from cuckoo.common.utils import get_directory_size, json_default
 
 log = logging.getLogger(__name__)
 
@@ -521,6 +526,162 @@ class Task(object):
                     requirements += "%s " % value
 
         return requirements
+
+    @staticmethod
+    def estimate_export_size(task_id, taken_dirs, taken_files):
+        """Estimate the size of the export zip if given dirs and files
+        are included"""
+        path = cwd(analysis=task_id)
+        if not os.path.exists(path):
+            log.error("Path %s does not exist", path)
+            return 0
+
+        size_total = 0
+
+        for directory in taken_dirs:
+            destination = "%s/%s" % (path, os.path.basename(directory))
+            if os.path.isdir(destination):
+                size_total += get_directory_size(destination)
+
+        for filename in taken_files:
+            destination = "%s/%s" % (path, os.path.basename(filename))
+            if os.path.isfile(destination):
+                size_total += os.path.getsize(destination)
+
+        # estimate file size after zipping; 60% compression rate typically
+        size_estimated = size_total / 6.5
+
+        return size_estimated
+
+    @staticmethod
+    def get_files(task_id):
+        """Locate all directories/results available for this task
+        returns a tuple of all dirs and files"""
+        analysis_path = cwd(analysis=task_id)
+        if not os.path.exists(analysis_path):
+            log.error("Path %s does not exist", analysis_path)
+            return [], []
+
+        dirs, files = [], []
+        for filename in os.listdir(analysis_path):
+            path = os.path.join(analysis_path, filename)
+            if os.path.isdir(path):
+                dirs.append((filename, len(os.listdir(path))))
+            else:
+                files.append(filename)
+
+        return dirs, files
+
+    @staticmethod
+    def create_zip(task_id, taken_dirs, taken_files, export=True):
+        """Returns a zip file as a file like object.
+        @param task_id: task id of an existing task
+        @param taken_dirs: list of directories (limiting to extension possible
+        if a dir is given in a tuple with a list of extensions
+        ['dir1', ('dir2', ['.bson'])]
+        @param taken_files: files from root dir to include
+        @param export: Is this a full task export
+        (should extra info be included?)"""
+
+        if not taken_dirs and not taken_files:
+            log.warning("No directories or files to zip were provided")
+            return None
+
+        # Test if the task_id is an actual integer, to prevent it being
+        # a path.
+        try:
+            int(task_id)
+        except ValueError:
+            log.error("Task id was not integer! Actual value: %s", task_id)
+            return None
+
+        task_path = cwd(analysis=task_id)
+        if not os.path.exists(task_path):
+            log.error("Path %s does not exist", task_path)
+            return None
+
+        # Fill dictionary with extensions per directory to include.
+        # If no extensions exist for a directory, it will include all when
+        # making the zip
+        include_exts = {}
+
+        taken_dirs_tmp = []
+        for taken_dir in taken_dirs:
+
+            # If it is a tuple, it contains extensions to include
+            if isinstance(taken_dir, tuple):
+                taken_dirs_tmp.append(taken_dir[0])
+                if taken_dir[0] not in include_exts:
+                    include_exts[taken_dir[0]] = []
+
+                if isinstance(taken_dir[1], list):
+                    include_exts[taken_dir[0]].extend(
+                        [ext for ext in taken_dir[1]]
+                    )
+                else:
+                    include_exts[taken_dir[0]].append(taken_dir[1])
+            else:
+                taken_dirs_tmp.append(taken_dir)
+
+        taken_dirs = taken_dirs_tmp
+        f = io.BytesIO()
+        z = zipfile.ZipFile(f, "w", zipfile.ZIP_DEFLATED, allowZip64=True)
+
+        # If exporting a complete analysis, create an analysis.json file with
+        # additional information about this analysis. This information serves
+        # as metadata when importing a task.
+        if export:
+            report_path = cwd("reports", "report.json", analysis=task_id)
+
+            if not os.path.isfile(report_path):
+                log.warning("Cannot export task %s, report.json does"
+                            " not exist", task_id)
+                z.close()
+                return None
+
+            report = json.loads(open(report_path, "rb").read())
+            obj = {
+                "action": report.get("debug", {}).get("action", []),
+                "errors": report.get("debug", {}).get("errors", []),
+            }
+            z.writestr(
+                "analysis.json", json.dumps(obj, indent=4,
+                                            default=json_default)
+            )
+
+        for dirpath, dirnames, filenames in os.walk(task_path):
+            if dirpath == task_path:
+                for filename in filenames:
+                    if filename in taken_files:
+                        z.write(os.path.join(dirpath, filename), filename)
+
+            basedir = os.path.basename(dirpath)
+            if basedir in taken_dirs:
+
+                for filename in filenames:
+
+                    # Check if this directory has a set of extensions that
+                    # should only be included
+                    include = True
+                    if basedir in include_exts and include_exts[basedir]:
+                        include = False
+                        for ext in include_exts[basedir]:
+                            if filename.endswith(ext):
+                                include = True
+                                break
+
+                    if not include:
+                        continue
+
+                    z.write(
+                        os.path.join(dirpath, filename),
+                        os.path.join(os.path.basename(dirpath), filename)
+                    )
+
+        z.close()
+        f.seek(0)
+
+        return f
 
     def __getattr__(self, item):
         """Map attributes back to the db task object"""
