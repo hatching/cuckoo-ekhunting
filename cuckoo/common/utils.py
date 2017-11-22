@@ -341,3 +341,13 @@ def list_of_ints(l):
 
 def list_of_strings(l):
     return list_of(l, basestring)
+
+def get_directory_size(path):
+    """recursive"""
+    size = 0
+    for path_dir, dirs, files in os.walk(path):
+        for f in files:
+            fp = os.path.join(path_dir, f)
+            size += os.path.getsize(fp)
+
+    return size

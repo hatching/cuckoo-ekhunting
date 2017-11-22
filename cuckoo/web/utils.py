@@ -22,17 +22,6 @@ def view_error(request, msg, status=500):
         request, "errors/error.html", error=msg, status=status
     )
 
-def get_directory_size(path):
-    """recursive"""
-
-    size = 0
-    for path_dir, dirs, files in os.walk(path):
-        for f in files:
-            fp = os.path.join(path_dir, f)
-            size += os.path.getsize(fp)
-
-    return size
-
 def _api_post(func):
     @functools.wraps(func)
     def inner(request, *args, **kwargs):
