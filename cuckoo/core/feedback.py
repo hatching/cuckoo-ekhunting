@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 class CuckooFeedback(object):
     """Contacts Cuckoo HQ with feedback & optional analysis dump."""
-    endpoint = "http://127.0.0.1:9086/lol"
+    endpoint = "https://feedback.cuckoosandbox.org/api/submit/"
     exc_whitelist = (
         CuckooFeedbackError,
     )
