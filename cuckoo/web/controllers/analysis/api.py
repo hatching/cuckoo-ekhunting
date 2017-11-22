@@ -420,11 +420,13 @@ class AnalysisApi(object):
 
     @api_post
     def feedback_send(request, body):
-        f = CuckooFeedback()
 
         task_id = body.get("task_id")
-        if task_id and task_id.isdigit():
-            task_id = int(task_id)
+        if not task_id or not task_id.isdigit():
+            return json_error_response("Task id has to be an integer")
+
+        task_id = int(task_id)
+        f = CuckooFeedback()
 
         try:
             feedback_id = f.send_form(
@@ -433,7 +435,7 @@ class AnalysisApi(object):
                 company=body.get("company"),
                 email=body.get("email"),
                 message=body.get("message"),
-                json_report=body.get("include_analysis", False),
+                include_files=body.get("include_analysis", False),
                 memdump=body.get("include_memdump", False)
             )
         except CuckooFeedbackError as e:

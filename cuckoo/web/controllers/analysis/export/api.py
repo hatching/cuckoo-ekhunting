@@ -2,12 +2,13 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
-from django.http import JsonResponse
+import os
 
-from cuckoo.common.exceptions import CuckooApiError
+from django.http import JsonResponse, Http404
+from django.template.defaultfilters import filesizeformat
 
-from cuckoo.web.controllers.analysis.analysis import AnalysisController
-from cuckoo.web.controllers.analysis.export.export import ExportController
+from cuckoo.core.task import Task
+from cuckoo.misc import cwd
 from cuckoo.web.utils import api_post, json_error_response
 
 class ExportApi:
@@ -23,11 +24,15 @@ class ExportApi:
         if not task_id:
             return json_error_response("invalid task_id")
 
-        size = ExportController.estimate_size(task_id=task_id,
-                                              taken_dirs=taken_dirs,
-                                              taken_files=taken_files)
+        size = Task.estimate_export_size(
+            task_id=task_id, taken_dirs=taken_dirs, taken_files=taken_files
+        )
+        size_response = {
+            "size": int(size),
+            "size_human": filesizeformat(size)
+        }
 
-        return JsonResponse(size, safe=False)
+        return JsonResponse(size_response, safe=False)
 
     @api_post
     def get_files(request, body):
@@ -36,15 +41,9 @@ class ExportApi:
         if not task_id:
             return json_error_response("invalid task_id")
 
-        report = AnalysisController.get_report(task_id)
-        if not report["analysis"].get("info", {}).get("analysis_path"):
-            raise CuckooApiError("old-style analysis")
+        if not os.path.isfile(cwd("reports", "report.json", analysis=task_id)):
+            raise Http404("Task %s: report.json not found" % task_id)
 
-        analysis_path = report["analysis"]["info"]["analysis_path"]
-
-        try:
-            dirs, files = ExportController.get_files(analysis_path)
-        except Exception as e:
-            return json_error_response(message=str(e))
+        dirs, files = Task.get_files(task_id)
 
         return JsonResponse({"dirs": dirs, "files": files}, safe=False)

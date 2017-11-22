@@ -9,7 +9,6 @@ from django.shortcuts import redirect
 from django.core.urlresolvers import reverse
 
 from cuckoo.core.task import Task
-from cuckoo.web.controllers.analysis.export.export import ExportController
 from cuckoo.web.controllers.analysis.analysis import AnalysisController
 from cuckoo.web.utils import view_error, render_template
 
@@ -63,29 +62,30 @@ class AnalysisRoutes:
         if request.method == "POST":
             taken_dirs = request.POST.getlist("dirs")
             taken_files = request.POST.getlist("files")
+            print(taken_files)
+            print(taken_dirs)
+            if len(taken_dirs) + len(taken_files) < 1:
+                return view_error(
+                    request, "Please select at least one directory or file"
+                             " to be exported.")
 
-            try:
-                zip = ExportController.create(task_id=task_id,
-                                              taken_dirs=taken_dirs,
-                                              taken_files=taken_files)
+            zip = Task.create_zip(
+                task_id=task_id, taken_dirs=taken_dirs, taken_files=taken_files
+            )
+            if not zip:
+                return view_error(request, "Failed to create zip.")
 
-                response = HttpResponse(zip.getvalue(), content_type="application/zip")
-                response["Content-Disposition"] = "attachment; filename=%s.zip" % task_id
-                return response
+            response = HttpResponse(
+                zip.getvalue(), content_type="application/zip"
+            )
+            response["Content-Disposition"] = "attachment; filename=%s.zip"\
+                                              % task_id
 
-            except Exception as e:
-                return view_error(request, str(e))
+            return response
 
         report = AnalysisController.get_report(task_id)
 
-        if "analysis_path" not in report.get("analysis", {}).get("info", {}):
-            return view_error(request, "The analysis was created before the export "
-                                       "functionality was integrated with Cuckoo and is "
-                                       "therefore not available for this task (in order to "
-                                       "export this analysis, please reprocess its report).")
-
-        analysis_path = report["analysis"]["info"]["analysis_path"]
-        dirs, files = ExportController.get_files(analysis_path)
+        dirs, files = Task.get_files(task_id)
         return render_template(request, "analysis/export.html",
                                report=report, dirs=dirs, files=files)
 
