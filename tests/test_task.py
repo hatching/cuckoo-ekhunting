@@ -3,12 +3,14 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import datetime
+import io
 import json
 import mock
 import os
 import pytest
 import shutil
 import tempfile
+import zipfile
 
 from cuckoo.common.files import Files
 from cuckoo.common.objects import File, URL
@@ -605,3 +607,33 @@ class TestTask:
         assert task.target == "http://example.com/42"
         assert task.category == "url"
         assert not task.file
+
+    def test_estimate_export_size(self):
+        fake_task = cwd(analysis=1)
+        shutil.copytree("tests/files/sample_analysis_storage", fake_task)
+
+        est_size = Task.estimate_export_size(1, ["logs"], ["dump.pcap"])
+        assert int(est_size) == 7861
+
+    def test_get_files(self):
+        fake_task = cwd(analysis=1)
+        shutil.copytree("tests/files/sample_analysis_storage", fake_task)
+        dirs, files = Task.get_files(1)
+
+        assert len(dirs) == 6
+        assert len(files) == 10
+        assert "dump.pcap" in files
+        assert ("logs", 1) in dirs
+
+    def test_create_zip(self):
+        fake_task = cwd(analysis=1)
+        shutil.copytree("tests/files/sample_analysis_storage", fake_task)
+        zfileio = Task.create_zip(
+            1, ["logs", "report"], ["cuckoo.log", "files.json"]
+        )
+
+        assert isinstance(zfileio, io.BytesIO)
+
+        zfile = zipfile.ZipFile(zfileio)
+        assert len(zfile.read("files.json")) == 1856
+        assert len(zfileio.getvalue()) == 13938

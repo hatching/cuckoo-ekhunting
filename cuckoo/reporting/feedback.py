@@ -19,11 +19,12 @@ class Feedback(Report):
 
         fo = CuckooFeedbackObject(
             message="One or more errors occurred during an analysis",
-            automated=True
+            automated=True,
+            task_id=self.task["id"],
+            include_files=True
         )
 
         for error in results["debug"]["errors"]:
             fo.add_error(error)
 
-        fo.gather_export_files(self.analysis_path)
         feedback.send_feedback(fo)

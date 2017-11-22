@@ -8,18 +8,18 @@ import logging
 import os
 import requests
 import traceback
-import zipfile
 
 from cuckoo.common.config import Config, config
 from cuckoo.common.exceptions import CuckooFeedbackError
 from cuckoo.core.report import Report
+from cuckoo.core.task import Task
 from cuckoo.misc import version, cwd
 
 log = logging.getLogger(__name__)
 
 class CuckooFeedback(object):
     """Contacts Cuckoo HQ with feedback & optional analysis dump."""
-    endpoint = "https://feedback.cuckoosandbox.org/api/submit/"
+    endpoint = "http://127.0.0.1:9086/lol"
     exc_whitelist = (
         CuckooFeedbackError,
     )
@@ -89,25 +89,25 @@ class CuckooFeedback(object):
             feedback.include_report_web(task_id)
 
         if feedback.report and options.analysis:
-            feedback.include_analysis(memdump=options.memdump)
+            feedback.include_files = True
 
         return self.send_feedback(feedback)
 
     def send_form(self, task_id=None, name=None, email=None, message=None,
-                  company=None, json_report=False, memdump=False):
+                  company=None, include_files=False, memdump=False):
         feedback = CuckooFeedbackObject(
             name=name, company=company, email=email,
-            message=message, automated=False
+            message=message, automated=False, task_id=task_id,
+            include_files=include_files
         )
 
-        if json_report:
+        if include_files:
             if not task_id or not isinstance(task_id, int):
                 raise CuckooFeedbackError(
                     "An incorrect Task ID has been provided: %s!" % task_id
                 )
 
             feedback.include_report_web(task_id)
-            feedback.include_analysis(memdump=memdump)
 
         return self.send_feedback(feedback)
 
@@ -130,7 +130,7 @@ class CuckooFeedback(object):
                 data={
                     "feedback": json.dumps(feedback.to_dict()),
                 },
-                files=feedback.to_files(),
+                files=feedback.get_files(),
                 headers=headers
             )
             r.raise_for_status()
@@ -151,16 +151,16 @@ class CuckooFeedback(object):
 class CuckooFeedbackObject(object):
     """Feedback object."""
     export_files = [
-        "analysis.log",
-        "cuckoo.log",
-        "dump.pcap",
-        "tlsmaster.txt",
-        ("logs", ".bson"),
-        ("shots", ".jpg"),
+        "analysis.log", "cuckoo.log", "dump.pcap",
+        "tlsmaster.txt"
+    ]
+
+    export_dirs = [
+        ("logs", [".bson"]), ("shots", [".jpg"])
     ]
 
     def __init__(self, message=None, email=None, name=None, company=None,
-                 automated=False):
+                 automated=False, task_id=None, include_files=False):
         self.automated = automated
         self.message = message
         self.contact = {
@@ -173,6 +173,8 @@ class CuckooFeedbackObject(object):
         self.export = []
         self.info = {}
         self.report = None
+        self.task_id = task_id
+        self.include_files = include_files
 
     def include_report(self, report):
         # Any and all errors.
@@ -198,59 +200,6 @@ class CuckooFeedbackObject(object):
             return
 
         return self.include_report(report)
-
-    def gather_export_files(self, dirpath):
-        """Returns a list of all files of interest from an analysis."""
-        ret = []
-        for name in self.export_files:
-            if isinstance(name, basestring):
-                filepath = os.path.join(dirpath, name)
-                if os.path.isfile(filepath):
-                    ret.append((name, filepath))
-                continue
-
-            if isinstance(name, tuple):
-                dirname, ext = name
-                dirpath = os.path.join(dirpath, dirname)
-                if os.path.isdir(dirpath):
-                    for filename in os.listdir(dirpath):
-                        if not filename.endswith(ext):
-                            continue
-
-                        filepath = os.path.join(dirpath, filename)
-                        if not os.path.isfile(filepath):
-                            continue
-
-                        filename = "%s/%s" % (dirname, filename)
-                        ret.append((filename, filepath))
-                continue
-
-            raise RuntimeError(
-                "Unknown export file defined: %s!" % name
-            )
-        self.export = ret
-
-    def include_analysis(self, memdump=False):
-        if not self.report:
-            raise CuckooFeedbackError(
-                "Report must be included first when including the analysis."
-            )
-
-        if "analysis_path" not in self.report.info:
-            raise CuckooFeedbackError(
-                "Can't include the entire analysis for this analysis as the "
-                "analysis path isn't known."
-            )
-
-        if not os.path.isdir(self.report.info["analysis_path"]):
-            raise CuckooFeedbackError(
-                "Can't include the entire analysis for this analysis as the "
-                "analysis path doesn't exist."
-            )
-
-        # TODO Support for also including memory dumps (should we?) and/or
-        # behavioral logs or at least something like matched signatures.
-        self.gather_export_files(self.report.info["analysis_path"])
 
     def add_error(self, error):
         self.errors.append(error)
@@ -294,13 +243,29 @@ class CuckooFeedbackObject(object):
             },
         }
 
-    def to_files(self):
-        buf = io.BytesIO()
-        z = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED)
-        for filename, filepath in self.export:
-            z.write(filepath, filename)
-        z.close()
-        buf.seek(0)
-        return {
-            "file": buf,
-        }
+    # TODO Support for also including memory dumps (should we?) and/or
+    # behavioral logs or at least something like matched signatures.
+    def get_files(self):
+        """If the task_id and include_files are set, returns a
+        zip file of the files for that task"""
+        zipfile = io.BytesIO()
+        if self.include_files:
+
+            if not self.task_id:
+                raise CuckooFeedbackError(
+                    "No task ID was set. Cannot include files if task ID"
+                    " is unknown."
+                )
+
+            if not os.path.isdir(cwd(analysis=self.task_id)):
+                raise CuckooFeedbackError(
+                    "Can't include the entire analysis for this analysis"
+                    " as the analysis path doesn't exist."
+                )
+
+            zipfile = Task.create_zip(
+                self.task_id, self.export_dirs,
+                self.export_files, export=False
+            )
+
+        return {"file": zipfile}

@@ -1,0 +1,8 @@
+{
+    "debug": {
+        "action": ["Doge1 action"],
+        "dbgview": [],
+        "errors": ["error 1"],
+        "log": []
+    }
+}
