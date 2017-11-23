@@ -12,6 +12,8 @@ from cuckoo.core.task import Task
 from cuckoo.web.controllers.analysis.analysis import AnalysisController
 from cuckoo.web.utils import view_error, render_template
 
+submit_task = Task()
+
 class AnalysisRoutes:
     @staticmethod
     def recent(request):
@@ -91,7 +93,7 @@ class AnalysisRoutes:
 
     @staticmethod
     def reboot(request, task_id):
-        task_obj = Task().add_reboot(task_id=task_id)
+        task_obj = submit_task.add_reboot(task_id=task_id)
         return render_template(request, "submission/reboot.html",
                                task_id=task_id, task_obj=task_obj,
                                baseurl=request.build_absolute_uri("/")[:-1])

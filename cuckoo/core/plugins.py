@@ -24,6 +24,8 @@ from cuckoo.misc import cwd, version as cuckoo_version
 
 log = logging.getLogger(__name__)
 
+db = Database()
+
 def enumerate_plugins(dirpath, module_prefix, namespace, class_,
                       attributes={}, as_dict=False):
     """Import plugins of type `class` located at `dirpath` into the
@@ -272,7 +274,7 @@ class RunProcessing(object):
         if not self.task.get("machine"):
             return
 
-        machine = Database().view_machine(self.task["machine"])
+        machine = db.view_machine(self.task["machine"])
         if not machine:
             return
 

@@ -142,8 +142,9 @@ class TestAnalysisManager:
         task = Task()
         task.add_path(__file__)
         sample = self.db.view_sample(task.sample_id)
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
 
         a.set_task(task, sample)
 
@@ -158,8 +159,9 @@ class TestAnalysisManager:
         os.write(fd, os.urandom(64))
         task.add_path(fpath)
         sample = self.db.view_sample(task.sample_id)
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task, sample)
 
         normal = a.file_usable()
@@ -178,8 +180,9 @@ class TestAnalysisManager:
         task = Task()
         task.add_path(__file__, options={"free": "yes"})
         sample = self.db.view_sample(task.sample_id)
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task, sample)
 
         expected = {
@@ -211,8 +214,9 @@ class TestAnalysisManager:
     def test_route_network_none(self, mr):
         task = Task()
         task.add_url("http://example.com/42", options={"route": "none"})
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route_network()
 
@@ -225,8 +229,9 @@ class TestAnalysisManager:
     def test_route_network_inetsim(self, mr):
         task = Task()
         task.add_url("http://example.com/42", options={"route": "inetsim"})
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route_network()
 
@@ -253,8 +258,9 @@ class TestAnalysisManager:
         mr.return_value = True
         task = Task()
         task.add_url("http://example.com/42", options={"route": "internet"})
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route_network()
 
@@ -272,8 +278,9 @@ class TestAnalysisManager:
     def test_route_network_tor(self, mr):
         task = Task()
         task.add_url("http://example.com/42", options={"route": "tor"})
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route_network()
 
@@ -288,8 +295,9 @@ class TestAnalysisManager:
     def test_route_network_drop(self, mr):
         task = Task()
         task.add_url("http://example.com/42", options={"route": "drop"})
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route_network()
 
@@ -305,8 +313,9 @@ class TestAnalysisManager:
         mr.return_value = True
         task = Task()
         task.add_url("http://example.com/42", options={"route": "vpn0"})
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route_network()
 
@@ -323,8 +332,9 @@ class TestAnalysisManager:
     def test_unroute_network_none(self, mr):
         task = Task()
         task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route = "none"
         a.unroute_network()
@@ -335,8 +345,9 @@ class TestAnalysisManager:
     def test_unroute_network_vpn(self, mr):
         task = Task()
         task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route = "vpn0"
         a.rt_table = "tun0"
@@ -353,8 +364,9 @@ class TestAnalysisManager:
     def test_unroute_network_inetsim(self, mr):
         task = Task()
         task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route = "inetsim"
         a.unroute_network()
@@ -371,8 +383,9 @@ class TestAnalysisManager:
     def test_unroute_network_tor(self, mr):
         task = Task()
         task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.route = "tor"
         a.unroute_network()
@@ -388,8 +401,9 @@ class TestAnalysisManager:
     def test_wait_finish(self, mts):
         task = Task()
         task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.analysis.status = "stoppped"
         a.wait_finish()
@@ -398,8 +412,9 @@ class TestAnalysisManager:
     def test_request_scheduler_action(self):
         task = Task()
         task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.set_task(task)
         a.action_lock = mock.MagicMock()
         a.action_lock.locked = mock.MagicMock(return_value=False)
@@ -415,8 +430,9 @@ class TestAnalysisManager:
         assert a.override_status is None
 
     def test_set_analysis_status(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.analysis = mock.MagicMock()
         a.request_scheduler_action = mock.MagicMock()
         a.set_analysis_status("starting")
@@ -425,8 +441,9 @@ class TestAnalysisManager:
         a.request_scheduler_action.assert_not_called()
 
     def test_set_analysis_status_request(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.analysis = mock.MagicMock()
         a.request_scheduler_action = mock.MagicMock()
 
@@ -439,8 +456,9 @@ class TestAnalysisManager:
         a.request_scheduler_action.assert_called_once()
 
     def test_release_locks(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.analysis = mock.MagicMock()
         a.analysis.status_lock.locked = mock.MagicMock(return_value=True)
         a.action_lock = mock.MagicMock()
@@ -452,8 +470,9 @@ class TestAnalysisManager:
         a.action_lock.release.assert_called_once()
 
     def test_action_requested(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.analysis = mock.MagicMock()
         a.action_lock = mock.MagicMock()
         a.action_lock.locked = mock.MagicMock(return_value=True)
@@ -462,16 +481,18 @@ class TestAnalysisManager:
         assert a.action_requested()
 
     def test_get_analysis_status(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.analysis = mock.MagicMock()
         a.analysis.get_status = mock.MagicMock(return_value="starting")
 
         assert a.get_analysis_status() == "starting"
 
     def test_get_analysis_status_overriden(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         a.analysis = mock.MagicMock()
         a.override_status = "stopping"
         a.analysis.get_status = mock.MagicMock(return_value="starting")
@@ -479,13 +500,15 @@ class TestAnalysisManager:
         assert a.get_analysis_status() == "stopping"
 
     def test_init(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
 
         assert a.init(self.db)
 
     def test_run(self):
-        a = abstracts.AnalysisManager(Machine(), mock.MagicMock(),
-                                      mock.MagicMock())
+        a = abstracts.AnalysisManager(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         with pytest.raises(NotImplementedError):
             a.run()

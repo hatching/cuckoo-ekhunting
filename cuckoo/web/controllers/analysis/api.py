@@ -31,6 +31,7 @@ from cuckoo.web.utils import (
 )
 
 db = Database()
+submit_task = Task()
 
 class AnalysisApi(object):
     @api_post
@@ -130,7 +131,7 @@ class AnalysisApi(object):
         if not db.view_task(task_id):
             return json_error_response("There is no analysis with the specified ID")
 
-        new_task_id = Task().reschedule(task_id, priority)
+        new_task_id = submit_task.reschedule(task_id, priority)
         if new_task_id:
             return JsonResponse({"status": True, "task_id": new_task_id}, safe=False)
         else:
@@ -435,7 +436,7 @@ class AnalysisApi(object):
                 company=body.get("company"),
                 email=body.get("email"),
                 message=body.get("message"),
-                include_files=body.get("include_analysis", False),
+                json_report=body.get("include_analysis", False),
                 memdump=body.get("include_memdump", False)
             )
         except CuckooFeedbackError as e:

@@ -26,6 +26,7 @@ from cuckoo.misc import cwd, version, decide_cwd, Pidfile
 
 db = Database()
 sm = SubmitManager()
+submit_task = Task()
 
 # Initialize Flask app.
 app = Flask(__name__)
@@ -82,7 +83,7 @@ def tasks_create_file():
 
     temp_file_path = Files.temp_named_put(content, data.filename)
 
-    task_id = Task().add_path(
+    task_id = submit_task.add_path(
         file_path=temp_file_path,
         package=package,
         timeout=timeout,
@@ -124,7 +125,7 @@ def tasks_create_url():
 
     clock = request.form.get("clock", None)
 
-    task_id = Task().add_url(
+    task_id = submit_task.add_url(
         url=url,
         package=package,
         timeout=timeout,
@@ -282,7 +283,7 @@ def tasks_reschedule(task_id, priority=None):
     if not db.view_task(task_id):
         return json_error(404, "There is no analysis with the specified ID")
 
-    new_task_id = Task().reschedule(task_id, priority)
+    new_task_id = submit_task.reschedule(task_id, priority)
     if not new_task_id:
         return json_error(
             500, "An error occurred while trying to reschedule the task"
@@ -423,7 +424,7 @@ def rereport(task_id):
 
 @app.route("/tasks/reboot/<int:task_id>")
 def reboot(task_id):
-    reboot_id = Task().add_reboot(task_id=task_id)
+    reboot_id = submit_task.add_reboot(task_id=task_id)
     if not reboot_id:
         return json_error(404, "Error creating reboot task")
 

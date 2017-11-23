@@ -1471,7 +1471,7 @@ class AnalysisManager(threading.Thread):
 
     supports = []
 
-    def __init__(self, machine, error_queue, machinery):
+    def __init__(self, machine, error_queue, machinery, machine_lock):
         threading.Thread.__init__(self)
 
         self.task = None
@@ -1482,6 +1482,7 @@ class AnalysisManager(threading.Thread):
         self.analysis = None
         self.options = {}
         self.action_lock = threading.Lock()
+        self.machine_lock = machine_lock
         self.guest_manager = None
         self.aux = None
         self.route = None
@@ -1494,10 +1495,10 @@ class AnalysisManager(threading.Thread):
         """Set core task object"""
         self.task = task
         self.sample = sample
-        self.analysis = Analysis(task.id, self.machine.name,
-                                 self.machine.label,
-                                 self.machine.manager)
-
+        self.analysis = Analysis(
+            task.id, self.machine.name, self.machine.label,
+            self.machine.manager
+        )
 
         # Set thread name
         self.name = "task_#%s_%s_Thread" % (self.task.id,
@@ -1511,14 +1512,17 @@ class AnalysisManager(threading.Thread):
             self.f = File(self.task.target)
 
         if not self.f.is_readable():
-            log.error("Unable to read target file %s, please check if it "
-                      "is readable for the user executing Cuckoo Sandbox",
-                      self.task.target)
+            log.error(
+                "Unable to read target file %s, please check if it is readable"
+                " for the user executing Cuckoo Sandbox", self.task.target
+            )
             return False
 
         if not self.f.same_as(self.sample.sha256):
-            log.error("Target file has been modified after submission: \'%s\'",
-                      self.task.target)
+            log.error(
+                "Target file has been modified after submission: \'%s\'",
+                self.task.target
+            )
             return False
 
         return True

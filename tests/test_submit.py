@@ -33,7 +33,7 @@ class TestSubmitManager(object):
         db.connect()
         db.add_machine(
             "cuckoo1", "cuckoo2", "1.2.3.4", "windows", None, None, "int0",
-            None, "5.6.7.8", 2042
+            None, "5.6.7.8", 2042, "virtualbox"
         )
         self.submit_manager = SubmitManager()
 

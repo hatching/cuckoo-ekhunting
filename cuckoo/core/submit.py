@@ -19,6 +19,7 @@ from cuckoo.misc import cwd, mkdir
 
 log = logging.getLogger(__name__)
 db = Database()
+submit_task = Task()
 
 class SubmitManager(object):
     known_web_options = [
@@ -238,7 +239,7 @@ class SubmitManager(object):
             }
 
             if entry["type"] == "url":
-                ret.append(Task().add_url(
+                ret.append(submit_task.add_url(
                     url=info["filename"], **kw
                 ))
                 continue
@@ -253,7 +254,7 @@ class SubmitManager(object):
 
                 filepath = Files.copy(path, path_dest=path_dest)
 
-                ret.append(Task().add_path(
+                ret.append(submit_task.add_path(
                     file_path=filepath, **kw
                 ))
             elif len(info["extrpath"]) == 1:
@@ -277,7 +278,7 @@ class SubmitManager(object):
                     arc, os.path.basename(info["arcname"])
                 )
 
-                ret.append(Task().add_archive(
+                ret.append(submit_task.add_archive(
                     file_path=arcpath, filename=info["relaname"], **kw
                 ))
             else:
@@ -302,7 +303,7 @@ class SubmitManager(object):
                     os.path.basename(info["extrpath"][-2])
                 )
 
-                ret.append(Task().add_archive(
+                ret.append(submit_task.add_archive(
                     file_path=arcpath, filename=info["relaname"], **kw
                 ))
 
@@ -355,7 +356,7 @@ class SubmitManager(object):
             )
 
         if info["category"] == "url":
-            task_id = Task().add_url(
+            task_id = submit_task.add_url(
                 url=info["target"], package=info["package"],
                 timeout=info["timeout"], options=info["options"],
                 priority=info["priority"], custom=info["custom"],
@@ -373,7 +374,7 @@ class SubmitManager(object):
                 filepath = Files.temp_put("")
 
             # We'll be updating the target shortly.
-            task_id = Task().add_path(
+            task_id = submit_task.add_path(
                 file_path=filepath, package=info["package"],
                 timeout=info["timeout"], options=info["options"],
                 priority=info["priority"], custom=info["custom"],

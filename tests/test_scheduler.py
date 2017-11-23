@@ -118,7 +118,7 @@ class TestScheduler:
     def test_ready_for_new_run(self, mfd):
         mfd.return_value = 10000
         s = Scheduler()
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
         s.machinery.availables.return_value = [Machine()]
 
@@ -134,7 +134,7 @@ class TestScheduler:
     def test_ready_for_new_run_no_space(self, mfd):
         mfd.return_value = 1
         s = Scheduler()
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
         s.machinery.availables.return_value = [Machine()]
 
@@ -151,7 +151,7 @@ class TestScheduler:
         s = Scheduler(10)
         s.stop = mock.MagicMock()
         s.total_analysis_count = 10
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
         s.machinery.availables.return_value = [Machine()]
 
@@ -172,7 +172,7 @@ class TestScheduler:
         s.managers.append(mock.MagicMock())
         s.stop = mock.MagicMock()
         s.total_analysis_count = 10
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
         s.machinery.availables.return_value = [Machine()]
 
@@ -197,7 +197,7 @@ class TestScheduler:
         Database().connect()
         mfd.return_value = 10000
         s = Scheduler()
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
         s.machinery.running.return_value = [Machine(), Machine()]
 
@@ -213,7 +213,7 @@ class TestScheduler:
     def test_ready_for_new_run_noavailbles(self, mfd):
         mfd.return_value = 10000
         s = Scheduler()
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
         s.machinery.availables.return_value = []
 
@@ -235,7 +235,7 @@ class TestScheduler:
         s.db.fetch.return_value = task
         machine_mock2 = mock.MagicMock()
         s.machinery.acquire.return_value = machine_mock2
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         analyis_manager = mock.MagicMock()
         s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
 
@@ -259,7 +259,7 @@ class TestScheduler:
         s.db.fetch.side_effect = [None, task]
         machine_mock2 = mock.MagicMock()
         s.machinery.acquire.return_value = machine_mock2
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         analyis_manager = mock.MagicMock()
         s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
 
@@ -289,7 +289,7 @@ class TestScheduler:
         s.db.fetch.side_effect = [None, FakeTask(1), task2]
         machine_mock2 = mock.MagicMock()
         s.machinery.acquire.side_effect = [None, machine_mock2]
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         analyis_manager = mock.MagicMock()
         s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
 
@@ -317,7 +317,7 @@ class TestScheduler:
         s.machinery = mock.MagicMock()
         task2 = FakeTask(2)
         s.db.fetch.side_effect = [None, None]
-        Scheduler.machine_lock = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
         analyis_manager = mock.MagicMock()
         s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
 

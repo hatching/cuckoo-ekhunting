@@ -15,6 +15,7 @@ from cuckoo.web.utils import view_error, render_template, dropped_filepath
 
 log = logging.getLogger(__name__)
 submit_manager = SubmitManager()
+submit_task = Task()
 
 class SubmissionRoutes(object):
     @staticmethod
@@ -98,7 +99,7 @@ class SubmissionRoutes(object):
         # TODO Dummy usage, should probably be improved.
         submit_id = Database().add_submit(None, None, None)
 
-        task_id = Task().add_reboot(task_id=task_id, submit_id=submit_id)
+        task_id = submit_task.add_reboot(task_id=task_id, submit_id=submit_id)
         if not task_id:
             return view_error(request, "Error adding reboot analysis!")
 

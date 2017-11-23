@@ -31,7 +31,7 @@ class Machine(object):
         self.manager = "virtualbox"
         self.locked = True
 
-class TestTaskAnalysis:
+class TestRegular:
 
     createcwd = True
 
@@ -40,10 +40,10 @@ class TestTaskAnalysis:
         self.db = Database()
 
     def create_cwd(self, cfg=None):
-        if not TestTaskAnalysis.createcwd and cfg is None:
+        if not TestRegular.createcwd and cfg is None:
             return
 
-        TestTaskAnalysis.createcwd = False
+        TestRegular.createcwd = False
         newcwd = tempfile.mkdtemp()
         set_cwd(newcwd)
         cuckoo_create(cfg=cfg)
@@ -68,7 +68,9 @@ class TestTaskAnalysis:
         if task.category == "file" or task.category == "archive":
             sample = self.db.view_sample(task.sample_id)
 
-        manager = Regular(Machine(), mock.MagicMock(), mock.MagicMock())
+        manager = Regular(
+            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+        )
         manager.set_task(task, sample)
         return manager
 
@@ -194,8 +196,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
-    @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
-    def test_start_analysis(self, mml, mrsa, msas, mrn, mrs):
+    def test_start_analysis(self, mrsa, msas, mrn, mrs):
         self.create_cwd()
         manager = self.get_manager()
         # Mock resultserver obj so we can check if add_task was called
@@ -221,7 +222,7 @@ class TestTaskAnalysis:
         manager.machinery.start.assert_called_once_with("machine1",
                                                         manager.task.db_task)
         mrn.assert_called_once()
-        mml.release.assert_called_once()
+        manager.machine_lock.release.assert_called_once()
         mrsa.assert_called_once_with(for_status="starting")
         manager.guest_manager.start_analysis.assert_called_once()
         manager.guest_manager.wait_for_completion.assert_called_once()
@@ -232,8 +233,7 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
-    @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
-    def test_start_analysis_url(self, mml, mrsa, msas, mrn, mrs):
+    def test_start_analysis_url(self, mrsa, msas, mrn, mrs):
         self.create_cwd()
         task = Task()
         task.add_url("http://example.com/42")
@@ -262,7 +262,7 @@ class TestTaskAnalysis:
         manager.machinery.start.assert_called_once_with("machine1",
                                                         task.db_task)
         mrn.assert_called_once()
-        mml.release.assert_called_once()
+        manager.machine_lock.release.assert_called_once()
         mrsa.assert_called_once_with(for_status="starting")
         manager.guest_manager.start_analysis.assert_called_once()
         manager.guest_manager.wait_for_completion.assert_called_once()
@@ -273,9 +273,8 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
-    @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
     @mock.patch("time.sleep")
-    def test_start_analysis_baseline(self, mts, mml, mrsa, msas, mrn, mrs):
+    def test_start_analysis_baseline(self, mts, mrsa, msas, mrn, mrs):
         self.create_cwd()
         task = Task()
         task.add_baseline()
@@ -300,7 +299,7 @@ class TestTaskAnalysis:
         manager.machinery.start.assert_called_once_with("machine1",
                                                         task.db_task)
         mrn.assert_called_once()
-        mml.release.assert_called_once()
+        manager.machine_lock.release.assert_called_once()
         mrsa.assert_called_once_with(for_status="starting")
         mts.assert_called_once_with(manager.options["timeout"])
         assert result
@@ -310,9 +309,8 @@ class TestTaskAnalysis:
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
-    @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.wait_finish")
-    def test_start_analysis_noagent(self, mwf, mml, mrsa, msas, mrn, mrs):
+    def test_start_analysis_noagent(self, mwf, mrsa, msas, mrn, mrs):
         self.create_cwd()
         task = Task()
         task.add_service(owner="1", tags="service,mitm", timeout=120)
@@ -338,7 +336,7 @@ class TestTaskAnalysis:
         manager.machinery.start.assert_called_once_with("machine1",
                                                         task.db_task)
         mrn.assert_called_once()
-        mml.release.assert_called_once()
+        manager.machine_lock.release.assert_called_once()
         mrsa.assert_called_once_with(for_status="starting")
         mwf.assert_called_once()
         assert result
@@ -521,7 +519,7 @@ class TestTaskAnalysis:
         assert os.path.isfile(task_json_path)
 
     def test_finalize_process_failed(self):
-        TestTaskAnalysis.createcwd = True
+        TestRegular.createcwd = True
         self.create_cwd()
         manager = self.get_manager()
         task_json_path = cwd("storage", "analyses", str(manager.task.id),
@@ -564,12 +562,11 @@ class TestTaskAnalysis:
         assert db_task.status != "failed_processing"
         assert os.path.isfile(task_json_path)
 
-    @mock.patch("cuckoo.core.scheduler.Scheduler.machine_lock")
-    def test_release_scheduler_lock(self, mml):
+    def test_release_scheduler_lock(self):
         manager = self.get_manager()
         manager.init(self.db)
 
         manager.release_scheduler_lock()
 
-        mml.release.assert_called_once()
+        manager.machine_lock.release.assert_called_once()
         assert manager.scheduler_lock_released

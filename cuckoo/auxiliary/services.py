@@ -14,6 +14,7 @@ from cuckoo.core.task import Task
 
 log = logging.getLogger(__name__)
 db = Database()
+submit_task = Task()
 
 class Services(Auxiliary):
     """Allows one or more additional VMs to be run next to an analysis. Either
@@ -28,7 +29,7 @@ class Services(Auxiliary):
         timeout += 300
         tags = "service,%s" % service
 
-        return Task().add_service(timeout, self.task.owner, tags)
+        return submit_task.add_service(timeout, self.task.owner, tags)
 
     def stop_service(self, task_id):
         """Stop a VM containing one or more services."""

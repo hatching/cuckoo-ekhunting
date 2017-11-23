@@ -36,6 +36,7 @@ from cuckoo.core.task import Task
 from cuckoo.misc import cwd, mkdir
 
 log = logging.getLogger(__name__)
+submit_task = Task()
 
 URL = "https://github.com/cuckoosandbox/community/archive/%s.tar.gz"
 
@@ -151,7 +152,7 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
             print "Remote baseline support has not yet been implemented."
             return
 
-        task_id = Task().add_baseline(timeout, owner, machine, memory)
+        task_id = submit_task.add_baseline(timeout, owner, machine, memory)
         yield "Baseline", machine, task_id
         return
 
@@ -163,7 +164,7 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
         for url in target:
             if not remote:
                 data.pop("unique", None)
-                task_id = Task().add_url(to_unicode(url), **data)
+                task_id = submit_task.add_url(to_unicode(url), **data)
                 yield "URL", url, task_id
                 continue
 
@@ -205,7 +206,7 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
                         continue
 
                 data.pop("unique", None)
-                task_id = Task().add_path(file_path=filepath, **data)
+                task_id = submit_task.add_path(file_path=filepath, **data)
                 yield "File", filepath, task_id
                 continue
 
