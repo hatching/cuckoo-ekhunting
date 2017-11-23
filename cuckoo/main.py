@@ -304,8 +304,7 @@ def clean():
 @click.option("--pattern", help="Provide a glob-pattern when submitting a directory")
 @click.option("--max", type=int, help="Submit up to X tasks at once")
 @click.option("--unique", is_flag=True, help="Only submit samples that have not been analyzed before")
-@click.option("--start-on", help="Date and time the analysis should start."
-                                 " Format: \'YYYY-M-D H:M\'")
+@click.option("--start-on", help="Date and time the analysis should start. Format: \'YYYY-M-D H:M\'")
 @click.pass_context
 def submit(ctx, target, url, options, package, custom, owner, timeout,
            priority, machine, platform, memory, enforce_timeout, clock, tags,
