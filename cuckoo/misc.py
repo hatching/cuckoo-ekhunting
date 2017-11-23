@@ -341,7 +341,8 @@ def get_free_disk(path):
         if not windll.kernel32.GetDiskFreeSpaceExW(
                 ctypes.c_wchar_p(path), None, None, ctypes.pointer(ull_fbytes)
         ):
-            raise OSError("Error determining free diskspace on Windows")
+            log.error("Error determining free diskspace on Windows")
+            return None
 
         try:
             return ull_fbytes.value / 1024 / 1024
@@ -349,4 +350,5 @@ def get_free_disk(path):
             return ull_fbytes.value
 
     else:
-        raise OSError("Unsupported platform, cannot determine free disk space")
+        log.error("Unsupported platform, cannot determine free disk space")
+        return None

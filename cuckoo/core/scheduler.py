@@ -26,8 +26,6 @@ log = logging.getLogger(__name__)
 
 class Scheduler(object):
 
-    machine_lock = None
-
     def __init__(self, maxcount=None):
         self.running = True
         self.db = Database()
@@ -35,6 +33,7 @@ class Scheduler(object):
         self.total_analysis_count = 0
         self.machinery = None
         self.error_queue = None
+        self.machine_lock = None
         self.managers = []
 
     def initialize(self):
@@ -43,7 +42,7 @@ class Scheduler(object):
 
         # Initialize a semaphore or lock to prevent to many VMs from
         # starting at the same time.
-        Scheduler.machine_lock = threading.Semaphore(max_vmstartup)
+        self.machine_lock = threading.Semaphore(max_vmstartup)
 
         log.info("Using \"%s\" as machine manager", machinery_name, extra={
             "action": "init.machinery",
@@ -141,32 +140,36 @@ class Scheduler(object):
         # or still busy starting. This way we won't have race conditions
         # with finding out there are no available machines in the analysis
         # manager or having two analyses pick the same machine.
-        if not Scheduler.machine_lock.acquire(False):
+        if not self.machine_lock.acquire(False):
             logger(
                 "Could not acquire machine lock",
                 action="scheduler.machine_lock", status="busy"
             )
             return False
 
-        Scheduler.machine_lock.release()
+        self.machine_lock.release()
 
         # Verify if the minimum amount of disk space is available
         if config("cuckoo:cuckoo:freespace"):
-            try:
-                freespace = get_free_disk(cwd("storage", "analyses"))
-                if freespace <= config("cuckoo:cuckoo:freespace"):
-                    log.error(
-                        "Not enough free disk space! (Only %d MB!)",
-                        freespace, extra={
-                            "action": "scheduler.diskspace",
-                            "status": "error",
-                            "available": freespace,
-                        }
-                    )
-                    return False
-            except OSError as e:
-                # Ignore this check, since we cannot determine it now
-                log.error("Error determining free disk space. Error: %s", e)
+            freespace = get_free_disk(cwd("storage", "analyses"))
+
+            # If freespace is None, the check failed. Continue, since this
+            # can happen if the disk check is not supported on others than
+            # unix and winxp+. The call might also fail on win32.
+            if freespace is None:
+                log.error(
+                    "Error determining free disk space"
+                )
+            elif freespace <= config("cuckoo:cuckoo:freespace"):
+                log.error(
+                    "Not enough free disk space! (Only %d MB!)",
+                    freespace, extra={
+                        "action": "scheduler.diskspace",
+                        "status": "error",
+                        "available": freespace,
+                    }
+                )
+                return False
 
         max_vm = config("cuckoo:cuckoo:max_machines_count")
 
@@ -181,7 +184,7 @@ class Scheduler(object):
         # Stops the scheduler if the max_analysis_count in the configuration
         # file has been reached.
         if self.maxcount and self.total_analysis_count >= self.maxcount:
-            if len(self.managers) <= 0:
+            if not self.managers:
                     log.debug("Reached max analysis count, exiting.", extra={
                         "action": "scheduler.max_analysis",
                         "status": "success",
@@ -217,19 +220,21 @@ class Scheduler(object):
         # Acquire machine lock non-blocking. This is because the scheduler
         # also handles requests made by analysis manager. A blocking lock
         # could cause a deadlock
-        if not Scheduler.machine_lock.acquire(False):
+        if not self.machine_lock.acquire(False):
             return
 
         # Select task that is specifically for one of the available machines
         # possibly a service machine
         machine, task, analysis = None, None, False
-        for a_machine in self.db.get_available_machines():
-            task = self.db.fetch(machine=a_machine.name, lock=False)
+        for available_machine in self.db.get_available_machines():
+            task = self.db.fetch(machine=available_machine.name, lock=False)
             if task:
-                machine = self.machinery.acquire(machine_id=a_machine.name)
+                machine = self.machinery.acquire(
+                    machine_id=available_machine.name
+                )
                 break
 
-            if a_machine.is_analysis():
+            if available_machine.is_analysis():
                 analysis = True
 
         # No task for a specific machine and at least one of the available
@@ -243,16 +248,18 @@ class Scheduler(object):
             # available for it.
             exclude = []
             while not machine:
-                task = self.db.fetch(service=False, lock=False,
-                                     exclude=exclude)
+                task = self.db.fetch(
+                    service=False, lock=False, exclude=exclude
+                )
 
                 if task is None:
                     break
 
                 try:
-                    machine = self.machinery.acquire(machine_id=task.machine,
-                                                     platform=task.platform,
-                                                     tags=task.tags)
+                    machine = self.machinery.acquire(
+                        machine_id=task.machine, platform=task.platform,
+                        tags=task.tags
+                    )
                 except CuckooOperationalError:
                     log.error("Task #%s cannot be started, no machine with"
                               " matching requirements for this task exists."
@@ -271,7 +278,7 @@ class Scheduler(object):
                     exclude.append(task.id)
 
         if not task or not machine:
-            Scheduler.machine_lock.release()
+            self.machine_lock.release()
             return
 
         log.info(
@@ -293,7 +300,7 @@ class Scheduler(object):
             self.machinery.release(label=machine.label)
 
             # Release machine lock as the machine will not be starting
-            Scheduler.machine_lock.release()
+            self.machine_lock.release()
             return
 
         # Only lock task for running if we are sure we will try to start it
@@ -308,7 +315,7 @@ class Scheduler(object):
             log.error("Failed to initialize analysis manager for task #%s",
                       task.id)
 
-            Scheduler.machine_lock.release()
+            self.machine_lock.release()
         else:
             # If initialization succeeded, start the analysis manager
             # and store it so we can track it
@@ -331,9 +338,10 @@ class Scheduler(object):
                 if core_task.is_file:
                     sample = self.db.view_sample(db_task.sample_id)
 
-                analysis_manager = manager(machine,
-                                           self.error_queue,
-                                           self.machinery)
+                analysis_manager = manager(
+                    machine, self.error_queue, self.machinery,
+                    self.machine_lock
+                )
                 analysis_manager.set_task(core_task, sample)
                 break
 
@@ -378,7 +386,7 @@ class Scheduler(object):
             # Handle pending tasks by finding the matching machine and
             # analysis manager. The manager is started added to tracked
             # analysis managers
-            if self.db.count_tasks(status=TASK_PENDING) > 0:
+            if self.db.count_tasks(status=TASK_PENDING):
                 # Check if the max amount of VMs are running, if there is
                 # enough disk space, etc
                 if self.ready_for_new_run():
