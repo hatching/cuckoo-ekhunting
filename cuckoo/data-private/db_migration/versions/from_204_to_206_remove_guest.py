@@ -11,8 +11,8 @@ Create Date: 2017-11-10 19:15:45.968647
 """
 
 # Revision identifiers, used by Alembic.
-revision = '15740ce250e6'
-down_revision = '181be2111077'
+revision = "15740ce250e6"
+down_revision = "181be2111077"
 
 
 from datetime import datetime
