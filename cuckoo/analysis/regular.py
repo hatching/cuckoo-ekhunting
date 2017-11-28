@@ -10,7 +10,6 @@ import time
 from cuckoo.common.abstracts import AnalysisManager
 from cuckoo.common.config import config
 from cuckoo.common.constants import faq
-
 from cuckoo.common.exceptions import (
     CuckooMachineSnapshotError, CuckooMachineError, CuckooGuestError,
     CuckooGuestCriticalTimeout

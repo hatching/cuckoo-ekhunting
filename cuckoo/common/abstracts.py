@@ -1501,7 +1501,7 @@ class AnalysisManager(threading.Thread):
         )
 
         # Set thread name
-        self.name = "task_#%s_%s_Thread" % (self.task.id,
+        self.name = "task_#%s_%s" % (self.task.id,
                                             self.__class__.__name__)
 
     def file_usable(self):

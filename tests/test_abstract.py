@@ -151,7 +151,7 @@ class TestAnalysisManager:
         assert a.task == task
         assert a.sample == sample
         assert isinstance(a.analysis, Analysis)
-        assert a.name == "task_#%s_AnalysisManager_Thread" % task.id
+        assert a.name == "task_#%s_AnalysisManager" % task.id
 
     def test_file_usable(self):
         task = Task()
