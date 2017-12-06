@@ -18,7 +18,7 @@ import time
 import traceback
 
 from cuckoo.common.colors import bold, red, yellow
-from cuckoo.common.config import config, emit_options, Config
+from cuckoo.common.config import emit_options, Config
 from cuckoo.common.elastic import elastic
 from cuckoo.common.exceptions import (
     CuckooOperationalError, CuckooDatabaseError, CuckooDependencyError
@@ -27,7 +27,7 @@ from cuckoo.common.mongo import mongo
 from cuckoo.common.objects import File
 from cuckoo.common.utils import to_unicode
 from cuckoo.core.database import (
-    Database, TASK_FAILED_PROCESSING, TASK_REPORTED
+    Database, TASK_PENDING, TASK_FAILED_PROCESSING, TASK_REPORTED
 )
 from cuckoo.core.init import write_cuckoo_conf
 from cuckoo.core.log import task_log_start, task_log_stop, logger
@@ -139,17 +139,9 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
         start_on=start_on
     )
 
-    if start_on:
-        try:
-            data["start_on"] = datetime.datetime.strptime(start_on,
-                                                          "%Y-%m-%d %H:%M")
-        except ValueError:
-            print "\'start on\' format should be: \'YYYY-M-D H:M\'"
-            return
-
     if is_baseline:
         if remote:
-            print "Remote baseline support has not yet been implemented."
+            log.info("Remote baseline support has not yet been implemented.")
             return
 
         task_id = submit_task.add_baseline(timeout, owner, machine, memory)
@@ -157,7 +149,7 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
         return
 
     if is_url and is_unique:
-        print "URL doesn't have --unique support yet."
+        log.info("URL doesn't have --unique support yet.")
         return
 
     if is_url:
@@ -175,8 +167,8 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
                 )
                 yield "URL", url, r.json()["task_id"]
             except Exception as e:
-                print "%s: unable to submit URL: %s" % (
-                    bold(red("Error")), e
+                log.error(
+                    "%s: unable to submit URL: %s", bold(red("Error")), e
                 )
     else:
         files = []
@@ -188,8 +180,9 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
 
         for filepath in files:
             if not os.path.getsize(filepath):
-                print "%s: sample %s (skipping file)" % (
-                    bold(yellow("Empty")), filepath
+                log.warning(
+                    "%s: sample %s (skipping file)", bold(yellow("Empty")),
+                    filepath
                 )
                 continue
 
@@ -202,6 +195,9 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
                 if is_unique:
                     sha256 = File(filepath).get_sha256()
                     if db.find_sample(sha256=sha256):
+                        log.info(
+                            "File \"%s\" has already been analyzed", filepath
+                        )
                         yield "File", filepath, None
                         continue
 
@@ -221,8 +217,8 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
                 )
                 yield "File", filepath, r.json()["task_id"]
             except Exception as e:
-                print "%s: unable to submit file: %s" % (
-                    bold(red("Error")), e
+                log.error(
+                    "%s: unable to submit file: %s", bold(red("Error")), e
                 )
                 continue
 
@@ -241,8 +237,10 @@ def process_task(task):
         )
 
         if not task.dir_exists():
-            log.error("Task #%s directory %s does not exist,"
-                      " cannot process it", task.id, task.path)
+            log.error(
+                "Task #%s directory %s does not exist, cannot process it",
+                task.id, task.path
+            )
             db.set_status(task.id, TASK_FAILED_PROCESSING)
             return
 
@@ -255,9 +253,13 @@ def process_task(task):
             return
 
         if success:
-            log.info("Task #%d: reports generation completed", task.id, extra={
-                         "action": "task.report", "status": "success",
-                     })
+            log.info(
+                "Task #%d: reports generation completed", task.id,
+                extra={
+                    "action": "task.report",
+                    "status": "success",
+                }
+            )
             db.set_status(task.id, TASK_REPORTED)
         else:
             log.error("Failed to process task #%s", task.id)
@@ -561,6 +563,14 @@ def migrate_cwd():
         if not os.path.exists(os.path.dirname(cwd(filename))):
             os.makedirs(os.path.dirname(cwd(filename)))
         shutil.copy(filepath, cwd(filename))
+
+    log.info("Checking if any task directories are missing")
+    db = Database()
+    db.connect()
+    for db_task in db.list_tasks(status=TASK_PENDING, details=False):
+        task = Task(db_task)
+        if not task.dir_exists():
+            task.create_empty()
 
     log.info(
         "Automated migration of your CWD was successful! Continuing "

@@ -327,10 +327,7 @@ def get_free_disk(path):
     if hasattr(os, "statvfs"):
         stats = os.statvfs(path)
         space = stats.f_frsize * stats.f_bavail
-        try:
-            return space / 1024 / 1024
-        except ZeroDivisionError:
-            return space
+        return space / 1024 / 1024
 
     elif sys.platform == "win32":
         from ctypes import windll
@@ -338,17 +335,14 @@ def get_free_disk(path):
 
         # If call fails, raise exception so the difference between no space
         # and fail is known
-        if not windll.kernel32.GetDiskFreeSpaceExW(
+        ret = windll.kernel32.GetDiskFreeSpaceExW(
                 ctypes.c_wchar_p(path), None, None, ctypes.pointer(ull_fbytes)
-        ):
+        )
+        if not ret:
             log.error("Error determining free diskspace on Windows")
             return None
 
-        try:
-            return ull_fbytes.value / 1024 / 1024
-        except ZeroDivisionError:
-            return ull_fbytes.value
+        return ull_fbytes.value / 1024 / 1024
 
-    else:
-        log.error("Unsupported platform, cannot determine free disk space")
-        return None
+    log.error("Unsupported platform, cannot determine free disk space")
+    return None

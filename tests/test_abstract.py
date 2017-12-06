@@ -112,7 +112,7 @@ class TestConfiguration(object):
             },
         }]
 
-class Machine(object):
+class FakeMachine(object):
     def __init__(self):
         self.name = "machine1"
         self.label = "machine1"
@@ -143,7 +143,7 @@ class TestAnalysisManager:
         task.add_path(__file__)
         sample = self.db.view_sample(task.sample_id)
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
 
         a.set_task(task, sample)
@@ -153,35 +153,12 @@ class TestAnalysisManager:
         assert isinstance(a.analysis, Analysis)
         assert a.name == "task_#%s_AnalysisManager" % task.id
 
-    def test_file_usable(self):
-        task = Task()
-        fd, fpath = tempfile.mkstemp()
-        os.write(fd, os.urandom(64))
-        task.add_path(fpath)
-        sample = self.db.view_sample(task.sample_id)
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task, sample)
-
-        normal = a.file_usable()
-        a.f = None
-        # Change file to trigger error
-        os.write(fd, os.urandom(32))
-        modified = a.file_usable()
-        # Make unreadable to trigger error
-        os.chmod(fpath, 0000)
-        unreadable = a.file_usable()
-        assert normal
-        assert not modified
-        assert not unreadable
-
     def test_build_options(self):
         task = Task()
         task.add_path(__file__, options={"free": "yes"})
         sample = self.db.view_sample(task.sample_id)
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.set_task(task, sample)
 
@@ -210,199 +187,12 @@ class TestAnalysisManager:
         assert a.options["file_name"] == "doge.py"
         assert a.options["category"] == "file"
 
-    @mock.patch("cuckoo.core.rooter.rooter")
-    def test_route_network_none(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42", options={"route": "none"})
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route_network()
-
-        assert a.route == "none"
-        assert a.interface is None
-        assert a.rt_table is None
-        mr.assert_not_called()
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_route_network_inetsim(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42", options={"route": "inetsim"})
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route_network()
-
-        assert a.route == "inetsim"
-        assert a.interface is None
-        assert a.rt_table is None
-        mr.assert_called_once_with(
-            "inetsim_enable", "192.168.56.10", "192.168.56.1",
-            "vboxnet0", "2042"
-        )
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_route_network_internet(self, mr):
-        write_cuckoo_conf(cfg={
-            "routing": {
-                "routing": {
-                    "internet": "eth0"
-                }
-            }
-        })
-        # Clear config cache so it will load new values
-        config._cache = {}
-
-        mr.return_value = True
-        task = Task()
-        task.add_url("http://example.com/42", options={"route": "internet"})
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route_network()
-
-        assert a.route == "internet"
-        assert a.interface == "eth0"
-        assert a.rt_table == "main"
-        mr.assert_has_calls([
-            mock.call("nic_available", "eth0"),
-            mock.call("drop_enable", "192.168.56.10", "192.168.56.1", "2042"),
-            mock.call("forward_enable", "tap0", "eth0", "192.168.56.10"),
-            mock.call("srcroute_enable", "main", "192.168.56.10")
-        ])
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_route_network_tor(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42", options={"route": "tor"})
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route_network()
-
-        assert a.route == "tor"
-        assert a.interface is None
-        assert a.rt_table is None
-        mr.assert_called_once_with(
-            "tor_enable", "192.168.56.10", "192.168.56.1", "5353", "9040"
-        )
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_route_network_drop(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42", options={"route": "drop"})
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route_network()
-
-        assert a.route == "drop"
-        assert a.interface is None
-        assert a.rt_table is None
-        mr.assert_called_once_with(
-            "drop_enable", "192.168.56.10", "192.168.56.1", "2042"
-        )
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_route_network_vpn(self, mr):
-        mr.return_value = True
-        task = Task()
-        task.add_url("http://example.com/42", options={"route": "vpn0"})
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route_network()
-
-        assert a.route == "vpn0"
-        assert a.interface == "tun0"
-        assert a.rt_table == "tun0"
-        mr.assert_has_calls([
-            mock.call("nic_available", "tun0"),
-            mock.call("forward_enable", "tap0", "tun0", "192.168.56.10"),
-            mock.call("srcroute_enable", "tun0", "192.168.56.10")
-        ])
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_unroute_network_none(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route = "none"
-        a.unroute_network()
-
-        mr.assert_not_called()
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_unroute_network_vpn(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route = "vpn0"
-        a.rt_table = "tun0"
-        a.interface = "tun0"
-        a.unroute_network()
-
-        mr.assert_has_calls([
-            mock.call("forward_disable", "tap0", "tun0", "192.168.56.10"),
-            mock.call("srcroute_disable", "tun0", "192.168.56.10"),
-            mock.call("drop_disable", "192.168.56.10", "192.168.56.1", "2042")
-        ])
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_unroute_network_inetsim(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route = "inetsim"
-        a.unroute_network()
-
-        mr.assert_has_calls([
-            mock.call("drop_disable", "192.168.56.10", "192.168.56.1", "2042"),
-            mock.call(
-                "inetsim_disable", "192.168.56.10", "192.168.56.1", "vboxnet0",
-                 "2042"
-            )
-        ])
-
-    @mock.patch("cuckoo.common.abstracts.rooter")
-    def test_unroute_network_tor(self, mr):
-        task = Task()
-        task.add_url("http://example.com/42")
-        a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.set_task(task)
-        a.route = "tor"
-        a.unroute_network()
-
-        mr.assert_has_calls([
-            mock.call("drop_disable", "192.168.56.10", "192.168.56.1", "2042"),
-            mock.call(
-                "tor_disable", "192.168.56.10", "192.168.56.1", "5353", "9040"
-            )
-        ])
-
     @mock.patch("time.sleep")
     def test_wait_finish(self, mts):
         task = Task()
         task.add_url("http://example.com/42")
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.set_task(task)
         a.analysis.status = "stoppped"
@@ -413,7 +203,7 @@ class TestAnalysisManager:
         task = Task()
         task.add_url("http://example.com/42")
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.set_task(task)
         a.action_lock = mock.MagicMock()
@@ -431,7 +221,7 @@ class TestAnalysisManager:
 
     def test_set_analysis_status(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.request_scheduler_action = mock.MagicMock()
@@ -442,12 +232,12 @@ class TestAnalysisManager:
 
     def test_set_analysis_status_request(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.request_scheduler_action = mock.MagicMock()
 
-        a.set_analysis_status("starting", request_scheduler_action=True)
+        a.set_analysis_status("starting", wait=True)
 
         a.analysis.status_lock.acquire.assert_called_once()
         a.analysis.set_status.assert_called_once_with(
@@ -457,7 +247,7 @@ class TestAnalysisManager:
 
     def test_release_locks(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.analysis.status_lock.locked = mock.MagicMock(return_value=True)
@@ -471,7 +261,7 @@ class TestAnalysisManager:
 
     def test_action_requested(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.action_lock = mock.MagicMock()
@@ -482,7 +272,7 @@ class TestAnalysisManager:
 
     def test_get_analysis_status(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.analysis.get_status = mock.MagicMock(return_value="starting")
@@ -491,7 +281,7 @@ class TestAnalysisManager:
 
     def test_get_analysis_status_overriden(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.override_status = "stopping"
@@ -501,14 +291,14 @@ class TestAnalysisManager:
 
     def test_init(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
 
         assert a.init(self.db)
 
     def test_run(self):
         a = abstracts.AnalysisManager(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         with pytest.raises(NotImplementedError):
             a.run()

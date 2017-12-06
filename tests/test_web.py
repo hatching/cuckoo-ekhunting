@@ -32,6 +32,7 @@ from cuckoo.web.controllers.submission.api import defaults
 from cuckoo.web.utils import render_template
 
 db = Database()
+submit_task = Task()
 
 class TestWebInterface(object):
     def setup(self):
@@ -670,7 +671,7 @@ class TestWebInterface(object):
         assert r.status_code == 500
         assert "not associated with any tasks" in r.content
 
-        Task().add_path(__file__, submit_id=submit_id)
+        submit_task.add_path(__file__, submit_id=submit_id)
         r = client.get("/submit/post/1")
         assert r.status_code == 200
         assert r.templates[0].name == "submission/postsubmit.html"
@@ -739,7 +740,7 @@ class TestWebInterface(object):
 
     # TODO Re-enable this unit test if this API endpoint is enabled.
     def _test_api_post_task_info_simple(self, client):
-        Task().add_path("tests/files/pdf0.pdf")
+        submit_task.add_path("tests/files/pdf0.pdf")
         r = client.post(
             "/analysis/api/task/info/",
             json.dumps({
@@ -763,9 +764,9 @@ class TestWebInterface(object):
         assert "not JSON" in r.content
 
     def test_api_post_tasks_info_simple(self, client):
-        Task().add_path(__file__)
-        Task().add_url("http://cuckoosandbox.org")
-        Task().add_archive("tests/files/pdf0.zip", "pdf0.pdf", "pdf")
+        submit_task.add_path(__file__)
+        submit_task.add_url("http://cuckoosandbox.org")
+        submit_task.add_archive("tests/files/pdf0.zip", "pdf0.pdf", "pdf")
         r = client.post(
             "/analysis/api/tasks/info/",
             json.dumps({
@@ -938,14 +939,14 @@ class TestWebInterfaceFeedback(object):
         s.warning.assert_called_once()
 
     def test_submit_reboot(self, client):
-        t0 = Task().add_path(__file__)
+        t0 = submit_task.add_path(__file__)
         r = client.get("/analysis/%s/reboot/" % t0)
         assert r.status_code == 302
         t1, = db.view_submit(1, tasks=True).tasks
         assert db.view_task(t1.id).custom == "%d" % t0
 
     def test_resubmit_file(self, client):
-        Task().add_path(__file__, options={
+        submit_task.add_path(__file__, options={
             "human": 0, "free": "yes",
         })
         assert client.get("/submit/re/1/").status_code == 302
@@ -956,7 +957,7 @@ class TestWebInterfaceFeedback(object):
         }
 
     def test_resubmit_url(self, client):
-        Task().add_url("http://bing.com/", options={
+        submit_task.add_url("http://bing.com/", options={
             "human": 0, "free": "yes",
         })
         assert client.get("/submit/re/1/").status_code == 302
@@ -968,7 +969,7 @@ class TestWebInterfaceFeedback(object):
 
     def test_resubmit_file_missing(self, client):
         filepath = Files.temp_put("hello world")
-        Task().add_path(filepath, options={
+        submit_task.add_path(filepath, options={
             "human": 0, "free": "yes",
         })
         os.unlink(filepath)

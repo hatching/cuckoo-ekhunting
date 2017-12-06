@@ -3,12 +3,12 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import datetime
+import io
+import json
 import logging
 import os
 import threading
 import zipfile
-import io
-import json
 
 from cuckoo.common.config import config
 from cuckoo.common.exceptions import CuckooOperationalError
@@ -31,7 +31,7 @@ class Task(object):
         self.db = Database()
         self.db_task = None
         self.copied_binary = None
-        self.task_dict = None
+        self.task_dict = {}
 
         if db_task:
             self.set_task(db_task)
@@ -40,25 +40,18 @@ class Task(object):
         """Update Task wrapper with new task db object
         @param db_task: Task Db object"""
         self.db_task = db_task
-        self.path = cwd("storage", "analyses", str(db_task.id))
+        self.path = cwd(analysis=db_task.id)
         self.is_file = db_task.category in Task.files
+        self.task_dict = db_task.to_dict()
         self._read_copied_binary()
 
     def load_task_dict(self, task_dict):
         """Load all dict key values as attributes to the object"""
         # Cast to Cuckoo dictionary, so keys can be accessed as attributes
         self.task_dict = Dictionary(task_dict)
-        self.id = task_dict["id"]
-        self.category = task_dict.get("category")
-        self.target = task_dict.get("target")
-
-        self.path = cwd("storage", "analyses", str(task_dict["id"]))
+        self.path = cwd(analysis=task_dict["id"])
         self.is_file = self.category in Task.files
         self._read_copied_binary()
-
-        # Map all remaining values in the dict as attributes
-        for key, value in task_dict.iteritems():
-                setattr(self, key, value)
 
     def load_from_id(self, task_id):
         """Load task from id. Returns True of success, False otherwise"""
@@ -78,22 +71,21 @@ class Task(object):
     def create_dirs(self):
         """Create the folders for this analysis. Returns True if
         all folders were created. False if not"""
-        missing = self.dirs_missing()
-        if not self.dir_exists():
-            missing.append(self.path)
-        elif len(missing) < 1:
-            return True
+        task_dirs = [
+            cwd(task_dir, analysis=self.id) for task_dir in self.dirs
+        ]
 
-        created = 0
-        for dir in missing:
+        for task_dir in task_dirs:
             try:
-                Folders.create(dir)
-                created += 1
+                Folders.create(task_dir)
             except CuckooOperationalError as e:
-                log.error("Unable to create folder \'%s\' for task #%s. "
-                          "Error: %s", dir, self.id, e)
+                log.error(
+                    "Unable to create folder '%s' for task #%s Error: %s",
+                    task_dir, self.id, e
+                )
+                return False
 
-        return created == len(missing)
+        return True
 
     def bin_copy_and_symlink(self, copyto=None):
         """Create a copy of the submitted sample to the binaries directory
@@ -107,6 +99,13 @@ class Task(object):
         if not self.is_file or os.path.exists(symlink):
             return
 
+        if not os.path.exists(self.target):
+            log.error(
+                "Original binary '%s' for task #%s does not exist",
+                self.target, self.id
+            )
+            return
+
         copy_to = cwd("storage", "binaries", File(self.target).get_sha256())
 
         if copyto:
@@ -117,10 +116,12 @@ class Task(object):
             self.copied_binary = copy_to
 
         try:
-            Files.symlink(copy_to, symlink, copy_on_fail=True)
+            Files.symlink_or_copy(copy_to, symlink)
         except OSError as e:
-            log.error("Failed to create symlink in task folder #%s to "
-                      "file %s. Error: %s", self.id, copy_to, e)
+            log.error(
+                "Failed to create symlink in task folder #%s to file %s."
+                " Error: %s", self.id, copy_to, e
+            )
 
         # Update copied binary path attribute
         self._read_copied_binary()
@@ -130,17 +131,20 @@ class Task(object):
         in the analysis folder"""
         latest = cwd("storage", "analyses", "latest")
         try:
-            Task.latest_symlink_lock.acquire()
+            self.latest_symlink_lock.acquire()
 
             if os.path.lexists(latest):
                 os.remove(latest)
 
-            Files.symlink(self.path, latest)
+            # Do not copy the task dir if a symlink cannot be created
+            # because this can slow down analyses.
+            Files.symlink_or_copy(self.path, latest, copy_on_fail=False)
         except OSError as e:
-            log.error("Error pointing to latest analysis symlink. Error: %s",
-                      e)
+            log.error(
+                "Error pointing to latest analysis symlink. Error: %s", e
+            )
         finally:
-            Task.latest_symlink_lock.release()
+            self.latest_symlink_lock.release()
 
     def _read_copied_binary(self):
         """Use the 'binary' symlink in the task folder to read the
@@ -158,63 +162,60 @@ class Task(object):
             return
 
         if not os.path.isfile(self.target):
-            log.warning("Cannot delete original file \'%s\'. It does not "
-                        "exist anymore", self.target)
-        else:
-            try:
-                os.remove(self.target)
-            except OSError as e:
-                log.error("Failed to delete original file at path \'%s\'"
-                          " Error: %s", self.target, e)
+            log.warning(
+                "Cannot delete original file '%s'. It does not exist anymore",
+                self.target
+            )
+            return
+
+        try:
+            os.remove(self.target)
+        except OSError as e:
+            log.error(
+                "Failed to delete original file at path '%s' Error: %s",
+                self.target, e
+            )
 
     def delete_copied_sample(self):
         """Delete the copy of the sample, which is stored in the working
         directory binaries folder. Also removes the symlink to this file"""
-        success = False
         if not os.path.exists(self.copied_binary):
-            log.warning("Cannot delete copied file \'%s\'. It does not "
-                        "exist anymore", self.copied_binary)
-        else:
-            try:
-                os.remove(self.copied_binary)
-                success = True
-            except OSError as e:
-                log.error("Failed to delete copied file at path \'%s\'"
-                          " Error: %s", self.copied_binary, e)
-
-        if not success:
+            log.warning(
+                "Cannot delete copied file '%s'. It does not exist anymore",
+                self.copied_binary
+            )
             return
-        # If the copied binary was deleted, also delete the symlink to it
 
+        try:
+            os.remove(self.copied_binary)
+        except OSError as e:
+            log.error(
+                "Failed to delete copied file at path '%s' Error: %s",
+                self.copied_binary, e
+            )
+            return
+
+        # If the copied binary was deleted, also delete the symlink to it
         symlink = os.path.join(self.path, "binary")
         if os.path.islink(symlink):
             try:
                 os.remove(symlink)
             except OSError as e:
-                log.error("Failed to delete symlink to removed binary \'%s\'."
-                          " Error: %s", symlink, e)
+                log.error(
+                    "Failed to delete symlink to removed binary '%s'. Error:"
+                    " %s", symlink, e
+                )
 
     def dir_exists(self):
         """Checks if the analysis folder for this task id exists"""
         return os.path.exists(self.path)
-
-    def dirs_missing(self):
-        """Returns a list of directories that are missing in the task
-        directory. logs, shots etc. Full path is returned"""
-        missing = []
-        for dir in Task.dirs:
-            path = os.path.join(self.path, dir)
-            if not os.path.exists(path):
-                missing.append(path)
-
-        return missing
 
     def is_reported(self):
         """Checks if a JSON report exists for this task"""
         return os.path.exists(os.path.join(self.path, "reports",
                                            "report.json"))
 
-    def write_to_disk(self, path=None):
+    def write_task_json(self, path=None):
         """Change task to JSON and write it to disk"""
         if not path:
             path = os.path.join(self.path, "task.json")
@@ -227,18 +228,13 @@ class Task(object):
 
     def process(self):
         """Process, run signatures and reports the results for this task"""
-        if self.db_task:
-            dict_task = self.db_task.to_dict()
-        else:
-            dict_task = self.task_dict
-
-        results = RunProcessing(task=dict_task).run()
+        results = RunProcessing(task=self.task_dict).run()
 
         if not results:
             return False
 
         RunSignatures(results=results).run()
-        RunReporting(task=dict_task, results=results).run()
+        RunReporting(task=self.task_dict, results=results).run()
 
         if config("cuckoo:cuckoo:delete_original"):
             self.delete_original_sample()
@@ -248,23 +244,20 @@ class Task(object):
 
         return True
 
-    @staticmethod
-    def get_tags_list(tags):
-        """Check tags and into usable format"""
-        _tags = []
+    def get_tags_list(self, tags):
+        """Check tags and change into usable format"""
+        ret = []
         if isinstance(tags, basestring):
             for tag in tags.split(","):
                 if tag.strip():
-                    _tags.append(tag.strip())
+                    ret.append(tag.strip())
 
         elif isinstance(tags, (tuple, list)):
             for tag in tags:
                 if isinstance(tag, basestring) and tag.strip():
-                    _tags.append(tag.strip())
-        else:
-            _tags = None
+                    ret.append(tag.strip())
 
-        return _tags
+        return ret
 
     def add(self, obj, timeout=0, package="", options="", priority=1,
             custom="", owner="", machine="", platform="", tags=None,
@@ -292,6 +285,15 @@ class Task(object):
         if not priority:
             priority = 1
 
+        if isinstance(start_on, basestring):
+            try:
+                start_on = datetime.datetime.strptime(
+                    start_on, "%Y-%m-%d %H:%M"
+                )
+            except ValueError:
+                log.error("'start on' format should be: 'YYYY-M-D H:M'")
+                return None
+
         sample_id = None
         if category in self.files and isinstance(obj, File):
             sample_id = self.db.add_sample(obj)
@@ -312,8 +314,10 @@ class Task(object):
                 try:
                     clock = datetime.datetime.strptime(clock, dfmt)
                 except ValueError:
-                    log.warning("Datetime %s not in format %s. Using current "
-                                "timestamp", clock, dfmt)
+                    log.warning(
+                        "Datetime %s not in format %s. Using current "
+                        "timestamp", clock, dfmt
+                    )
                     clock = datetime.datetime.now()
 
         task = self.db.add(
@@ -357,9 +361,11 @@ class Task(object):
             log.error("File does not exist: %s.", file_path)
             return None
 
-        return self.add(File(file_path), timeout, package, options, priority,
-                        custom, owner, machine, platform, tags, memory,
-                        enforce_timeout, clock, "file", submit_id, start_on)
+        return self.add(
+            File(file_path), timeout, package, options, priority, custom,
+            owner, machine, platform, tags, memory, enforce_timeout, clock,
+            "file", submit_id, start_on
+        )
 
     def add_archive(self, file_path, filename, package, timeout=0,
                     options=None, priority=1, custom="", owner="", machine="",
@@ -389,9 +395,11 @@ class Task(object):
         options = options or {}
         options["filename"] = filename
 
-        return self.add(File(file_path), timeout, package, options, priority,
-                        custom, owner, machine, platform, tags, memory,
-                        enforce_timeout, clock, "archive", submit_id, start_on)
+        return self.add(
+            File(file_path), timeout, package, options, priority, custom,
+            owner, machine, platform, tags, memory, enforce_timeout, clock,
+            "archive", submit_id, start_on
+        )
 
     def add_url(self, url, timeout=0, package="", options="", priority=1,
                 custom="", owner="", machine="", platform="", tags=None,
@@ -413,9 +421,11 @@ class Task(object):
         @param clock: virtual machine clock time
         @return: task id or None.
         """
-        return self.add(URL(url), timeout, package, options, priority,
-                        custom, owner, machine, platform, tags, memory,
-                        enforce_timeout, clock, "url", submit_id, start_on)
+        return self.add(
+            URL(url), timeout, package, options, priority, custom, owner,
+            machine, platform, tags, memory, enforce_timeout, clock, "url",
+            submit_id, start_on
+        )
 
     def add_reboot(self, task_id, timeout=0, options="", priority=1,
                    owner="", machine="", platform="", tags=None, memory=False,
@@ -436,7 +446,8 @@ class Task(object):
         @return: task id or None.
         """
 
-        if not self.load_from_id(task_id) or not os.path.exists(self.target):
+        if not self.load_from_id(task_id) or not \
+                os.path.exists(self.copied_binary):
             log.error(
                 "Unable to add reboot analysis as the original task or its "
                 "sample has already been deleted."
@@ -445,9 +456,11 @@ class Task(object):
 
         custom = "%s" % task_id
 
-        return self.add(File(self.target), timeout, "reboot", options,
-                        priority, custom, owner, machine, platform, tags,
-                        memory, enforce_timeout, clock, "file", submit_id)
+        return self.add(
+            File(self.target), timeout, "reboot", options, priority, custom,
+            owner, machine, platform, tags, memory, enforce_timeout, clock,
+            "file", submit_id
+        )
 
     def add_baseline(self, timeout=0, owner="", machine="", memory=False):
         """Add a baseline task to database.
@@ -457,8 +470,10 @@ class Task(object):
         @param memory: toggle full memory dump.
         @return: task id or None.
         """
-        return self.add(None, timeout=timeout, priority=999, owner=owner,
-                        machine=machine, memory=memory, category="baseline")
+        return self.add(
+            None, timeout=timeout, priority=999, owner=owner, machine=machine,
+            memory=memory, category="baseline"
+        )
 
     def add_service(self, timeout, owner, tags):
         """Add a service task to database.
@@ -467,14 +482,19 @@ class Task(object):
         @param tags: task tags.
         @return: task id or None.
         """
-        return self.add(None, timeout=timeout, priority=999, owner=owner,
-                        tags=tags, category="service")
+        return self.add(
+            None, timeout=timeout, priority=999, owner=owner, tags=tags,
+            category="service"
+        )
 
     def reschedule(self, task_id=None, priority=None):
-        """Reschedule this task"""
+        """Reschedule this task or the given task
+        @param task_id: task_id to reschedule
+        @param priority: overwrites the prority the task already has"""
         if not self.db_task and not task_id:
-            log.error("Task is None and no task_id provided."
-                      " Cannot reschedule.")
+            log.error(
+                "Task is None and no task_id provided Cannot reschedule"
+            )
             return None
         elif task_id:
             if not self.load_from_id(task_id):
@@ -488,8 +508,9 @@ class Task(object):
 
         add = handlers.get(self.category, None)
         if not add:
-            log.error("Rescheduling task category %s not supported",
-                      self.category)
+            log.error(
+                "Rescheduling task category %s not supported", self.category
+            )
             return None
 
         priority = priority or self.priority
@@ -497,10 +518,12 @@ class Task(object):
         # Change status to recovered
         self.db.set_status(self.id, TASK_RECOVERED)
 
-        return add(self.target, self.timeout, self.package, self.options, priority,
-                   self.custom, self.owner, self.machine, self.platform,
-                   self.get_tags_list(self.tags), self.memory,
-                   self.enforce_timeout, self.clock)
+        return add(
+            self.target, self.timeout, self.package, self.options, priority,
+            self.custom, self.owner, self.machine, self.platform,
+            self.get_tags_list(self.tags), self.memory, self.enforce_timeout,
+            self.clock
+        )
 
     @staticmethod
     def requirements_str(db_task):
@@ -681,20 +704,198 @@ class Task(object):
 
         return f
 
-    def __getattr__(self, item):
-        """Map attributes back to the db task object"""
-        # Try to retrieve attribute from db_object
-        return getattr(self.db_task, item)
+    def refresh(self):
+        """Reload the task object from the database to have the latest
+        changes"""
+        db_task = self.db.view_task(self.db_task.id)
+        self.set_task(db_task)
+
+    def set_status(self, status):
+        """Set the task to given status in the database and update the
+        dbtask object to have the new status"""
+        self.db.set_status(self.db_task.id, status)
+        self.refresh()
 
     def __getitem__(self, item):
-        """Make Task readable as dictionary"""
-        try:
-            return getattr(self, item)
-        except AttributeError:
-            return self.__getattr__(item)
+        """Make Task.db_task readable as dictionary"""
+        return self.task_dict[item]
+
+    def __setitem__(self, key, value):
+        """Make value assignment to Task.db_task possible"""
+        self.task_dict[key] = value
 
     def __repr__(self):
         try:
-            return "<core.Task('{0}','{1}')>".format(self.id, self.target)
+            return "<core.Task('{0}','{1}')>".format(
+                self.db_task.id, self.db_task.target
+            )
         except AttributeError:
             return "<core.Task>"
+
+    @property
+    def id(self):
+        id = self.task_dict.get("id")
+        if id:
+            return id
+        return self.db_task.id
+
+    @property
+    def target(self):
+        target = self.task_dict.get("target")
+        if target:
+            return target
+        return self.db_task.target
+
+    @property
+    def category(self):
+        category = self.task_dict.get("category")
+        if category:
+            return category
+        return self.db_task.category
+
+    @property
+    def timeout(self):
+        timeout = self.task_dict.get("timeout")
+        if timeout:
+            return timeout
+        return self.db_task.timeout
+
+    @property
+    def priority(self):
+        priority = self.task_dict.get("priority")
+        if priority:
+            return priority
+        return self.db_task.priority
+
+    @property
+    def custom(self):
+        custom = self.task_dict.get("custom")
+        if custom:
+            return custom
+        return self.db_task.custom
+
+    @property
+    def owner(self):
+        owner = self.task_dict.get("owner")
+        if owner:
+            return owner
+        return self.db_task.owner
+
+    @property
+    def machine(self):
+        machine = self.task_dict.get("machine")
+        if machine:
+            return machine
+        return self.db_task.machine
+
+    @property
+    def package(self):
+        package = self.task_dict.get("package")
+        if package:
+            return package
+        return self.db_task.package
+
+    @property
+    def tags(self):
+        tags = self.task_dict.get("tags")
+        if tags:
+            return tags
+        return self.db_task.tags
+
+    @property
+    def options(self):
+        options = self.task_dict.get("options")
+        if options:
+            return options
+        return self.db_task.options
+
+    @property
+    def platform(self):
+        platform = self.task_dict.get("platform")
+        if platform:
+            return platform
+        return self.db_task.platform
+
+    @property
+    def memory(self):
+        memory = self.task_dict.get("memory")
+        if memory:
+            return memory
+        return self.db_task.memory
+
+    @property
+    def enforce_timeout(self):
+        enforce_timeout = self.task_dict.get("enforce_timeout")
+        if enforce_timeout:
+            return enforce_timeout
+        return self.db_task.enforce_timeout
+
+    @property
+    def clock(self):
+        clock = self.task_dict.get("clock")
+        if clock:
+            return clock
+        return self.db_task.clock
+
+    @property
+    def added_on(self):
+        added_on = self.task_dict.get("added_on")
+        if added_on:
+            return added_on
+        return self.db_task.added_on
+
+    @property
+    def start_on(self):
+        start_on = self.task_dict.get("start_on")
+        if start_on:
+            return start_on
+        return self.db_task.start_on
+
+    @property
+    def started_on(self):
+        started_on = self.task_dict.get("started_on")
+        if started_on:
+            return started_on
+        return self.db_task.started_on
+
+    @property
+    def completed_on(self):
+        completed_on = self.task_dict.get("completed_on")
+        if completed_on:
+            return completed_on
+        return self.db_task.completed_on
+
+    @property
+    def status(self):
+        status = self.task_dict.get("status")
+        if status:
+            return status
+        return self.db_task.status
+
+    @property
+    def sample_id(self):
+        sample_id = self.task_dict.get("sample_id")
+        if sample_id:
+            return sample_id
+        return self.db_task.sample_id
+
+    @property
+    def submit_id(self):
+        submit_id = self.task_dict.get("submit_id")
+        if submit_id:
+            return submit_id
+        return self.db_task.submit_id
+
+    @property
+    def processing(self):
+        processing = self.task_dict.get("processing")
+        if processing:
+            return processing
+        return self.db_task.processing
+
+    @property
+    def route(self):
+        route = self.task_dict.get("route")
+        if route:
+            return route
+        return self.db_task.route

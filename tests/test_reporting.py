@@ -330,8 +330,11 @@ def test_feedback_enabled(p, q):
     set_cwd(tempfile.mkdtemp())
     cuckoo_create()
 
+    faketask = {"id": 1}
     r = Feedback()
     r.set_path("tests/files/sample_analysis_storage")
+    r.set_task(faketask)
+
     r.run({
         "debug": {
             "errors": [

@@ -110,7 +110,7 @@ class TestFeedback(object):
 
     def test_include_analysis_files(self):
         set_cwd(tempfile.mkdtemp())
-        fake_task = cwd("storage", "analyses", "1")
+        fake_task = cwd(analysis=1)
         shutil.copytree("tests/files/sample_analysis_storage", fake_task)
 
         feedback = CuckooFeedbackObject(task_id=1, include_files=True)
@@ -130,7 +130,7 @@ class TestFeedback(object):
     @mock.patch("cuckoo.core.feedback.requests")
     def test_send_data(self, p, q, c):
         set_cwd(tempfile.mkdtemp())
-        fake_task = cwd("storage", "analyses", "1")
+        fake_task = cwd(analysis=1)
         shutil.copytree("tests/files/sample_analysis_storage", fake_task)
 
         q._get_report.return_value = self.report(

@@ -22,12 +22,16 @@ import sqlalchemy as sa
 def upgrade():
     currentdate = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     op.drop_table("guests")
-    op.add_column("machines", sa.Column(
-        "manager", sa.String(length=255), nullable=True)
+    op.add_column(
+        "machines", sa.Column(
+            "manager", sa.String(length=255), nullable=True
+        )
     )
     op.add_column(
-        "tasks", sa.Column("start_on", sa.DateTime(),
-        server_default=currentdate, default=datetime.now, nullable=False)
+        "tasks", sa.Column(
+            "start_on", sa.DateTime(), server_default=currentdate,
+            default=datetime.now, nullable=False
+        )
     )
 
 def downgrade():

@@ -17,7 +17,7 @@ from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, cwd
 
-class Machine(object):
+class FakeMachine(object):
     def __init__(self):
         self.name = "machine1"
         self.label = "machine1"
@@ -69,7 +69,7 @@ class TestRegular:
             sample = self.db.view_sample(task.sample_id)
 
         manager = Regular(
-            Machine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
         )
         manager.set_task(task, sample)
         return manager
@@ -83,58 +83,54 @@ class TestRegular:
 
         assert manager.task == task
         assert manager.analysis is not None
-        assert manager.name == "task_#%s_Regular_Thread" % task.id
+        assert manager.name == "task_#%s_Regular" % task.id
 
-
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
-    def test_init(self, mb, mf):
+    def test_init(self, mb):
         self.create_cwd()
         manager = self.get_manager()
         result = manager.init(self.db)
+        assert os.path.exists(manager.task.copied_binary)
 
-        mb.assert_called_once_with(update_with={
+        mb.assert_called_once_with(options={
             "file_type": "data",
             "file_name": "testanalysis.exe",
-            "target": "/tmp/testanalysis.exe",
+            "target": manager.task.copied_binary,
             "pe_exports": "",
             "options": {}
         })
 
-        mf.assert_called_once()
         assert result
         assert manager.f is not None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(manager.task.path, "task.json"))
 
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
     @mock.patch("cuckoo.analysis.regular.File.get_apk_entry")
-    def test_init_apk_options(self, mae, mb, mf):
+    def test_init_apk_options(self, mae, mb):
         self.create_cwd()
         manager = self.get_manager()
         mae.return_value= ("package", "activity")
         result = manager.init(self.db)
+        assert os.path.exists(manager.task.copied_binary)
 
-        mb.assert_called_once_with(update_with={
+        mb.assert_called_once_with(options={
             "file_type": "data",
             "file_name": "testanalysis.exe",
-            "target": "/tmp/testanalysis.exe",
+            "target": manager.task.copied_binary,
             "pe_exports": "",
             "options": {"apk_entry": "package:activity"}
         })
 
-        mf.assert_called_once()
         assert result
         assert manager.f is not None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(manager.task.path, "task.json"))
 
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.file_usable")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
-    def test_init_non_file(self, mb, mf):
+    def test_init_non_file(self, mb):
         self.create_cwd()
         task = Task()
         task.add_url("http://example.com/42")
@@ -142,14 +138,13 @@ class TestRegular:
 
         result = manager.init(self.db)
         mb.assert_called_once()
-        mf.assert_not_called()
         assert result
         assert manager.f is None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(task.path, "task.json"))
 
-    def test_init_use_bin_copy(self):
+    def test_init_remov_original(self):
         self.create_cwd()
         task = Task()
         fd, tmpfile = tempfile.mkstemp()
@@ -189,14 +184,20 @@ class TestRegular:
         result = manager.init(self.db)
 
         assert not result
-        assert os.path.isfile(os.path.join(task.path, "task.json"))
+
+    def test_init_copied_bin_none(self):
+        self.create_cwd()
+        manager = self.get_manager()
+        manager.task.copied_binary = None
+        result = manager.init(self.db)
+
+        assert not result
 
     @mock.patch("cuckoo.analysis.regular.ResultServer")
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
-    def test_start_analysis(self, mrsa, msas, mrn, mrs):
+    def test_start_and_wait(self, mrsa, msas, mrs):
         self.create_cwd()
         manager = self.get_manager()
         # Mock resultserver obj so we can check if add_task was called
@@ -205,12 +206,13 @@ class TestRegular:
 
         manager.init(self.db)
         manager.machinery = mock.MagicMock()
+        manager.route = mock.MagicMock()
         manager.aux = mock.MagicMock()
         manager.guest_manager = mock.MagicMock()
         # Set status manually, because the method used is mocked
         manager.analysis.status = "starting"
 
-        result = manager.start_analysis()
+        result = manager.start_and_wait()
 
         # Check if all required methods were called successfully
         msas.assert_has_calls([
@@ -221,19 +223,18 @@ class TestRegular:
         manager.aux.start.assert_called_once()
         manager.machinery.start.assert_called_once_with("machine1",
                                                         manager.task.db_task)
-        mrn.assert_called_once()
+        manager.route.route_network.assert_called_once()
         manager.machine_lock.release.assert_called_once()
-        mrsa.assert_called_once_with(for_status="starting")
+        mrsa.assert_called_once_with("starting")
         manager.guest_manager.start_analysis.assert_called_once()
         manager.guest_manager.wait_for_completion.assert_called_once()
         assert result
 
     @mock.patch("cuckoo.analysis.regular.ResultServer")
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
-    def test_start_analysis_url(self, mrsa, msas, mrn, mrs):
+    def test_start_and_wait_url(self, mrsa, msas, mrs):
         self.create_cwd()
         task = Task()
         task.add_url("http://example.com/42")
@@ -245,12 +246,13 @@ class TestRegular:
         manager = self.get_manager(task)
         manager.init(self.db)
         manager.machinery = mock.MagicMock()
+        manager.route = mock.MagicMock()
         manager.aux = mock.MagicMock()
         manager.guest_manager = mock.MagicMock()
         # Set status manually, because the method used is mocked
         manager.analysis.status = "starting"
 
-        result = manager.start_analysis()
+        result = manager.start_and_wait()
 
         # Check if all required methods were called successfully
         msas.assert_has_calls([
@@ -261,20 +263,19 @@ class TestRegular:
         manager.aux.start.assert_called_once()
         manager.machinery.start.assert_called_once_with("machine1",
                                                         task.db_task)
-        mrn.assert_called_once()
+        manager.route.route_network.assert_called_once()
         manager.machine_lock.release.assert_called_once()
-        mrsa.assert_called_once_with(for_status="starting")
+        mrsa.assert_called_once_with("starting")
         manager.guest_manager.start_analysis.assert_called_once()
         manager.guest_manager.wait_for_completion.assert_called_once()
         assert result
 
     @mock.patch("cuckoo.analysis.regular.ResultServer")
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
     @mock.patch("time.sleep")
-    def test_start_analysis_baseline(self, mts, mrsa, msas, mrn, mrs):
+    def test_start_and_wait_baseline(self, mts, mrsa, msas, mrs):
         self.create_cwd()
         task = Task()
         task.add_baseline()
@@ -285,9 +286,10 @@ class TestRegular:
         manager = self.get_manager(task)
         manager.init(self.db)
         manager.machinery = mock.MagicMock()
+        manager.route = mock.MagicMock()
         manager.aux = mock.MagicMock()
 
-        result = manager.start_analysis()
+        result = manager.start_and_wait()
 
         # Check if all required methods were called successfully
         msas.assert_has_calls([
@@ -298,19 +300,18 @@ class TestRegular:
         manager.aux.start.assert_called_once()
         manager.machinery.start.assert_called_once_with("machine1",
                                                         task.db_task)
-        mrn.assert_called_once()
+        manager.route.route_network.assert_called_once()
         manager.machine_lock.release.assert_called_once()
-        mrsa.assert_called_once_with(for_status="starting")
+        mrsa.assert_called_once_with("starting")
         mts.assert_called_once_with(manager.options["timeout"])
         assert result
 
     @mock.patch("cuckoo.analysis.regular.ResultServer")
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.route_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager."
                 "request_scheduler_action")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.wait_finish")
-    def test_start_analysis_noagent(self, mwf, mrsa, msas, mrn, mrs):
+    def test_start_and_wait_noagent(self, mwf, mrsa, msas, mrs):
         self.create_cwd()
         task = Task()
         task.add_service(owner="1", tags="service,mitm", timeout=120)
@@ -322,9 +323,10 @@ class TestRegular:
         manager.machine.options = "noagent"
         manager.init(self.db)
         manager.machinery = mock.MagicMock()
+        manager.route = mock.MagicMock()
         manager.aux = mock.MagicMock()
 
-        result = manager.start_analysis()
+        result = manager.start_and_wait()
 
         # Check if all required methods were called successfully
         msas.assert_has_calls([
@@ -335,16 +337,15 @@ class TestRegular:
         manager.aux.start.assert_called_once()
         manager.machinery.start.assert_called_once_with("machine1",
                                                         task.db_task)
-        mrn.assert_called_once()
+        manager.route.route_network.assert_called_once()
         manager.machine_lock.release.assert_called_once()
-        mrsa.assert_called_once_with(for_status="starting")
+        mrsa.assert_called_once_with("starting")
         mwf.assert_called_once()
         assert result
 
     @mock.patch("cuckoo.analysis.regular.ResultServer")
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.unroute_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
-    def test_stop_analysis(self, msas, murn, mrs):
+    def test_stop_and_wait(self, msas, mrs):
         self.create_cwd()
         # Mock resultserver obj so we can check if del_task was called
         resulserver_obj = mock.MagicMock()
@@ -352,9 +353,10 @@ class TestRegular:
         manager = self.get_manager()
         manager.init(self.db)
         manager.machinery = mock.MagicMock()
+        manager.route = mock.MagicMock()
         manager.aux = mock.MagicMock()
 
-        manager.stop_analysis()
+        manager.stop_and_wait()
 
         # Check if all required methods were called successfully
         msas.assert_called_once_with("stopping")
@@ -363,12 +365,11 @@ class TestRegular:
 
         resulserver_obj.del_task.assert_called_once_with(manager.task.db_task,
                                              manager.machine)
-        murn.assert_called_once()
+        manager.route.unroute_network.assert_called_once()
 
     @mock.patch("cuckoo.analysis.regular.ResultServer")
-    @mock.patch("cuckoo.common.abstracts.AnalysisManager.unroute_network")
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.set_analysis_status")
-    def test_stop_analysis_dump_mem(self, msas, murn, mrs):
+    def test_stop_and_wait_dump_mem(self, msas, mrs):
         self.create_cwd()
         task = Task()
         task.add_path(__file__, memory=True)
@@ -379,9 +380,10 @@ class TestRegular:
         manager = self.get_manager(task)
         manager.init(self.db)
         manager.machinery = mock.MagicMock()
+        manager.route = mock.MagicMock()
         manager.aux = mock.MagicMock()
 
-        manager.stop_analysis()
+        manager.stop_and_wait()
 
         # Check if all required methods were called successfully
         msas.assert_called_once_with("stopping")
@@ -394,7 +396,7 @@ class TestRegular:
 
         resulserver_obj.del_task.assert_called_once_with(task.db_task,
                                              manager.machine)
-        murn.assert_called_once()
+        manager.route.unroute_network.assert_called_once()
 
     def test_run(self):
         self.create_cwd()
@@ -402,47 +404,45 @@ class TestRegular:
         manager = self.get_manager()
         manager.init(self.db)
 
-        manager.start_analysis = mock.MagicMock(return_value=True)
-        manager.stop_analysis = mock.MagicMock()
+        manager.start_and_wait = mock.MagicMock(return_value=True)
+        manager.stop_and_wait = mock.MagicMock()
         manager.task.process = mock.MagicMock(return_value=True)
         manager.set_analysis_status = mock.MagicMock()
         manager.release_scheduler_lock = mock.MagicMock()
 
         manager.run()
 
-        manager.start_analysis.assert_called_once()
-        manager.stop_analysis.assert_called_once()
+        manager.start_and_wait.assert_called_once()
+        manager.stop_and_wait.assert_called_once()
         manager.set_analysis_status.assert_called_once_with(
-            "stopped", request_scheduler_action=True
+            "stopped", wait=True
         )
         manager.task.process.assert_called_once()
-        manager.release_scheduler_lock.assert_called_once()
 
     def test_run_fail(self):
         self.create_cwd()
         manager = self.get_manager()
         manager.init(self.db)
 
-        manager.start_analysis = mock.MagicMock(return_value=False)
-        manager.stop_analysis = mock.MagicMock()
+        manager.start_and_wait = mock.MagicMock(return_value=False)
+        manager.stop_and_wait = mock.MagicMock()
         manager.task.process = mock.MagicMock(return_value=True)
         manager.set_analysis_status = mock.MagicMock()
         manager.release_scheduler_lock = mock.MagicMock()
 
         manager.run()
 
-        manager.start_analysis.assert_called_once()
-        manager.stop_analysis.assert_called_once()
+        manager.start_and_wait.assert_called_once()
+        manager.stop_and_wait.assert_called_once()
         manager.set_analysis_status.assert_called_once_with(
-            "failed", request_scheduler_action=True
+            "failed", wait=True
         )
-        manager.task.process.assert_not_called()
-        manager.release_scheduler_lock.assert_called_once()
+        manager.task.process.assert_called_once()
 
     def test_on_status_starting(self):
         manager = self.get_manager()
         manager.init(self.db)
-        manager.route = "none"
+        manager.route.route = "none"
 
         manager.on_status_starting(self.db)
 
@@ -452,7 +452,7 @@ class TestRegular:
 
     def test_on_status_stopped(self):
         manager = self.get_manager()
-        task_json_path = cwd("storage", "analyses", str(manager.task.id), "task.json")
+        task_json_path = cwd("task.json", analysis=manager.task.id)
         manager.init(self.db)
         manager.machinery = mock.MagicMock()
         # Remove because init creates it. We need to check if it was created
@@ -479,13 +479,14 @@ class TestRegular:
 
     def test_finalize(self):
         manager = self.get_manager()
-        task_json_path = cwd("storage", "analyses", str(manager.task.id),
-                             "task.json")
+        task_json_path = cwd("task.json", analysis=manager.task.id)
         manager.init(self.db)
         manager.processing_success = True
+        manager.release_scheduler_lock = mock.MagicMock()
         # Remove because init creates it. We need to check if it was created
         # on status stopped
         os.remove(task_json_path)
+
 
         manager.finalize(self.db)
 
@@ -493,6 +494,7 @@ class TestRegular:
         assert manager.task.db_task is not db_task
         assert db_task.status == "reported"
         assert os.path.isfile(task_json_path)
+        manager.release_scheduler_lock.assert_called_once()
 
     def test_finalize_analysis_failed(self):
         self.create_cwd(cfg={
@@ -503,10 +505,10 @@ class TestRegular:
             }
         })
         manager = self.get_manager()
-        task_json_path = cwd("storage", "analyses", str(manager.task.id),
-                             "task.json")
+        task_json_path = cwd("task.json", analysis=manager.task.id)
         manager.init(self.db)
         manager.analysis.status = "running"
+        manager.release_scheduler_lock = mock.MagicMock()
         # Remove because init creates it. We need to check if it was created
         # on status stopped
         os.remove(task_json_path)
@@ -517,13 +519,14 @@ class TestRegular:
         assert manager.task.db_task is not db_task
         assert db_task.status == "failed_analysis"
         assert os.path.isfile(task_json_path)
+        manager.release_scheduler_lock.assert_called_once()
 
     def test_finalize_process_failed(self):
         TestRegular.createcwd = True
         self.create_cwd()
         manager = self.get_manager()
-        task_json_path = cwd("storage", "analyses", str(manager.task.id),
-                             "task.json")
+        task_json_path = cwd("task.json", analysis=manager.task.id)
+
         manager.init(self.db)
         manager.processing_success = False
         # Remove because init creates it. We need to check if it was created
@@ -569,4 +572,4 @@ class TestRegular:
         manager.release_scheduler_lock()
 
         manager.machine_lock.release.assert_called_once()
-        assert manager.scheduler_lock_released
+        assert manager.lock_released

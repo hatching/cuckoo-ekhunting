@@ -51,6 +51,7 @@ except ImportError:
     HAVE_VOLATILITY = False
 
 db = Database()
+submit_task = Task()
 
 class TestProcessing(object):
     def test_init(self):
@@ -67,7 +68,7 @@ class TestProcessing(object):
         init_console_logging()
 
         db.connect(dsn="sqlite:///:memory:")
-        Task().add_url("http://google.com/")
+        submit_task.add_url("http://google.com/")
         db.add_error("foo", 1)
         db.add_error("bar", 1)
         db.add_error("bar", 1)

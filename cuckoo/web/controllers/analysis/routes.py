@@ -64,12 +64,12 @@ class AnalysisRoutes:
         if request.method == "POST":
             taken_dirs = request.POST.getlist("dirs")
             taken_files = request.POST.getlist("files")
-            print(taken_files)
-            print(taken_dirs)
+
             if len(taken_dirs) + len(taken_files) < 1:
                 return view_error(
                     request, "Please select at least one directory or file"
-                             " to be exported.")
+                    " to be exported."
+                )
 
             zip = Task.create_zip(
                 task_id=task_id, taken_dirs=taken_dirs, taken_files=taken_files
@@ -88,8 +88,10 @@ class AnalysisRoutes:
         report = AnalysisController.get_report(task_id)
 
         dirs, files = Task.get_files(task_id)
-        return render_template(request, "analysis/export.html",
-                               report=report, dirs=dirs, files=files)
+        return render_template(
+            request, "analysis/export.html", report=report, dirs=dirs,
+            files=files
+        )
 
     @staticmethod
     def reboot(request, task_id):

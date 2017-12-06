@@ -52,7 +52,9 @@ class TestOldGuestManager(object):
                 },
             },
         })
-        gm = OldGuestManager("cuckoo1", "1.2.3.4", "windows", 1)
+        gm = OldGuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, mock.MagicMock()
+        )
         gm.wait = mock.MagicMock(side_effect=Exception)
         with pytest.raises(Exception):
             gm.start_analysis({"timeout": 671}, None)
@@ -60,14 +62,15 @@ class TestOldGuestManager(object):
 
     @mock.patch("cuckoo.core.guest.log")
     @mock.patch("cuckoo.core.guest.time")
-    @mock.patch("cuckoo.core.guest.db")
-    def test_no_critical_error_at_finish(self, p, q, r):
+    def test_no_critical_error_at_finish(self, q, r):
         set_cwd(tempfile.mkdtemp())
         cuckoo_create()
-        gm = OldGuestManager("cuckoo1", "1.2.3.4", "windows", 1)
+        gm = OldGuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1,  mock.MagicMock()
+        )
         gm.server = mock.MagicMock()
         gm.timeout = 6
-        p.guest_get_status.return_value = "running"
+        gm.analysis.status = "running"
         q.time.side_effect = [
             1, 2, 3, 4, 5, 6, 7, 8, 9
         ]
@@ -82,7 +85,9 @@ class TestGuestManager(object):
         cuckoo_create()
 
         responses.add(responses.GET, "http://1.2.3.4:8000/", status=400)
-        gm = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
+        gm = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None, mock.MagicMock()
+        )
         with pytest.raises(requests.HTTPError):
             gm.get("/")
 
@@ -92,7 +97,9 @@ class TestGuestManager(object):
         cuckoo_create()
 
         responses.add(responses.GET, "http://1.2.3.4:8000/", status=501)
-        gm = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
+        gm = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None,  mock.MagicMock()
+        )
         assert gm.get("/", do_raise=False).status_code == 501
 
     @responses.activate
@@ -101,7 +108,9 @@ class TestGuestManager(object):
         cuckoo_create()
 
         responses.add(responses.POST, "http://1.2.3.4:8000/store", status=500)
-        gm = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
+        gm = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None, mock.MagicMock()
+        )
         with pytest.raises(requests.HTTPError):
             gm.post("/store", data={"filepath": "hehe"})
 
@@ -114,7 +123,9 @@ class TestGuestManager(object):
                 },
             },
         })
-        gm = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
+        gm = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None,  mock.MagicMock()
+        )
         gm.wait_available = mock.MagicMock(side_effect=Exception)
         with pytest.raises(Exception):
             gm.start_analysis({"timeout": 42}, None)
@@ -123,13 +134,14 @@ class TestGuestManager(object):
     @mock.patch("cuckoo.core.guest.requests")
     @mock.patch("cuckoo.core.guest.log")
     @mock.patch("cuckoo.core.guest.time")
-    @mock.patch("cuckoo.core.guest.db")
-    def test_no_critical_error_at_finish(self, p, q, r, s):
+    def test_no_critical_error_at_finish(self, q, r, s):
         set_cwd(tempfile.mkdtemp())
         cuckoo_create()
-        gm = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
+        gm = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None,  mock.MagicMock()
+        )
         gm.timeout = 6
-        p.guest_get_status.return_value = "running"
+        gm.analysis.status = "running"
         q.time.side_effect = [
             1, 2, 3, 4, 5, 6, 7, 8, 9
         ]
@@ -144,12 +156,16 @@ class TestGuestManager(object):
 
         responses.add(responses.POST, "http://1.2.3.4:8000/mkdir", status=200)
 
-        gm_win = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
+        gm_win = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None,  mock.MagicMock()
+        )
         gm_win.environ["SYSTEMDRIVE"] = "C:"
         gm_win.options["options"] = "analpath=tempdir"
         gm_win.determine_analyzer_path()
 
-        gm_lin = GuestManager("cuckoo1", "1.2.3.4", "linux", 1, None)
+        gm_lin = GuestManager(
+            "cuckoo1", "1.2.3.4", "linux", 1, None,  mock.MagicMock()
+        )
         gm_lin.options["options"] = "analpath=tempdir"
         gm_lin.determine_analyzer_path()
 
@@ -160,10 +176,14 @@ class TestGuestManager(object):
         set_cwd(tempfile.mkdtemp())
         cuckoo_create()
 
-        gm_win = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
-        gm_win.environ["TEMP"] = "C:\\Users\\user\\AppData\\Local\\Temp"
+        gm_win = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None,  mock.MagicMock()
+        )
+        gm_win.environ["TEMP"] = "C:\Users\user\AppData\Local\Temp"
 
-        gm_lin = GuestManager("cuckoo1", "1.2.3.4", "linux", 1, None)
+        gm_lin = GuestManager(
+            "cuckoo1", "1.2.3.4", "linux", 1, None,  mock.MagicMock()
+        )
 
         assert gm_lin.determine_temp_path() == "/tmp"
         assert gm_win.determine_temp_path() == "C:\\Users\\user\\AppData\\Local\\Temp"
@@ -172,10 +192,14 @@ class TestGuestManager(object):
         set_cwd(tempfile.mkdtemp())
         cuckoo_create()
 
-        gm_win = GuestManager("cuckoo1", "1.2.3.4", "windows", 1, None)
+        gm_win = GuestManager(
+            "cuckoo1", "1.2.3.4", "windows", 1, None,  mock.MagicMock()
+        )
         gm_win.environ["SYSTEMDRIVE"] = "C:"
 
-        gm_lin = GuestManager("cuckoo1", "1.2.3.4", "linux", 1, None)
+        gm_lin = GuestManager(
+            "cuckoo1", "1.2.3.4", "linux", 1, None,  mock.MagicMock()
+        )
 
         assert gm_win.determine_system_drive() == "C:/"
         assert gm_lin.determine_system_drive() == "/"

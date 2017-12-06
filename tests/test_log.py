@@ -17,6 +17,7 @@ from cuckoo.main import cuckoo_create, main
 from cuckoo.misc import set_cwd, cwd
 
 db = Database()
+submit_task = Task()
 
 def reset_logging():
     """Resets the logging module to its initial state so that we can
@@ -158,7 +159,7 @@ def test_log_error_action():
     reset_logging()
     init_console_logging(logging.DEBUG)
 
-    task_id = Task().add_path(__file__)
+    task_id = submit_task.add_path(__file__)
     assert db.view_errors(task_id) == []
 
     logging.getLogger(__name__).error("message1", extra={

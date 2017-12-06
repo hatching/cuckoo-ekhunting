@@ -164,9 +164,10 @@ class Files(Storage):
         return h.hexdigest()
 
     @staticmethod
-    def symlink(file_path, symlink_path, copy_on_fail=False):
+    def symlink_or_copy(file_path, symlink_path, copy_on_fail=True):
         """Create symlink if supported on current platform. Creates a copy
-        instead if copy_on_fail is set to True. Returns False otherwise
+        instead if copy_on_fail is set to True.
+        Returns True if symlink is created successfully
         @param file_path: Path to create a symlink for
         @param symlink_path: Path where the symlink will be created
         @param copy_on_fail: Create copy of file to symlink_path if a symlink
@@ -177,9 +178,6 @@ class Files(Storage):
             return True
         elif copy_on_fail:
             shutil.copy(file_path, symlink_path)
-            return True
-        else:
-            return False
 
     @staticmethod
     def md5_file(filepath):

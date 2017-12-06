@@ -32,143 +32,136 @@ class Regular(AnalysisManager):
 
     def init(self, db):
         """Executed by the scheduler. Prepares the analysis for starting."""
-        init_success = True
-
         # Used to keep track about the Scheduler machine_lock
         self.lock_released = False
 
         # Used at the processing and final stage to determine is processing
         # was run and successful
-        self.processing_success = None
+        self.processing_success = False
 
-        # Keep track if the machine lock has been released
-        self.scheduler_lock_released = False
+        # If for some reason the task dir does not exist, stop the analysis
+        # because it should have been created upon submission
+        if not self.task.dir_exists():
+            log.error(
+                "Task directory for task #%s does not exist", self.task.id
+            )
+            return False
 
-        # If dir creation failed on submission, create them now
-        if len(self.task.dirs_missing()) > 0:
-            if not self.task.create_dirs():
-                log.error("Unable to create missing directories."
-                          " Task #%s failed", self.task.id)
-
-                return False
-            else:
-                log.debug("Created missing task directories for task #%s",
-                          self.task.id)
-
-        if self.task.is_file:
-            self.f = File(self.task.target)
-
-            # Get filename here so we can use it to name the copy
-            # in case the original is not available
-            file_name = self.f.get_name()
-            use_copy = False
-            if not os.path.exists(self.task.target):
-                log.warning("Original binary %s does not exist anymore."
-                            " Using copy", self.task.target)
-                use_copy = True
-                self.f = File(self.task.copied_binary)
-
-            # Verify if the file is readable and has not changed
-            if not self.file_usable():
-                init_success = False
-
-            else:
-                options = {}
-                package, activity = self.f.get_apk_entry()
-                if package and activity:
-                    options["apk_entry"] = "%s:%s" % (package, activity)
-
-                self.build_options(update_with={
-                    "target": self.task.copied_binary if use_copy
-                    else self.task.target,
-                    "file_name": file_name,
-                    "file_type": self.f.get_type(),
-                    "pe_exports": ",".join(self.f.get_exported_functions()),
-                    "options": options
-                })
-
-        else:
+        if not self.task.is_file:
             self.build_options()
+        else:
+            self.f = File(self.task.copied_binary)
 
-        self.guest_manager = GuestManager(self.machine.name, self.machine.ip,
-                                          self.machine.platform, self.task.id,
-                                          self, self.analysis)
+            if not self.task.copied_binary or\
+                    not os.path.isfile(self.task.copied_binary):
+                log.error(
+                    "The file to submit '%s' does not exist",
+                    self.task.copied_binary
+                )
+                return False
 
-        self.aux = RunAuxiliary(self.task.db_task.to_dict(), self.machine,
-                                self.guest_manager)
+            if not self.f.is_readable():
+                log.error(
+                    "Unable to read target file %s, please check if it is"
+                    " readable for the user executing Cuckoo Sandbox",
+                    self.task.copied_binary
+                )
+                return False
+
+            options = {}
+            package, activity = self.f.get_apk_entry()
+            if package and activity:
+                options["apk_entry"] = "%s:%s" % (package, activity)
+
+            self.build_options(options={
+                "target": self.task.copied_binary,
+                "file_name": os.path.basename(self.task.target),
+                "file_type": self.f.get_type(),
+                "pe_exports": ",".join(self.f.get_exported_functions()),
+                "options": options
+            })
+
+        self.guest_manager = GuestManager(
+            self.machine.name, self.machine.ip, self.machine.platform,
+            self.task.id, self, self.analysis
+        )
+
+        self.aux = RunAuxiliary(
+            self.task.db_task.to_dict(), self.machine, self.guest_manager
+        )
 
         # Write task to disk in json file
-        self.task.write_to_disk()
+        self.task.write_task_json()
 
-        return init_success
+        return True
 
     def run(self):
         """Starts the analysis manager thread."""
+        task_log_start(self.task.id)
+        analysis_success = False
+
         try:
-            task_log_start(self.task.id)
-            analysis_success = False
+            analysis_success = self.start_and_wait()
 
-            try:
-                analysis_success = self.start_analysis()
-
-                # See if the analysis did not fail in the analysis manager
-                # and see if the status was not set to failed by
-                # the guest manager
-                if analysis_success:
-                    if self.analysis.status == Analysis.FAILED:
-                        analysis_success = False
-            except Exception as e:
-                log.error("Error in start_analysis: %s", e)
-            finally:
-                self.stop_analysis()
-
-            # Only process and report if the analysis was successful
+            # See if the analysis did not fail in the analysis manager
+            # and see if the status was not set to failed by
+            # the guest manager
             if analysis_success:
-                self.set_analysis_status(Analysis.STOPPED,
-                                         request_scheduler_action=True)
-
-                if config("cuckoo:cuckoo:process_results"):
-                    logger(
-                        "Starting task reporting",
-                        action="task.report", status="pending"
-                    )
-                    log.info("Processing and reporting results for task #%s",
-                             self.task.id)
-
-                    self.processing_success = self.task.process()
-
-                    logger(
-                        "Task reporting finished",
-                        action="task.report", status="finished"
-                    )
-                else:
-                    log.debug("Cuckoo process_results is set to 'no',"
-                              " not processing results")
-
-                log.info(
-                    "Task #%d: analysis procedure completed",
-                    self.task.id, extra={
+                if self.analysis.status == Analysis.FAILED:
+                    analysis_success = False
+        except Exception as e:
+            log.exception(
+                "Failure during the starting of task #%s. Error: %s",
+                self.task.id, e, extra={
+                    "action": "task.start",
+                    "status": "error"
+                }
+            )
+        finally:
+            try:
+                self.stop_and_wait()
+            except Exception as e:
+                log.exception(
+                    "Failure during the stopping of task #%s. Error: %s",
+                    self.task.id, e, extra={
                         "action": "task.stop",
-                        "status": "success",
+                        "status": "error"
                     }
                 )
-            else:
-                self.set_analysis_status(Analysis.FAILED,
-                                         request_scheduler_action=True)
-        except Exception as e:
-            log.exception("Failure in analysis manager.run for task #%s. "
-                          "Error: %s", self.task.id, e, extra={
+
+        if analysis_success:
+            self.set_analysis_status(Analysis.STOPPED, wait=True)
+        else:
+            self.set_analysis_status(Analysis.FAILED, wait=True)
+
+        if not config("cuckoo:cuckoo:process_results"):
+            log.debug(
+                "Cuckoo process_results is set to 'no',"
+                " not processing results"
+            )
+            return
+
+        logger(
+            "Starting task reporting",
+            action="task.report", status="pending"
+        )
+        log.info(
+            "Processing and reporting results for task #%s", self.task.id
+        )
+        self.processing_success = self.task.process()
+        logger(
+            "Task reporting finished",
+            action="task.report", status="finished"
+        )
+        log.info(
+            "Task #%d: analysis procedure completed", self.task.id,
+            extra={
                 "action": "task.stop",
-                "status": "error",
-            })
+                "status": "success",
+            }
+        )
 
-        finally:
-            # Set this task as the latest symlink
-            self.task.set_latest()
-            task_log_stop(self.task.id)
-            self.release_scheduler_lock()
-
-    def start_analysis(self):
+    def start_and_wait(self):
         """Start the analysis by running the auxiliary modules,
         adding the task to the resultserver, starting the machine
         and running a guest manager."""
@@ -177,9 +170,10 @@ class Regular(AnalysisManager):
 
         target = self.task.target
         if self.task.is_file:
-            target = self.f.get_name()
+            target = os.path.basename(self.task.target)
 
-        log.info("Starting analysis of %s \"%s\" (task #%d, options: \"%s\")",
+        log.info(
+            "Starting analysis of %s '%s' (task #%d, options: '%s')",
                  self.task.category.upper(), target, self.task.id,
                  self.options["options"], extra={
                 "action": "task.init",
@@ -192,11 +186,7 @@ class Regular(AnalysisManager):
                 "custom": self.task.custom,
         })
 
-        try:
-            ResultServer().add_task(self.task.db_task, self.machine)
-        except Exception as e:
-            self.error_queue.put(e)
-            return False
+        ResultServer().add_task(self.task.db_task, self.machine)
 
         # Start auxiliary modules
         self.aux.start()
@@ -248,7 +238,6 @@ class Regular(AnalysisManager):
             )
             return False
 
-        # Json log for performance measurement purposes
         logger(
             "Started VM",
             action="vm.start", status="success",
@@ -269,14 +258,14 @@ class Regular(AnalysisManager):
                 )
 
         # Enable network routing
-        self.route_network()
+        self.route.route_network()
 
         # By the time start returns it will have fully started the Virtual
         # Machine. We can now safely release the machine lock.
         self.release_scheduler_lock()
 
         # Request scheduler action for status 'starting'
-        self.request_scheduler_action(for_status=Analysis.STARTING)
+        self.request_scheduler_action(Analysis.STARTING)
 
         # Choose the correct way of waiting or managing the agent and
         # execute it
@@ -288,8 +277,7 @@ class Regular(AnalysisManager):
                 "Machine hasn't been configured properly as the Cuckoo Host "
                 "wasn't able to connect to the Guest. There could be a few "
                 "reasons for this, please refer to our documentation on the "
-                "matter: %s",
-                self.machine.name,
+                "matter: %s", self.machine.name,
                 faq("troubleshooting-vm-network-configuration"),
                 extra={
                     "error_action": "vmrouting",
@@ -300,15 +288,16 @@ class Regular(AnalysisManager):
             )
 
         except CuckooGuestError as e:
-            log.error("Error from the Cuckoo Guest: %s", e, extra={
-                "action": "guest.handle",
-                "status": "error",
-                "task_id": self.task.id,
+            log.error(
+                "Error from the Cuckoo Guest: %s", e, extra={
+                    "action": "guest.handle",
+                    "status": "error",
+                    "task_id": self.task.id,
             })
 
         return True
 
-    def stop_analysis(self):
+    def stop_and_wait(self):
         """Stop the analysis by stopping the aux modules, optionally
         dumping VM memory, stopping the VM and deleting the task from
         the resultserver."""
@@ -320,19 +309,15 @@ class Regular(AnalysisManager):
         # If enabled, make a full memory dump of the machine
         # before it shuts down
         if config("cuckoo:cuckoo:memory_dump") or self.task.memory:
-
-            # Json log for performance measurement purposes
             logger(
                 "Taking full memory dump",
                 action="vm.memdump", status="pending",
                 vmname=self.machine.name
             )
-
             try:
                 dump_path = os.path.join(self.task.path, "memory.dmp")
                 self.machinery.dump_memory(self.machine.label, dump_path)
 
-                # Json log for performance measurement purposes
                 logger(
                     "Taken full memory dump",
                     action="vm.memdump", status="success",
@@ -349,12 +334,12 @@ class Regular(AnalysisManager):
                     }
                 )
             except CuckooMachineError as e:
-                log.error("Machinery error: %s", e, extra={
-                    "action": "vm.memdump",
-                    "status": "error",
+                log.error(
+                    "Machinery error: %s", e, extra={
+                        "action": "vm.memdump",
+                        "status": "error",
                 })
 
-        # Json log for performance measurement purposes
         logger(
             "Stopping VM",
             action="vm.stop", status="pending",
@@ -366,15 +351,14 @@ class Regular(AnalysisManager):
             self.machinery.stop(self.machine.label)
         except CuckooMachineError as e:
             log.warning(
-                "Unable to stop machine %s: %s",
-                self.machine.label, e, extra={
+                "Unable to stop machine %s: %s", self.machine.label, e,
+                extra={
                     "action": "vm.stop",
                     "status": "error",
                     "vmname": self.machine.name,
                 }
             )
 
-        # Json log for performance measurement purposes
         logger(
             "Stopped VM",
             action="vm.stop", status="success",
@@ -397,17 +381,15 @@ class Regular(AnalysisManager):
         ResultServer().del_task(self.task.db_task, self.machine)
 
         # Drop the network routing rules if any.
-        self.unroute_network()
+        self.route.unroute_network()
 
     def manage(self):
         """Choose and use to method of waiting or managing the further steps
         to be taken of an analysis."""
-
         if "noagent" in self.machine.options:
-            log.debug("Usage handler for the \'noagent\' option")
+            log.debug("Usage handler for the 'noagent' option")
             self.set_analysis_status(Analysis.RUNNING)
             self.wait_finish()
-
         elif self.task.category == "baseline":
             log.debug("Sleeping until timeout for baseline")
             self.set_analysis_status(Analysis.RUNNING)
@@ -424,10 +406,11 @@ class Regular(AnalysisManager):
     def on_status_starting(self, db):
         """Is executed by the scheduler on analysis status starting
         Stores the chosen route in the db."""
-        log.info("Using route \'%s\' for task #%s", self.route,
-                     self.task.id)
+        log.info(
+            "Using route '%s' for task #%s", self.route, self.task.id
+        )
         # Propagate the taken route to the database.
-        db.set_route(self.task.id, self.route)
+        db.set_route(self.task.id, self.route.route)
 
         # Store used machine in the task
         db.set_machine(self.task.id, self.machine.name)
@@ -436,14 +419,13 @@ class Regular(AnalysisManager):
         """Is executed by the scheduler on analysis status stopped
         Sets the task to completed, writes task json to analysis folder
         and releases machine if it is locked."""
-        log.debug("Setting task #%s status to %s", self.task.id,
-                  TASK_COMPLETED)
-        db.set_status(self.task.id, TASK_COMPLETED)
+        log.debug(
+            "Setting task #%s status to %s", self.task.id, TASK_COMPLETED
+        )
+        self.task.set_status(TASK_COMPLETED)
 
         # Update task obj and write json to disk
-        db_task = db.view_task(self.task.id)
-        self.task.set_task(db_task)
-        self.task.write_to_disk()
+        self.task.write_task_json()
 
         if self.machine.locked:
             log.debug("Releasing machine lock on %s", self.machine.label)
@@ -453,7 +435,8 @@ class Regular(AnalysisManager):
         """Is executed by the scheduler on analysis status failed.
         Releases the locked machine if it is locked and updates task status
         to analysis failed."""
-        db.set_status(self.task.id, TASK_FAILED_ANALYSIS)
+        log.error("Analysis for task #%s failed", self.task.id)
+        self.task.set_status(TASK_FAILED_ANALYSIS)
 
         if self.machine.locked:
             log.debug("Releasing machine lock on %s", self.machine.label)
@@ -463,36 +446,38 @@ class Regular(AnalysisManager):
         """Executed by the scheduler when the analysis manager thread exists.
         Updates the task status to the correct one and updates the
         task.json."""
+        self.release_scheduler_lock()
         # If, at this point, the analysis is not stopped or failed. It cannot
         # succeeded, since the manager thread already exited. Set status to
         # failed to prevent running tasks that are not running
         if self.analysis.status not in [Analysis.STOPPED, Analysis.FAILED]:
-            log.debug("Analysis status is still \'%s\' after exit. Setting"
-                      " task to failed", self.analysis.status)
-            db.set_status(self.task.id, TASK_FAILED_ANALYSIS)
+            log.debug(
+                "Analysis status is '%s' after exit. Setting task to"
+                " failed", self.analysis.status
+            )
+            self.task.set_status(TASK_FAILED_ANALYSIS)
 
-        # Update task obj and write json to disk
-        db_task = db.view_task(self.task.id)
-        self.task.set_task(db_task)
-        self.task.write_to_disk()
-
-        if config("cuckoo:cuckoo:process_results") and \
-                        self.processing_success is not None:
+        if config("cuckoo:cuckoo:process_results"):
             if self.processing_success:
-                log.debug("Setting task #%s status to %s", self.task.id,
-                          TASK_REPORTED)
-                db.set_status(self.task.id, TASK_REPORTED)
+                log.debug(
+                    "Setting task #%s status to %s", self.task.id,
+                    TASK_REPORTED
+                )
+                self.task.set_status(TASK_REPORTED)
             else:
-                log.debug("Setting task #%s status to %s", self.task.id,
-                          TASK_FAILED_PROCESSING)
-                db.set_status(self.task.id, TASK_FAILED_PROCESSING)
+                log.debug(
+                    "Setting task #%s status to %s", self.task.id,
+                    TASK_FAILED_PROCESSING
+                )
+                self.task.set_status(TASK_FAILED_PROCESSING)
+
+        self.task.write_task_json()
+        self.task.set_latest()
+        task_log_stop(self.task.id)
 
     def release_scheduler_lock(self):
         """Release the scheduler machine_lock. Do this when the VM has
         started."""
-        if not self.scheduler_lock_released:
-            try:
-                self.machine_lock.release()
-                self.scheduler_lock_released = True
-            except threading.ThreadError:
-                pass
+        if not self.lock_released:
+            self.machine_lock.release()
+            self.lock_released = True

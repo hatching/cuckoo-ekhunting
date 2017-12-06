@@ -27,6 +27,8 @@ from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, load_signatures, cwd, is_linux
 
+submit_task = Task()
+
 def test_init_tasks():
     def init(reschedule):
         set_cwd(tempfile.mkdtemp())
@@ -45,7 +47,7 @@ def test_init_tasks():
 
         tasks = []
         for status in statuses:
-            task_id = Task().add_path(__file__)
+            task_id = submit_task.add_path(__file__)
             Database().set_status(task_id, status)
             tasks.append(task_id)
 

@@ -683,7 +683,7 @@ class Database(object):
             if not service:
                 q = q.filter(not_(Task.tags.any(name="service")))
 
-            if len(exclude) > 0:
+            if exclude:
                 q = q.filter(~Task.id.in_(exclude))
 
             row = q.order_by(Task.priority.desc(), Task.added_on).first()

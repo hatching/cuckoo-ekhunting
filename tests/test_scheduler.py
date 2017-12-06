@@ -21,7 +21,7 @@ from cuckoo.machinery.virtualbox import VirtualBox
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd
 
-class Machine(object):
+class FakeMachine(object):
     def __init__(self):
         self.name = "machine1"
         self.label = "machine1"
@@ -106,7 +106,7 @@ class TestScheduler:
         config._cache = {}
         s = Scheduler()
         s.machinery = mock.MagicMock()
-        s.machinery.machines.return_value = [Machine()]
+        s.machinery.machines.return_value = [FakeMachine()]
         s.drop_forwarding_rules()
 
         mr.assert_has_calls([
@@ -120,7 +120,7 @@ class TestScheduler:
         s = Scheduler()
         s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
-        s.machinery.availables.return_value = [Machine()]
+        s.machinery.availables.return_value = [FakeMachine()]
 
         result = s.ready_for_new_run()
 
@@ -136,7 +136,7 @@ class TestScheduler:
         s = Scheduler()
         s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
-        s.machinery.availables.return_value = [Machine()]
+        s.machinery.availables.return_value = [FakeMachine()]
 
         result = s.ready_for_new_run()
 
@@ -153,7 +153,7 @@ class TestScheduler:
         s.total_analysis_count = 10
         s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
-        s.machinery.availables.return_value = [Machine()]
+        s.machinery.availables.return_value = [FakeMachine()]
 
         result = s.ready_for_new_run()
 
@@ -174,7 +174,7 @@ class TestScheduler:
         s.total_analysis_count = 10
         s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
-        s.machinery.availables.return_value = [Machine()]
+        s.machinery.availables.return_value = [FakeMachine()]
 
         result = s.ready_for_new_run()
 
@@ -199,7 +199,7 @@ class TestScheduler:
         s = Scheduler()
         s.machine_lock = mock.MagicMock()
         s.machinery = mock.MagicMock()
-        s.machinery.running.return_value = [Machine(), Machine()]
+        s.machinery.running.return_value = [FakeMachine(), FakeMachine()]
 
         result = s.ready_for_new_run()
 
@@ -229,15 +229,15 @@ class TestScheduler:
         # Test starting a task with service VM
         s = Scheduler()
         s.db = mock.MagicMock()
-        s.db.get_available_machines.return_value = [Machine()]
+        s.db.get_available_machines.return_value = [FakeMachine()]
         s.machinery = mock.MagicMock()
         task = FakeTask(1)
         s.db.fetch.return_value = task
         machine_mock2 = mock.MagicMock()
         s.machinery.acquire.return_value = machine_mock2
         s.machine_lock = mock.MagicMock()
-        analyis_manager = mock.MagicMock()
-        s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
+        analysis_manager = mock.MagicMock()
+        s.get_analysis_manager = mock.MagicMock(return_value=analysis_manager)
 
         s.handle_pending()
 
@@ -245,8 +245,8 @@ class TestScheduler:
         s.get_analysis_manager.assert_called_once_with(task, machine_mock2)
         s.db.set_status.assert_called_once_with(1, "running")
         assert s.total_analysis_count == 1
-        analyis_manager.init.assert_called_once()
-        analyis_manager.start.assert_called_once()
+        analysis_manager.init.assert_called_once()
+        analysis_manager.start.assert_called_once()
 
     def test_handle_pending_task(self):
         # Test finding and starting a task with machine
@@ -260,8 +260,8 @@ class TestScheduler:
         machine_mock2 = mock.MagicMock()
         s.machinery.acquire.return_value = machine_mock2
         s.machine_lock = mock.MagicMock()
-        analyis_manager = mock.MagicMock()
-        s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
+        analysis_manager = mock.MagicMock()
+        s.get_analysis_manager = mock.MagicMock(return_value=analysis_manager)
 
         s.handle_pending()
 
@@ -274,8 +274,8 @@ class TestScheduler:
         s.get_analysis_manager.assert_called_once_with(task, machine_mock2)
         s.db.set_status.assert_called_once_with(1, "running")
         assert s.total_analysis_count == 1
-        analyis_manager.init.assert_called_once()
-        analyis_manager.start.assert_called_once()
+        analysis_manager.init.assert_called_once()
+        analysis_manager.start.assert_called_once()
 
     def test_handle_pending_task_exclude(self):
         # Test starting task with machine after first excluding 1 task
@@ -290,8 +290,8 @@ class TestScheduler:
         machine_mock2 = mock.MagicMock()
         s.machinery.acquire.side_effect = [None, machine_mock2]
         s.machine_lock = mock.MagicMock()
-        analyis_manager = mock.MagicMock()
-        s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
+        analysis_manager = mock.MagicMock()
+        s.get_analysis_manager = mock.MagicMock(return_value=analysis_manager)
 
         s.handle_pending()
 
@@ -305,8 +305,8 @@ class TestScheduler:
         s.get_analysis_manager.assert_called_once_with(task2, machine_mock2)
         s.db.set_status.assert_called_once_with(2, "running")
         assert s.total_analysis_count == 1
-        analyis_manager.init.assert_called_once()
-        analyis_manager.start.assert_called_once()
+        analysis_manager.init.assert_called_once()
+        analysis_manager.start.assert_called_once()
 
     def test_handle_pending_no_tasks(self):
         # No tasks, release lock
@@ -315,11 +315,10 @@ class TestScheduler:
         mock_machine1 = mock.MagicMock()
         s.db.get_available_machines.return_value = [mock_machine1]
         s.machinery = mock.MagicMock()
-        task2 = FakeTask(2)
         s.db.fetch.side_effect = [None, None]
         s.machine_lock = mock.MagicMock()
-        analyis_manager = mock.MagicMock()
-        s.get_analysis_manager = mock.MagicMock(return_value=analyis_manager)
+        analysis_manager = mock.MagicMock()
+        s.get_analysis_manager = mock.MagicMock(return_value=analysis_manager)
 
         s.handle_pending()
 
@@ -332,11 +331,40 @@ class TestScheduler:
         assert s.total_analysis_count == 0
         s.machine_lock.release.assert_called_once()
 
+    def test_handle_pending_init_fail(self):
+        # analysis manager init fails
+        s = Scheduler()
+        s.db = mock.MagicMock()
+        machine_1 = FakeMachine()
+        machine_1.is_analysis = mock.MagicMock(return_value=True)
+        s.db.get_available_machines.return_value = [machine_1]
+        s.machinery = mock.MagicMock()
+        task = FakeTask(1)
+        s.db.fetch.side_effect = [None, task]
+        s.machinery.acquire.return_value = machine_1
+        s.machine_lock = mock.MagicMock()
+        analysis_manager = mock.MagicMock()
+        analysis_manager.init.return_value = False
+        s.get_analysis_manager = mock.MagicMock(return_value=analysis_manager)
+
+        s.handle_pending()
+
+        s.machine_lock.acquire.assert_called_once_with(False)
+        s.db.fetch.assert_has_calls([
+            mock.call(machine=mock.ANY, lock=False),
+            mock.call(service=False, lock=False, exclude=[])
+        ])
+        s.get_analysis_manager.assert_called_once_with(task, machine_1)
+        analysis_manager.init.assert_called_once()
+        s.machinery.release.assert_called_once_with(label=machine_1.label)
+        s.machine_lock.release.assert_called_once()
+        analysis_manager.start.assert_not_called()
+
     def test_get_analysis_manager(self):
         s = Scheduler()
         task = Task()
         task.add_path(__file__)
-        manager = s.get_analysis_manager(task.db_task, Machine())
+        manager = s.get_analysis_manager(task.db_task, FakeMachine())
 
         assert isinstance(manager, Regular)
 
@@ -344,7 +372,7 @@ class TestScheduler:
         s = Scheduler()
         id = self.db.add("http://example.com/42", category="DOGE")
         db_task = self.db.view_task(id)
-        manager = s.get_analysis_manager(db_task, Machine())
+        manager = s.get_analysis_manager(db_task, FakeMachine())
 
         assert manager is None
 

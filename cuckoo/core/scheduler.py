@@ -38,7 +38,7 @@ class Scheduler(object):
 
     def initialize(self):
         machinery_name = config("cuckoo:cuckoo:machinery")
-        max_vmstartup = config("cuckoo:cuckoo:max_vmstartup_count") or 1
+        max_vmstartup = config("cuckoo:cuckoo:max_vmstartup_count")
 
         # Initialize a semaphore or lock to prevent to many VMs from
         # starting at the same time.
@@ -157,9 +157,7 @@ class Scheduler(object):
             # can happen if the disk check is not supported on others than
             # unix and winxp+. The call might also fail on win32.
             if freespace is None:
-                log.error(
-                    "Error determining free disk space"
-                )
+                log.error("Error determining free disk space")
             elif freespace <= config("cuckoo:cuckoo:freespace"):
                 log.error(
                     "Not enough free disk space! (Only %d MB!)",
@@ -172,12 +170,12 @@ class Scheduler(object):
                 return False
 
         max_vm = config("cuckoo:cuckoo:max_machines_count")
-
         if max_vm and len(self.machinery.running()) >= max_vm:
-            log.debug("Maximum amount of machines is running")
-            logger(
-                "Already maxed out on running machines",
-                action="scheduler.machines", status="maxed"
+            log.debug(
+                "Maximum amount of machines is running", extra={
+                    "action": "scheduler.machines",
+                    "status": "maxed"
+                }
             )
             return False
 
@@ -185,22 +183,24 @@ class Scheduler(object):
         # file has been reached.
         if self.maxcount and self.total_analysis_count >= self.maxcount:
             if not self.managers:
-                    log.debug("Reached max analysis count, exiting.", extra={
+                log.debug(
+                    "Reached max analysis count, exiting.", extra={
                         "action": "scheduler.max_analysis",
                         "status": "success",
                         "limit": self.total_analysis_count,
-                    })
-                    self.stop()
-                    return False
-            else:
-                log.debug("Maximum analysis hit, awaiting active to"
-                          "finish off. Still active: %s", len(self.managers))
-                logger(
-                    "Maximum analyses hit, awaiting active to finish off",
-                    action="scheduler.max_analysis", status="busy",
-                    active=len(self.managers)
-                )
+                })
+                self.stop()
                 return False
+
+            log.debug(
+                "Maximum analysis hit, awaiting active analyses to finish off."
+                " Still active: %s", len(self.managers), extra={
+                    "action": "scheduler.max_analysis",
+                    "status": "busy",
+                    "active": len(self.managers)
+                }
+            )
+            return False
 
         if not self.machinery.availables():
             logger(
@@ -261,20 +261,24 @@ class Scheduler(object):
                         tags=task.tags
                     )
                 except CuckooOperationalError:
-                    log.error("Task #%s cannot be started, no machine with"
-                              " matching requirements for this task exists."
-                              " Requirements: %s",
-                              task.id, Task.requirements_str(task))
+                    log.error(
+                        "Task #%s cannot be started, no machine with matching"
+                        " requirements for this task exists. Requirements: %s",
+                        task.id, Task.requirements_str(task)
+                    )
                     # No machine with required tags, name etc exists
                     # Set analysis to failed.
                     # TODO Use another status so it might be recovered
                     # on next Cuckoo startup if the machine exists by then
                     self.db.set_status(task.id, TASK_FAILED_ANALYSIS)
+                    break
 
                 if not machine:
-                    log.debug("No matching machine for task #%s. Skipping task"
-                              " until machine is available. Requirements: %s",
-                              task.id, Task.requirements_str(task))
+                    log.debug(
+                        "No matching machine available for task #%s. Skipping"
+                        " task until machine is available. Requirements: %s",
+                        task.id, Task.requirements_str(task)
+                    )
                     exclude.append(task.id)
 
         if not task or not machine:
@@ -312,15 +316,17 @@ class Scheduler(object):
         analysis_manager.daemon = True
         if not analysis_manager.init(self.db):
             self.db.set_status(task.id, TASK_FAILED_ANALYSIS)
-            log.error("Failed to initialize analysis manager for task #%s",
-                      task.id)
-
+            log.error(
+                "Failed to initialize analysis manager for task #%s", task.id
+            )
             self.machine_lock.release()
-        else:
-            # If initialization succeeded, start the analysis manager
-            # and store it so we can track it
-            analysis_manager.start()
-            self.managers.append(analysis_manager)
+            self.machinery.release(label=machine.label)
+            return
+
+        # If initialization succeeded, start the analysis manager
+        # and store it so we can track it
+        analysis_manager.start()
+        self.managers.append(analysis_manager)
 
     def get_analysis_manager(self, db_task, machine):
         """Searches all available analysis managers for one
@@ -359,13 +365,17 @@ class Scheduler(object):
                 status_action = getattr(manager, "on_status_%s" % status, None)
                 try:
                     if status_action:
-                        log.debug("Executing requested action by task #%s for"
-                                  " status \'%s\'", manager.task.id, status)
+                        log.debug(
+                            "Executing requested action by task #%s for status"
+                            " '%s'", manager.task.id, status
+                        )
                         status_action(self.db)
                     else:
-                        log.error("Analysis manager for task #%s requested"
-                                  " action for status \'%s\', but no action is"
-                                  " implemented", manager.task.id, status)
+                        log.error(
+                            "Analysis manager for task #%s requested action"
+                            " for status '%s', but no action is implemented",
+                            manager.task.id, status
+                        )
                 finally:
                     manager.release_locks()
 
@@ -382,7 +392,6 @@ class Scheduler(object):
 
         while self.running:
             time.sleep(1)
-
             # Handle pending tasks by finding the matching machine and
             # analysis manager. The manager is started added to tracked
             # analysis managers
@@ -390,7 +399,6 @@ class Scheduler(object):
                 # Check if the max amount of VMs are running, if there is
                 # enough disk space, etc
                 if self.ready_for_new_run():
-
                     # Grab a pending task, find a machine that matches, find
                     # a matching analysis manager and start the analysis
                     self.handle_pending()

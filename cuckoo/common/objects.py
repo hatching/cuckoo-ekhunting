@@ -514,8 +514,10 @@ class Analysis(object):
         @param status: the status to set the analysis to
         @param use_lock: first acquire status lock before changing status
         """
-        log.debug("Setting analysis status to \'%s\' for task #%s", status,
-                  self.task_id)
+        log.debug(
+            "Setting analysis status to '%s' for task #%s", status,
+            self.task_id
+        )
 
         if use_lock:
             self.status_lock.acquire()

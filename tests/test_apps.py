@@ -32,6 +32,7 @@ from cuckoo.misc import set_cwd, decide_cwd, cwd, mkdir, is_linux
 from tests.utils import chdir
 
 db = Database()
+submit_task = Task()
 
 @mock.patch("cuckoo.main.load_signatures")
 def test_init(p):
@@ -558,8 +559,8 @@ def test_config_load_once():
     cuckoo_create()
 
     db.connect()
-    t0 = Task().add_path(__file__)
-    t1 = Task().add_path(__file__)
+    t0 = submit_task.add_path(__file__)
+    t1 = submit_task.add_path(__file__)
     shutil.rmtree(cwd(analysis=t0))
     shutil.rmtree(cwd(analysis=t1))
     shutil.copytree("tests/files/sample_analysis_storage", cwd(analysis=t0))
