@@ -35,7 +35,7 @@ class FakeMachine(object):
         self.manager = "virtualbox"
         self.locked = True
 
-class TestRoute:
+class TestRoute(object):
     def setup_class(self):
         self.cwd = tempfile.mkdtemp()
         set_cwd(self.cwd)

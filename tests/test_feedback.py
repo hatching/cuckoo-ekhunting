@@ -193,8 +193,8 @@ class TestFeedback(object):
         p.return_value.include_analysis.assert_not_called()
 
     def test_endpoint_url(self):
-        assert CuckooFeedback.endpoint\
-               == "https://feedback.cuckoosandbox.org/api/submit/"
+        endpoint_url = "https://feedback.cuckoosandbox.org/api/submit/"
+        assert CuckooFeedback.endpoint == endpoint_url
 
     def report(self, analysis_path):
         return {

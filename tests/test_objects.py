@@ -327,7 +327,7 @@ class TestYaraMatch(object):
         assert ym.strings("a") == ["bar", "foo"]
         assert ym.strings("b") == ["baz"]
 
-class TestAnalysis:
+class TestAnalysis(object):
 
     def test_statuses(self):
         assert Analysis.INIT == "init"

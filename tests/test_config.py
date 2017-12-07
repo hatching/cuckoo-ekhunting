@@ -31,7 +31,7 @@ tcpdump = /usr/sbin/tcpdump
 interface = vboxnet0
 """
 
-class TestConfig:
+class TestConfig(object):
     def setup(self):
         set_cwd(tempfile.mkdtemp())
 
@@ -127,7 +127,7 @@ connection =
 timeout =
 """
 
-class TestConfigType:
+class TestConfigType(object):
     def setup(self):
         set_cwd(tempfile.mkdtemp())
         Folders.create(cwd(), "conf")

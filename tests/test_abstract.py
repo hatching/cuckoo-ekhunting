@@ -126,7 +126,7 @@ class FakeMachine(object):
         self.manager = "virtualbox"
         self.locked = True
 
-class TestAnalysisManager:
+class TestAnalysisManager(object):
     def setup_class(self):
         self.cwd = tempfile.mkdtemp()
         set_cwd(self.cwd)

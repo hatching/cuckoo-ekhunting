@@ -45,7 +45,7 @@ class FakeTask(object):
         self.tags = ""
         self.machine = ""
 
-class TestScheduler:
+class TestScheduler(object):
 
     def setup_class(self):
         self.cwd = tempfile.mkdtemp()

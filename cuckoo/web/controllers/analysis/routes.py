@@ -80,8 +80,9 @@ class AnalysisRoutes:
             response = HttpResponse(
                 zip.getvalue(), content_type="application/zip"
             )
-            response["Content-Disposition"] = "attachment; filename=%s.zip"\
-                                              % task_id
+            response["Content-Disposition"] = (
+                "attachment; filename=%s.zip" % task_id
+            )
 
             return response
 
@@ -96,6 +97,7 @@ class AnalysisRoutes:
     @staticmethod
     def reboot(request, task_id):
         task_obj = submit_task.add_reboot(task_id=task_id)
-        return render_template(request, "submission/reboot.html",
-                               task_id=task_id, task_obj=task_obj,
-                               baseurl=request.build_absolute_uri("/")[:-1])
+        return render_template(
+            request, "submission/reboot.html", task_id=task_id,
+            task_obj=task_obj, baseurl=request.build_absolute_uri("/")[:-1]
+        )

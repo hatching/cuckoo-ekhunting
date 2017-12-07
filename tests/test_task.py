@@ -21,7 +21,7 @@ from cuckoo.misc import set_cwd, cwd
 
 submit_task = Task()
 
-class TestTask:
+class TestTask(object):
     def setup(self):
         self.cwd = tempfile.mkdtemp()
         set_cwd(self.cwd)

@@ -21,7 +21,7 @@ from cuckoo.common import utils
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, getuser
 
-class TestCreateFolders:
+class TestCreateFolders(object):
     def setup(self):
         self.tmp_dir = tempfile.gettempdir()
 
@@ -126,7 +126,7 @@ class TestCreateFolders:
         filepath = os.path.join(dirpath, "a", "b", "c.txt")
         assert open(filepath, "rb").read() == "nested"
 
-class TestCreateFile:
+class TestCreateFile(object):
     def test_temp_file(self):
         filepath1 = Files.temp_put("hello")
         filepath2 = Files.temp_put("hello")
@@ -204,7 +204,7 @@ class TestCreateFile:
         # Let's leave a bit of working space.
         assert fd2 - fd < 64
 
-class TestStorage:
+class TestStorage(object):
     def test_basename(self):
         assert Storage.get_filename_from_path("C:\\a.txt") == "a.txt"
         assert Storage.get_filename_from_path("C:/a.txt") == "a.txt"
@@ -213,7 +213,7 @@ class TestStorage:
         assert Storage.get_filename_from_path("../../b.txt") == "b.txt"
         assert Storage.get_filename_from_path("..\\..\\c.txt") == "c.txt"
 
-class TestConvertChar:
+class TestConvertChar(object):
     def test_utf(self):
         assert "\\xe9", utils.convert_char(u"\xe9")
 
@@ -229,7 +229,7 @@ class TestConvertChar:
     def test_whitespace(self):
         assert " " == utils.convert_char(" ")
 
-class TestConvertToPrintable:
+class TestConvertToPrintable(object):
     def test_utf(self):
         assert "\\xe9" == utils.convert_to_printable(u"\xe9")
 
@@ -248,7 +248,7 @@ class TestConvertToPrintable:
     def test_non_printable(self):
         assert r"\x0b" == utils.convert_to_printable(chr(11))
 
-class TestIsPrintable:
+class TestIsPrintable(object):
     def test_utf(self):
         assert not utils.is_printable(u"\xe9")
 

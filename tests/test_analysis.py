@@ -31,7 +31,7 @@ class FakeMachine(object):
         self.manager = "virtualbox"
         self.locked = True
 
-class TestRegular:
+class TestRegular(object):
 
     createcwd = True
 
