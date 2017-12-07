@@ -13,7 +13,10 @@ from sqlalchemy import MetaData
 
 from cuckoo.common.files import Files
 from cuckoo.common.objects import File
-from cuckoo.core.database import Database, Task, AlembicVersion, SCHEMA_VERSION
+from cuckoo.core.database import (
+    Database, Task, Tag, AlembicVersion, SCHEMA_VERSION
+)
+from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.core.startup import init_yara
 from cuckoo.distributed.app import create_app
 from cuckoo.main import main, cuckoo_create
@@ -331,6 +334,37 @@ class DatabaseEngine(object):
         t4 = self.d.add(__file__, category="file", priority=998)
 
         assert self.d.fetch(service=False, exclude=[t1,t2,t3]).id == t4
+
+    def test_lock_machine(self):
+        t1 = self.d.add(__file__, category="file", tags=["app1", "office7"])
+        t2 = self.d.add(__file__, category="file", tags=["office15"])
+
+        self.d.add_machine(
+            "name1", "name1", "1.2.3.4", "windows", "",
+            "app1,office7", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
+        )
+        self.d.add_machine(
+            "name2", "name2", "1.2.3.4", "DogeOS", "opt1 opt2",
+            "office13", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
+        )
+        self.d.add_machine(
+            "name3", "name3", "1.2.3.4", "CoffeeOS", ["opt3", "opt4"],
+            "cofOS,office7", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
+        )
+
+        task1 = self.d.view_task(t1)
+        task2 = self.d.view_task(t2)
+
+        m1 = self.d.lock_machine(tags=task1.tags)
+        assert m1.locked
+        assert m1.name == "name1"
+        with pytest.raises(CuckooOperationalError):
+            self.d.lock_machine(platform="DogeOS", tags=task2.tags)
+        m2 = self.d.lock_machine(platform="DogeOS")
+        assert m2.name == "name2"
+        m3 = self.d.lock_machine(label="name3")
+        assert m3.locked
+        assert m3.name == "name3"
 
 class TestConnectOnce(object):
     def setup(self):

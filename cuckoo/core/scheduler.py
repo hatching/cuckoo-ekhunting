@@ -283,6 +283,8 @@ class Scheduler(object):
 
         if not task or not machine:
             self.machine_lock.release()
+            if machine:
+                self.machinery.release(label=machine.label)
             return
 
         log.info(
