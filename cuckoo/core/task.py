@@ -17,7 +17,7 @@ from cuckoo.common.objects import Dictionary, File, URL
 from cuckoo.core.database import Database, TASK_RECOVERED
 from cuckoo.core.plugins import RunProcessing, RunSignatures, RunReporting
 from cuckoo.misc import cwd
-from cuckoo.common.utils import get_directory_size, json_default
+from cuckoo.common.utils import get_directory_size, json_default, json_encode
 
 log = logging.getLogger(__name__)
 
@@ -215,16 +215,15 @@ class Task(object):
         return os.path.exists(os.path.join(self.path, "reports",
                                            "report.json"))
 
-    def write_task_json(self, path=None):
+    def write_task_json(self, **kwargs):
         """Change task to JSON and write it to disk"""
-        if not path:
-            path = os.path.join(self.path, "task.json")
-
-        if not self.dir_exists():
-            self.create_dirs()
+        path = os.path.join(self.path, "task.json")
+        dump = self.db_task.to_dict()
+        if kwargs:
+            dump.update(kwargs)
 
         with open(path, "wb") as fw:
-            fw.write(self.db_task.to_json())
+            fw.write(json_encode(dump))
 
     def process(self):
         """Process, run signatures and reports the results for this task"""

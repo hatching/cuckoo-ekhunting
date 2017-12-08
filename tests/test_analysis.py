@@ -472,9 +472,6 @@ class TestRegular(object):
         manager.init(self.db)
 
         manager.on_status_failed(self.db)
-
-        db_task = self.db.view_task(manager.task.id)
-        assert db_task.status == "failed_analysis"
         manager.machinery.release.assert_called_once_with("machine1")
 
     def test_finalize(self):
@@ -486,7 +483,6 @@ class TestRegular(object):
         # Remove because init creates it. We need to check if it was created
         # on status stopped
         os.remove(task_json_path)
-
 
         manager.finalize(self.db)
 
@@ -549,8 +545,7 @@ class TestRegular(object):
             }
         })
         manager = self.get_manager()
-        task_json_path = cwd("storage", "analyses", str(manager.task.id),
-                             "task.json")
+        task_json_path = cwd("task.json", analysis=manager.task.id)
         manager.init(self.db)
         manager.processing_success = None
         # Remove because init creates it. We need to check if it was created

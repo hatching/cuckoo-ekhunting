@@ -141,23 +141,30 @@ class Regular(AnalysisManager):
             )
             return
 
-        logger(
-            "Starting task reporting",
-            action="task.report", status="pending"
-        )
         log.info(
-            "Processing and reporting results for task #%s", self.task.id
+            "Processing and reporting results for task #%s", self.task.id,
+            extra={
+                "action": "task.report",
+                "status": "pending"
+            }
         )
-        self.processing_success = self.task.process()
-        logger(
-            "Task reporting finished",
-            action="task.report", status="finished"
-        )
+        try:
+            self.processing_success = self.task.process()
+        except Exception as e:
+            log.exception(
+                "Error during processing of task #%s. Error: %s",
+                self.task.id, e, extra={
+                    "action": "task.report",
+                    "status": "failed"
+                }
+            )
+            return
+
         log.info(
             "Task #%d: analysis procedure completed", self.task.id,
             extra={
-                "action": "task.stop",
-                "status": "success",
+                "action": "task.report",
+                "status": "finished",
             }
         )
 
@@ -407,7 +414,7 @@ class Regular(AnalysisManager):
         """Is executed by the scheduler on analysis status starting
         Stores the chosen route in the db."""
         log.info(
-            "Using route '%s' for task #%s", self.route, self.task.id
+            "Using route '%s' for task #%s", self.route.route, self.task.id
         )
         # Propagate the taken route to the database.
         db.set_route(self.task.id, self.route.route)
@@ -436,8 +443,6 @@ class Regular(AnalysisManager):
         Releases the locked machine if it is locked and updates task status
         to analysis failed."""
         log.error("Analysis for task #%s failed", self.task.id)
-        self.task.set_status(TASK_FAILED_ANALYSIS)
-
         if self.machine.locked:
             log.debug("Releasing machine lock on %s", self.machine.label)
             self.machine = self.machinery.release(self.machine.label)
@@ -446,16 +451,21 @@ class Regular(AnalysisManager):
         """Executed by the scheduler when the analysis manager thread exists.
         Updates the task status to the correct one and updates the
         task.json."""
+        self.task.set_latest()
         self.release_scheduler_lock()
-        # If, at this point, the analysis is not stopped or failed. It cannot
-        # succeeded, since the manager thread already exited. Set status to
-        # failed to prevent running tasks that are not running
-        if self.analysis.status not in [Analysis.STOPPED, Analysis.FAILED]:
+        # If, at this point, the analysis is not stopped, it cannot
+        # succeeded, since the manager thread already exited. Updated status
+        # to failed if the results were not processed.
+        if self.analysis.status != Analysis.STOPPED:
             log.debug(
-                "Analysis status is '%s' after exit. Setting task to"
-                " failed", self.analysis.status
+                "Analysis status is '%s' after exit.", self.analysis.status
             )
-            self.task.set_status(TASK_FAILED_ANALYSIS)
+            if not config("cuckoo:cuckoo:process_results"):
+                log.debug(
+                    "Setting task #%s status to %s", TASK_FAILED_ANALYSIS
+                )
+                self.task.write_task_json(status=TASK_FAILED_ANALYSIS)
+                self.task.set_status(TASK_FAILED_ANALYSIS)
 
         if config("cuckoo:cuckoo:process_results"):
             if self.processing_success:
@@ -463,16 +473,16 @@ class Regular(AnalysisManager):
                     "Setting task #%s status to %s", self.task.id,
                     TASK_REPORTED
                 )
+                self.task.write_task_json(status=TASK_REPORTED)
                 self.task.set_status(TASK_REPORTED)
             else:
                 log.debug(
                     "Setting task #%s status to %s", self.task.id,
                     TASK_FAILED_PROCESSING
                 )
+                self.task.write_task_json(status=TASK_FAILED_PROCESSING)
                 self.task.set_status(TASK_FAILED_PROCESSING)
 
-        self.task.write_task_json()
-        self.task.set_latest()
         task_log_stop(self.task.id)
 
     def release_scheduler_lock(self):

@@ -225,33 +225,31 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
 def process_task(task):
     db = Database()
 
-    try:
-        task_log_start(task.id)
+    task_log_start(task.id)
 
-        logger(
-            "Starting task reporting",
-            action="task.report", status="pending",
-            target=task["target"], category=task["category"],
-            package=task["package"], options=emit_options(task["options"]),
-            custom=task["custom"]
+    logger(
+        "Starting task reporting",
+        action="task.report", status="pending",
+        target=task["target"], category=task["category"],
+        package=task["package"], options=emit_options(task["options"]),
+        custom=task["custom"]
+    )
+
+    if not task.dir_exists():
+        log.error(
+            "Task #%s directory %s does not exist, cannot process it",
+            task.id, task.path
         )
+        db.set_status(task.id, TASK_FAILED_PROCESSING)
+        task_log_stop(task.id)
+        return
 
-        if not task.dir_exists():
-            log.error(
-                "Task #%s directory %s does not exist, cannot process it",
-                task.id, task.path
-            )
-            db.set_status(task.id, TASK_FAILED_PROCESSING)
-            return
-
-        success = False
-        try:
-            success = task.process()
-        except Exception as e:
-            traceback.print_exc()
-            log.error("Failed to process task #%s. Error: %s", task.id, e)
-            return
-
+    success = False
+    try:
+        success = task.process()
+    except Exception as e:
+        log.error("Failed to process task #%s. Error: %s", task.id, e)
+    finally:
         if success:
             log.info(
                 "Task #%d: reports generation completed", task.id,
@@ -262,12 +260,14 @@ def process_task(task):
             )
             db.set_status(task.id, TASK_REPORTED)
         else:
-            log.error("Failed to process task #%s", task.id)
+            log.error(
+                "Failed to process task #%s", task.id,
+                extra={
+                    "action": "task.report",
+                    "status": "failed",
+                }
+            )
             db.set_status(task.id, TASK_FAILED_PROCESSING)
-
-    except Exception as e:
-        log.exception("Caught unknown exception: %s", e)
-    finally:
         task_log_stop(task.id)
 
 def process_task_range(tasks):
