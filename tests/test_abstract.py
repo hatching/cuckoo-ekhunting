@@ -143,7 +143,7 @@ class TestAnalysisManager(object):
         task.add_path(__file__)
         sample = self.db.view_sample(task.sample_id)
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
 
         a.set_task(task, sample)
@@ -151,14 +151,14 @@ class TestAnalysisManager(object):
         assert a.task == task
         assert a.sample == sample
         assert isinstance(a.analysis, Analysis)
-        assert a.name == "task_#%s_AnalysisManager" % task.id
+        assert a.name == "task_%s_AnalysisManager" % task.id
 
     def test_build_options(self):
         task = Task()
         task.add_path(__file__, options={"free": "yes"})
         sample = self.db.view_sample(task.sample_id)
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.set_task(task, sample)
 
@@ -192,7 +192,7 @@ class TestAnalysisManager(object):
         task = Task()
         task.add_url("http://example.com/42")
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.set_task(task)
         a.analysis.status = "stoppped"
@@ -203,7 +203,7 @@ class TestAnalysisManager(object):
         task = Task()
         task.add_url("http://example.com/42")
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.set_task(task)
         a.action_lock = mock.MagicMock()
@@ -211,7 +211,6 @@ class TestAnalysisManager(object):
 
         a.request_scheduler_action()
 
-        a.action_lock.locked.assert_called_once()
         a.action_lock.acquire.assert_has_calls([
             mock.call(False),
             mock.call(True)
@@ -221,7 +220,7 @@ class TestAnalysisManager(object):
 
     def test_set_analysis_status(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.request_scheduler_action = mock.MagicMock()
@@ -232,36 +231,30 @@ class TestAnalysisManager(object):
 
     def test_set_analysis_status_request(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.request_scheduler_action = mock.MagicMock()
 
         a.set_analysis_status("starting", wait=True)
 
-        a.analysis.status_lock.acquire.assert_called_once()
-        a.analysis.set_status.assert_called_once_with(
-            "starting", use_lock=False
-        )
+        a.analysis.set_status.assert_called_once_with("starting")
         a.request_scheduler_action.assert_called_once()
 
     def test_release_locks(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.analysis.status_lock.locked = mock.MagicMock(return_value=True)
         a.action_lock = mock.MagicMock()
 
         a.release_locks()
-
-        a.analysis.status_lock.locked.assert_called_once()
-        a.analysis.status_lock.release.assert_called_once()
         a.action_lock.release.assert_called_once()
 
     def test_action_requested(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.action_lock = mock.MagicMock()
@@ -272,7 +265,7 @@ class TestAnalysisManager(object):
 
     def test_get_analysis_status(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.analysis.get_status = mock.MagicMock(return_value="starting")
@@ -281,7 +274,7 @@ class TestAnalysisManager(object):
 
     def test_get_analysis_status_overriden(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         a.analysis = mock.MagicMock()
         a.override_status = "stopping"
@@ -291,14 +284,14 @@ class TestAnalysisManager(object):
 
     def test_init(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
 
         assert a.init(self.db)
 
     def test_run(self):
         a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         with pytest.raises(NotImplementedError):
             a.run()

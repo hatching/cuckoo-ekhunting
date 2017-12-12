@@ -32,7 +32,6 @@ class Scheduler(object):
         self.maxcount = maxcount
         self.total_analysis_count = 0
         self.machinery = None
-        self.error_queue = None
         self.machine_lock = None
         self.managers = []
 
@@ -69,7 +68,7 @@ class Scheduler(object):
         if not machines:
             raise CuckooCriticalError("No machines available.")
 
-        log.info("Loaded %s machines", len(machines), extra={
+        log.info("Loaded %s machine/s", len(machines), extra={
             "action": "init.machines",
             "status": "success",
             "count": len(machines),
@@ -89,9 +88,6 @@ class Scheduler(object):
                         "`Processing Utility`.")
 
         self.drop_forwarding_rules()
-
-        # Message queue with threads to transmit exceptions (used as IPC).
-        self.error_queue = Queue.Queue()
 
         # Command-line overrides the configuration file.
         if self.maxcount is None:
@@ -227,7 +223,7 @@ class Scheduler(object):
         # possibly a service machine
         machine, task, analysis = None, None, False
         for available_machine in self.db.get_available_machines():
-            task = self.db.fetch(machine=available_machine.name, lock=False)
+            task = self.db.fetch(machine=available_machine.name)
             if task:
                 machine = self.machinery.acquire(
                     machine_id=available_machine.name
@@ -248,9 +244,7 @@ class Scheduler(object):
             # available for it.
             exclude = []
             while not machine:
-                task = self.db.fetch(
-                    service=False, lock=False, exclude=exclude
-                )
+                task = self.db.fetch(service=False, exclude=exclude)
 
                 if task is None:
                     break
@@ -347,8 +341,7 @@ class Scheduler(object):
                     sample = self.db.view_sample(db_task.sample_id)
 
                 analysis_manager = manager(
-                    machine, self.error_queue, self.machinery,
-                    self.machine_lock
+                    machine, self.machinery, self.machine_lock
                 )
                 analysis_manager.set_task(core_task, sample)
                 break
@@ -365,21 +358,25 @@ class Scheduler(object):
             if manager.action_requested():
                 status = manager.get_analysis_status()
                 status_action = getattr(manager, "on_status_%s" % status, None)
-                try:
-                    if status_action:
-                        log.debug(
-                            "Executing requested action by task #%s for status"
-                            " '%s'", manager.task.id, status
-                        )
+                if status_action:
+                    log.debug(
+                        "Executing requested action by task #%s for status"
+                        " '%s'", manager.task.id, status
+                    )
+                    try:
                         status_action(self.db)
-                    else:
-                        log.error(
-                            "Analysis manager for task #%s requested action"
-                            " for status '%s', but no action is implemented",
-                            manager.task.id, status
+                    except Exception as e:
+                        log.exception(
+                            "Error executing requested action: %s. Error: %s",
+                            status_action, e
                         )
-                finally:
-                    manager.release_locks()
+                else:
+                    log.error(
+                        "Analysis manager for task #%s requested action for"
+                        " status '%s', but no action is implemented",
+                        manager.task.id, status
+                    )
+                manager.release_locks()
 
             if not manager.isAlive():
                 manager.finalize(self.db)
@@ -387,12 +384,15 @@ class Scheduler(object):
 
         return remove
 
+    def keep_running(self):
+        return self.running
+
     def start(self):
         self.initialize()
 
         log.info("Waiting for analysis tasks")
 
-        while self.running:
+        while self.keep_running():
             time.sleep(1)
             # Handle pending tasks by finding the matching machine and
             # analysis manager. The manager is started added to tracked
@@ -410,9 +410,4 @@ class Scheduler(object):
             for untrack_manager in self.handle_managers():
                 self.managers.remove(untrack_manager)
 
-            try:
-                raise self.error_queue.get(block=False)
-            except Queue.Empty:
-                pass
-
-        log.debug("End of analyses")
+        log.debug("End of analyses.")

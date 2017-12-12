@@ -20,6 +20,7 @@ from cuckoo.misc import cwd
 from cuckoo.common.utils import get_directory_size, json_default, json_encode
 
 log = logging.getLogger(__name__)
+db = Database()
 
 class Task(object):
 
@@ -28,7 +29,6 @@ class Task(object):
     latest_symlink_lock = threading.Lock()
 
     def __init__(self, db_task=None):
-        self.db = Database()
         self.db_task = None
         self.copied_binary = None
         self.task_dict = {}
@@ -43,19 +43,19 @@ class Task(object):
         self.path = cwd(analysis=db_task.id)
         self.is_file = db_task.category in Task.files
         self.task_dict = db_task.to_dict()
-        self._read_copied_binary()
+        self._read_symlink()
 
     def load_task_dict(self, task_dict):
         """Load all dict key values as attributes to the object"""
         # Cast to Cuckoo dictionary, so keys can be accessed as attributes
         self.task_dict = Dictionary(task_dict)
         self.path = cwd(analysis=task_dict["id"])
-        self.is_file = self.category in Task.files
-        self._read_copied_binary()
+        self.is_file = task_dict["category"] in Task.files
+        self._read_symlink()
 
-    def load_from_id(self, task_id):
+    def load_from_db(self, task_id):
         """Load task from id. Returns True of success, False otherwise"""
-        db_task = self.db.view_task(task_id)
+        db_task = db.view_task(task_id)
         if not db_task:
             return False
 
@@ -71,23 +71,21 @@ class Task(object):
     def create_dirs(self):
         """Create the folders for this analysis. Returns True if
         all folders were created. False if not"""
-        task_dirs = [
-            cwd(task_dir, analysis=self.id) for task_dir in self.dirs
-        ]
-
-        for task_dir in task_dirs:
+        for task_dir in self.dirs:
+            create_dir = cwd(task_dir, analysis=self.id)
             try:
-                Folders.create(task_dir)
+                if not os.path.exists(create_dir):
+                    Folders.create(create_dir)
             except CuckooOperationalError as e:
                 log.error(
                     "Unable to create folder '%s' for task #%s Error: %s",
-                    task_dir, self.id, e
+                    create_dir, self.id, e
                 )
                 return False
 
         return True
 
-    def bin_copy_and_symlink(self, copyto=None):
+    def bin_copy_and_symlink(self):
         """Create a copy of the submitted sample to the binaries directory
         and create a symlink to it in the task folder
 
@@ -108,9 +106,6 @@ class Task(object):
 
         copy_to = cwd("storage", "binaries", File(self.target).get_sha256())
 
-        if copyto:
-            copy_to = copyto
-
         if not os.path.exists(copy_to):
             Files.copy(self.target, copy_to)
             self.copied_binary = copy_to
@@ -124,7 +119,7 @@ class Task(object):
             )
 
         # Update copied binary path attribute
-        self._read_copied_binary()
+        self._read_symlink()
 
     def set_latest(self):
         """Create a symlink called 'latest' pointing to this analysis
@@ -136,9 +131,7 @@ class Task(object):
             if os.path.lexists(latest):
                 os.remove(latest)
 
-            # Do not copy the task dir if a symlink cannot be created
-            # because this can slow down analyses.
-            Files.symlink_or_copy(self.path, latest, copy_on_fail=False)
+            Files.symlink(self.path, latest)
         except OSError as e:
             log.error(
                 "Error pointing to latest analysis symlink. Error: %s", e
@@ -146,7 +139,7 @@ class Task(object):
         finally:
             self.latest_symlink_lock.release()
 
-    def _read_copied_binary(self):
+    def _read_symlink(self):
         """Use the 'binary' symlink in the task folder to read the
         path of the copy of the sample"""
         symlink = os.path.join(self.path, "binary")
@@ -212,8 +205,9 @@ class Task(object):
 
     def is_reported(self):
         """Checks if a JSON report exists for this task"""
-        return os.path.exists(os.path.join(self.path, "reports",
-                                           "report.json"))
+        return os.path.exists(
+            os.path.join(self.path, "reports", "report.json")
+        )
 
     def write_task_json(self, **kwargs):
         """Change task to JSON and write it to disk"""
@@ -228,10 +222,6 @@ class Task(object):
     def process(self):
         """Process, run signatures and reports the results for this task"""
         results = RunProcessing(task=self.task_dict).run()
-
-        if not results:
-            return False
-
         RunSignatures(results=results).run()
         RunReporting(task=self.task_dict, results=results).run()
 
@@ -295,7 +285,12 @@ class Task(object):
 
         sample_id = None
         if category in self.files and isinstance(obj, File):
-            sample_id = self.db.add_sample(obj)
+
+            sample = db.find_sample(sha256=obj.get_sha256())
+            if not sample:
+                sample_id = db.add_sample(obj)
+            else:
+                sample_id = sample.id
             if not sample_id:
                 log.error("Failed to add sample to database")
                 return None
@@ -319,7 +314,7 @@ class Task(object):
                     )
                     clock = datetime.datetime.now()
 
-        task = self.db.add(
+        task = db.add(
             target, timeout=timeout, package=package, options=options,
             priority=priority, custom=custom, owner=owner, machine=machine,
             platform=platform, tags=self.get_tags_list(tags), memory=memory,
@@ -332,7 +327,7 @@ class Task(object):
             return None
 
         # Use the returned task id to initialize this core task object
-        self.set_task(self.db.view_task(task))
+        self.set_task(db.view_task(task))
         self.create_empty()
 
         return self.id
@@ -445,7 +440,7 @@ class Task(object):
         @return: task id or None.
         """
 
-        if not self.load_from_id(task_id) or not \
+        if not self.load_from_db(task_id) or not \
                 os.path.exists(self.copied_binary):
             log.error(
                 "Unable to add reboot analysis as the original task or its "
@@ -496,7 +491,7 @@ class Task(object):
             )
             return None
         elif task_id:
-            if not self.load_from_id(task_id):
+            if not self.load_from_db(task_id):
                 log.error("Failed to load task from id: %s", task_id)
                 return None
 
@@ -515,7 +510,7 @@ class Task(object):
         priority = priority or self.priority
 
         # Change status to recovered
-        self.db.set_status(self.id, TASK_RECOVERED)
+        db.set_status(self.id, TASK_RECOVERED)
 
         return add(
             self.target, self.timeout, self.package, self.options, priority,
@@ -531,19 +526,20 @@ class Task(object):
         requirements = ""
 
         req_fields = {
-            "Platform": db_task.platform,
-            "Machine name": db_task.machine,
-            "Tags": db_task.tags
+            "platform": db_task.platform,
+            "machine": db_task.machine,
+            "tags": db_task.tags
         }
 
         for reqname, value in req_fields.iteritems():
             if value:
-                requirements += "%s: " % reqname
-                if reqname == "Tags":
+                requirements += "%s=" % reqname
+                if reqname == "tags":
                     for tag in db_task.tags:
-                        requirements += "%s " % tag.name
+                        requirements += "%s," % tag.name
                 else:
-                    requirements += "%s " % value
+                    requirements += "%s" % value
+                requirements += " "
 
         return requirements
 
@@ -635,9 +631,7 @@ class Task(object):
                     include_exts[taken_dir[0]] = []
 
                 if isinstance(taken_dir[1], list):
-                    include_exts[taken_dir[0]].extend(
-                        [ext for ext in taken_dir[1]]
-                    )
+                    include_exts[taken_dir[0]].extend(taken_dir[1])
                 else:
                     include_exts[taken_dir[0]].append(taken_dir[1])
             else:
@@ -654,8 +648,10 @@ class Task(object):
             report_path = cwd("reports", "report.json", analysis=task_id)
 
             if not os.path.isfile(report_path):
-                log.warning("Cannot export task %s, report.json does"
-                            " not exist", task_id)
+                log.warning(
+                    "Cannot export task %s, report.json does not exist",
+                    task_id
+                )
                 z.close()
                 return None
 
@@ -665,8 +661,9 @@ class Task(object):
                 "errors": report.get("debug", {}).get("errors", []),
             }
             z.writestr(
-                "analysis.json", json.dumps(obj, indent=4,
-                                            default=json_default)
+                "analysis.json", json.dumps(
+                    obj, indent=4, default=json_default
+                )
             )
 
         for dirpath, dirnames, filenames in os.walk(task_path):
@@ -706,13 +703,13 @@ class Task(object):
     def refresh(self):
         """Reload the task object from the database to have the latest
         changes"""
-        db_task = self.db.view_task(self.db_task.id)
+        db_task = db.view_task(self.db_task.id)
         self.set_task(db_task)
 
     def set_status(self, status):
         """Set the task to given status in the database and update the
         dbtask object to have the new status"""
-        self.db.set_status(self.db_task.id, status)
+        db.set_status(self.db_task.id, status)
         self.refresh()
 
     def __getitem__(self, item):
@@ -723,178 +720,98 @@ class Task(object):
         """Make value assignment to Task.db_task possible"""
         self.task_dict[key] = value
 
-    def __repr__(self):
-        try:
-            return "<core.Task('{0}','{1}')>".format(
-                self.db_task.id, self.db_task.target
-            )
-        except AttributeError:
-            return "<core.Task>"
-
     @property
     def id(self):
-        id = self.task_dict.get("id")
-        if id:
-            return id
-        return self.db_task.id
+        return self.task_dict.get("id")
 
     @property
     def target(self):
-        target = self.task_dict.get("target")
-        if target:
-            return target
-        return self.db_task.target
+        return self.task_dict.get("target")
 
     @property
     def category(self):
-        category = self.task_dict.get("category")
-        if category:
-            return category
-        return self.db_task.category
+        return self.task_dict.get("category")
 
     @property
     def timeout(self):
-        timeout = self.task_dict.get("timeout")
-        if timeout:
-            return timeout
-        return self.db_task.timeout
+        return self.task_dict.get("timeout")
 
     @property
     def priority(self):
-        priority = self.task_dict.get("priority")
-        if priority:
-            return priority
-        return self.db_task.priority
+        return self.task_dict.get("priority")
 
     @property
     def custom(self):
-        custom = self.task_dict.get("custom")
-        if custom:
-            return custom
-        return self.db_task.custom
+        return self.task_dict.get("custom")
 
     @property
     def owner(self):
-        owner = self.task_dict.get("owner")
-        if owner:
-            return owner
-        return self.db_task.owner
+        return self.task_dict.get("owner")
 
     @property
     def machine(self):
-        machine = self.task_dict.get("machine")
-        if machine:
-            return machine
-        return self.db_task.machine
+        return self.task_dict.get("machine")
 
     @property
     def package(self):
-        package = self.task_dict.get("package")
-        if package:
-            return package
-        return self.db_task.package
+        return self.task_dict.get("package")
 
     @property
     def tags(self):
-        tags = self.task_dict.get("tags")
-        if tags:
-            return tags
-        return self.db_task.tags
+        return self.task_dict.get("tags")
 
     @property
     def options(self):
-        options = self.task_dict.get("options")
-        if options:
-            return options
-        return self.db_task.options
+        return self.task_dict.get("options")
 
     @property
     def platform(self):
-        platform = self.task_dict.get("platform")
-        if platform:
-            return platform
-        return self.db_task.platform
+        return self.task_dict.get("platform")
 
     @property
     def memory(self):
-        memory = self.task_dict.get("memory")
-        if memory:
-            return memory
-        return self.db_task.memory
+        return self.task_dict.get("memory")
 
     @property
     def enforce_timeout(self):
-        enforce_timeout = self.task_dict.get("enforce_timeout")
-        if enforce_timeout:
-            return enforce_timeout
-        return self.db_task.enforce_timeout
+        return self.task_dict.get("enforce_timeout")
 
     @property
     def clock(self):
-        clock = self.task_dict.get("clock")
-        if clock:
-            return clock
-        return self.db_task.clock
+        return self.task_dict.get("clock")
 
     @property
     def added_on(self):
-        added_on = self.task_dict.get("added_on")
-        if added_on:
-            return added_on
-        return self.db_task.added_on
+        return self.task_dict.get("added_on")
 
     @property
     def start_on(self):
-        start_on = self.task_dict.get("start_on")
-        if start_on:
-            return start_on
-        return self.db_task.start_on
+        return self.task_dict.get("start_on")
 
     @property
     def started_on(self):
-        started_on = self.task_dict.get("started_on")
-        if started_on:
-            return started_on
-        return self.db_task.started_on
+        return self.task_dict.get("started_on")
 
     @property
     def completed_on(self):
-        completed_on = self.task_dict.get("completed_on")
-        if completed_on:
-            return completed_on
-        return self.db_task.completed_on
+        return self.task_dict.get("completed_on")
 
     @property
     def status(self):
-        status = self.task_dict.get("status")
-        if status:
-            return status
-        return self.db_task.status
+        return self.task_dict.get("status")
 
     @property
     def sample_id(self):
-        sample_id = self.task_dict.get("sample_id")
-        if sample_id:
-            return sample_id
-        return self.db_task.sample_id
+        return self.task_dict.get("sample_id")
 
     @property
     def submit_id(self):
-        submit_id = self.task_dict.get("submit_id")
-        if submit_id:
-            return submit_id
-        return self.db_task.submit_id
+        return self.task_dict.get("submit_id")
 
     @property
     def processing(self):
-        processing = self.task_dict.get("processing")
-        if processing:
-            return processing
-        return self.db_task.processing
+        return self.task_dict.get("processing")
 
     @property
     def route(self):
-        route = self.task_dict.get("route")
-        if route:
-            return route
-        return self.db_task.route
+        return self.task_dict.get("route")

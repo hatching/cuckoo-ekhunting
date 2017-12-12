@@ -69,7 +69,7 @@ class TestRegular(object):
             sample = self.db.view_sample(task.sample_id)
 
         manager = Regular(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock(), mock.MagicMock()
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
         manager.set_task(task, sample)
         return manager
@@ -83,7 +83,7 @@ class TestRegular(object):
 
         assert manager.task == task
         assert manager.analysis is not None
-        assert manager.name == "task_#%s_Regular" % task.id
+        assert manager.name == "task_%s_Regular" % task.id
 
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
     def test_init(self, mb):

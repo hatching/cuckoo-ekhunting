@@ -13,11 +13,10 @@ import time
 import xml.etree.ElementTree as ET
 
 from cuckoo.common.config import config, emit_options
-from cuckoo.common.exceptions import CuckooCriticalError
-from cuckoo.common.exceptions import CuckooDependencyError
-from cuckoo.common.exceptions import CuckooMachineError
-from cuckoo.common.exceptions import CuckooOperationalError
-from cuckoo.common.exceptions import CuckooReportError
+from cuckoo.common.exceptions import (
+    CuckooCriticalError, CuckooDependencyError, CuckooMachineError,
+    CuckooOperationalError, CuckooReportError
+)
 from cuckoo.common.files import Folders
 from cuckoo.misc import cwd, make_list
 from cuckoo.common.objects import Dictionary, File, Analysis
@@ -1470,13 +1469,12 @@ class AnalysisManager(threading.Thread):
 
     supports = []
 
-    def __init__(self, machine, error_queue, machinery, machine_lock):
+    def __init__(self, machine, machinery, machine_lock):
         threading.Thread.__init__(self)
 
         self.task = None
         self.sample = None
         self.machine = machine
-        self.error_queue = error_queue
         self.machinery = machinery
         self.analysis = None
         self.options = {}
@@ -1499,7 +1497,7 @@ class AnalysisManager(threading.Thread):
         self.route = Route(task, self.machine)
 
         # Set thread name
-        self.name = "task_#%s_%s" % (
+        self.name = "task_%s_%s" % (
             self.task.id, self.__class__.__name__
         )
 
@@ -1522,12 +1520,6 @@ class AnalysisManager(threading.Thread):
 
         if self.task.timeout:
             default["timeout"] = self.task.timeout
-
-        # copy in other analyzer specific options, TEMPORARY (most likely)
-        vm_options = getattr(self.machinery.options, self.machine.name)
-        for o in vm_options:
-            if o.startswith("analyzer_"):
-                default[o] = vm_options[o]
 
         # Update/overwrite default with given options, but update
         # the options dict to not lose values
@@ -1554,11 +1546,10 @@ class AnalysisManager(threading.Thread):
             "Task #%s is requesting scheduler action for analysis status"
             " '%s'", self.task.id, log_status
         )
-
         self.override_status = for_status
-        if not self.action_lock.locked():
-            # First acquire non-blocking to be sure it is locked
-            self.action_lock.acquire(False)
+
+        # First acquire non-blocking to be sure it is locked
+        self.action_lock.acquire(False)
 
         # acquire again with blocking, so that execution will only
         # resume after the scheduler releases this lock
@@ -1583,8 +1574,7 @@ class AnalysisManager(threading.Thread):
         # so it cannot be changed while waiting. It is release by the scheduler
         # after executing the requested action. Should prevent race condition
         if wait:
-            self.analysis.status_lock.acquire()
-            self.analysis.set_status(status, use_lock=False)
+            self.analysis.set_status(status)
             self.request_scheduler_action()
         else:
             self.analysis.set_status(status)
@@ -1593,10 +1583,6 @@ class AnalysisManager(threading.Thread):
         """Is called by the scheduler. Releases the action and status lock
         that were locked by requesting the scheduler for an action."""
         try:
-            # status lock is not always locked. Scheduler action can be
-            # called for without changing status
-            if self.analysis.status_lock.locked():
-                self.analysis.status_lock.release()
             self.action_lock.release()
         except threading.ThreadError as e:
             log.error("Error while releasing thread lock: %s", e)

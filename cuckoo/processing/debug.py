@@ -63,10 +63,10 @@ class Debug(Processing):
         else:
             log.error(
                 "Error processing task #%d: it appears that the Virtual "
-                "Machine hasn't been able to contact back to "
+                "Machine (%s) hasn't been able to contact back to "
                 "the Cuckoo Host. There could be a few reasons for this, "
                 "please refer to our documentation on the matter: %s",
-                self.task.id,
+                self.task.id, self.machine["name"],
                 faq("troubleshooting-vm-network-configuration"),
                 extra={
                     "error_action": "vmrouting",

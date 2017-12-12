@@ -155,6 +155,3 @@ class Route(object):
                 str(config("routing:tor:dnsport")),
                 str(config("routing:tor:proxyport"))
             )
-
-    def __repr__(self):
-        return self.route

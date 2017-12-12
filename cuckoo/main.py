@@ -128,7 +128,7 @@ def cuckoo_init(level, ctx, cfg=None):
     check_version()
 
     ctx.log and init_logging(level)
-
+    Database().connect()
     # Determine if any CWD updates are required and if so, do them.
     current = open(cwd(".cwd"), "rb").read().strip()
     latest = open(cwd(".cwd", private=True), "rb").read().strip()

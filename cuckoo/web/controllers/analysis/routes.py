@@ -65,7 +65,7 @@ class AnalysisRoutes:
             taken_dirs = request.POST.getlist("dirs")
             taken_files = request.POST.getlist("files")
 
-            if len(taken_dirs) + len(taken_files) < 1:
+            if not taken_dirs and not taken_files:
                 return view_error(
                     request, "Please select at least one directory or file"
                     " to be exported."

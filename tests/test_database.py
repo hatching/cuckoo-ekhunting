@@ -265,16 +265,6 @@ class DatabaseEngine(object):
         assert db_sample.sha512 == sample.get_sha512()
         assert db_sample.ssdeep == sample.get_ssdeep()
 
-    def test_add_sample_existing(self):
-        fd, sample_path = tempfile.mkstemp()
-        os.write(fd, os.urandom(64))
-        os.close(fd)
-        sample_file = File(sample_path)
-        id = self.d.add_sample(sample_file)
-        id2 = self.d.add_sample(sample_file)
-
-        assert id2 == id
-
     def test_add_sample_incorrect(self):
         id = self.d.add_sample("A"*20)
         assert id is None
@@ -286,13 +276,18 @@ class DatabaseEngine(object):
         self.d.add(__file__, category="file", start_on=future)
         self.d.add(__file__, category="file")
 
-        assert self.d.fetch(machine="machine1", service=False).id == t2
+        t = self.d.fetch(machine="machine1", service=False)
+
+        assert t.id == t2
+        assert t.status == "pending"
 
     def test_fetch_service_false(self):
         self.d.add(__file__, category="file", tags=["service"])
         t2 = self.d.add(__file__, category="file")
 
-        assert self.d.fetch(service=False).id == t2
+        t = self.d.fetch(service=False)
+        assert t.id == t2
+        assert t.status == "pending"
 
     def test_fetch_service_true(self):
         t1 = self.d.add(__file__, category="file", tags=["service"])
@@ -302,22 +297,16 @@ class DatabaseEngine(object):
 
         task = self.d.fetch()
         assert task.id == t1
-        assert task.status == "running"
-
-    def test_fetch_no_lock(self):
-        self.d.add(__file__, category="file", tags=["service"])
-        self.d.add(__file__, category="file", machine="machine1")
-        self.d.add(__file__, category="file")
-        self.d.add(__file__, category="file")
-
-        assert self.d.fetch(lock=False, service=False).status == "pending"
+        assert task.status == "pending"
 
     def test_fetch_use_start_on_true(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
         self.d.add(__file__, category="file", start_on=future, priority=999)
         t2 = self.d.add(__file__, category="file")
 
-        assert self.d.fetch(service=False).id == t2
+        t = self.d.fetch(service=False)
+        assert t.id == t2
+        assert t.status == "pending"
 
     def test_fetch_use_start_on_false(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
@@ -325,7 +314,9 @@ class DatabaseEngine(object):
                         priority=999)
         self.d.add(__file__, category="file")
 
-        assert self.d.fetch(use_start_on=False, service=False).id == t1
+        t = self.d.fetch(use_start_on=False, service=False)
+        assert t.id == t1
+        assert t.status == "pending"
 
     def test_fetch_use_exclude(self):
         t1 = self.d.add(__file__, category="file", priority=999)
@@ -333,7 +324,9 @@ class DatabaseEngine(object):
         t3 = self.d.add(__file__, category="file", priority=999)
         t4 = self.d.add(__file__, category="file", priority=998)
 
-        assert self.d.fetch(service=False, exclude=[t1,t2,t3]).id == t4
+        t = self.d.fetch(service=False, exclude=[t1,t2,t3])
+        assert t.id == t4
+        assert t.status == "pending"
 
     def test_lock_machine(self):
         t1 = self.d.add(__file__, category="file", tags=["app1", "office7"])

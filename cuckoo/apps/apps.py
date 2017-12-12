@@ -466,6 +466,7 @@ def migrate_database(revision="head"):
     return True
 
 def migrate_cwd():
+    db = Database()
     log.warning(
         "This is the first time you're running Cuckoo after updating your "
         "local version of Cuckoo. We're going to update files in your CWD "
@@ -565,12 +566,14 @@ def migrate_cwd():
         shutil.copy(filepath, cwd(filename))
 
     log.info("Checking if any task directories are missing")
-    db = Database()
-    db.connect()
     for db_task in db.list_tasks(status=TASK_PENDING, details=False):
         task = Task(db_task)
         if not task.dir_exists():
             task.create_empty()
+        else:
+            # Always call this so that missing (newly added) directories
+            # are created
+            task.create_dirs()
 
     log.info(
         "Automated migration of your CWD was successful! Continuing "

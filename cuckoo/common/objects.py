@@ -504,9 +504,8 @@ class Analysis(object):
         self.status = None
         self.shutdown_on = None
         self.changed = False
-        self.status_lock = threading.Lock()
 
-    def set_status(self, status, use_lock=True):
+    def set_status(self, status):
         """Set the status of the analysis. Uses lock by default. If use_lock
         is disabled, the lock should be managed externally.
         This can be used to prevent status changing until the
@@ -518,10 +517,6 @@ class Analysis(object):
             "Setting analysis status to '%s' for task #%s", status,
             self.task_id
         )
-
-        if use_lock:
-            self.status_lock.acquire()
-
         self.status = status
 
         if status == Analysis.STARTING:
@@ -530,9 +525,6 @@ class Analysis(object):
             self.shutdown_on = datetime.datetime.now()
 
         self.changed = True
-
-        if use_lock:
-            self.status_lock.release()
 
     def get_status(self):
         """Returns the current analysis status and marks the status as read.

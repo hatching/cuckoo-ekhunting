@@ -72,8 +72,6 @@ class TestScheduler(object):
         assert isinstance(s.machine_lock, type(threading.Semaphore()))
         assert isinstance(s.machinery, VirtualBox)
         s.drop_forwarding_rules.assert_called_once()
-        assert isinstance(s.error_queue, Queue.Queue)
-
 
     @mock.patch("cuckoo.common.abstracts.Machinery.initialize")
     def test_initialize_no_machines(self, mi):
@@ -88,6 +86,7 @@ class TestScheduler(object):
         s.stop()
 
         assert not s.running
+        assert not s.keep_running()
         s.machinery.shutdown.assert_called_once()
 
     @mock.patch("cuckoo.core.scheduler.rooter")
@@ -268,8 +267,8 @@ class TestScheduler(object):
         s.machine_lock.acquire.assert_called_once_with(False)
         mock_machine1.is_analysis.assert_called_once()
         s.db.fetch.assert_has_calls([
-            mock.call(machine=mock.ANY, lock=False),
-            mock.call(service=False, lock=False, exclude=[])
+            mock.call(machine=mock.ANY),
+            mock.call(service=False, exclude=[])
         ])
         s.get_analysis_manager.assert_called_once_with(task, machine_mock2)
         s.db.set_status.assert_called_once_with(1, "running")
@@ -298,9 +297,9 @@ class TestScheduler(object):
         s.machine_lock.acquire.assert_called_once_with(False)
         mock_machine1.is_analysis.assert_called_once()
         s.db.fetch.assert_has_calls([
-            mock.call(machine=mock.ANY, lock=False),
-            mock.call(service=False, lock=False, exclude=mock.ANY),
-            mock.call(service=False, lock=False, exclude=[1])
+            mock.call(machine=mock.ANY),
+            mock.call(service=False, exclude=mock.ANY),
+            mock.call(service=False, exclude=[1])
         ])
         s.get_analysis_manager.assert_called_once_with(task2, machine_mock2)
         s.db.set_status.assert_called_once_with(2, "running")
@@ -325,8 +324,8 @@ class TestScheduler(object):
         s.machine_lock.acquire.assert_called_once_with(False)
         mock_machine1.is_analysis.assert_called_once()
         s.db.fetch.assert_has_calls([
-            mock.call(machine=mock.ANY, lock=False),
-            mock.call(service=False, lock=False, exclude=mock.ANY)
+            mock.call(machine=mock.ANY),
+            mock.call(service=False, exclude=mock.ANY)
         ])
         assert s.total_analysis_count == 0
         s.machine_lock.release.assert_called_once()
@@ -351,8 +350,8 @@ class TestScheduler(object):
 
         s.machine_lock.acquire.assert_called_once_with(False)
         s.db.fetch.assert_has_calls([
-            mock.call(machine=mock.ANY, lock=False),
-            mock.call(service=False, lock=False, exclude=[])
+            mock.call(machine=mock.ANY),
+            mock.call(service=False, exclude=[])
         ])
         s.get_analysis_manager.assert_called_once_with(task, machine_1)
         analysis_manager.init.assert_called_once()
@@ -437,17 +436,16 @@ class TestScheduler(object):
         s.ready_for_new_run = mock.MagicMock()
         s.handle_pending = mock.MagicMock()
         s.handle_managers = mock.MagicMock()
-        s.error_queue = Queue.Queue()
-        s.error_queue.put(OSError)
+        s.keep_running = mock.MagicMock(side_effect=[True, False])
+        manager = mock.MagicMock()
+        s.handle_managers.return_value = [manager]
+        s.managers = [manager]
 
-        # Catch this error to escape the scheduler loop
-        try:
-            s.start()
-        except OSError:
-            pass
+        s.start()
 
         mts.assert_called_once()
         s.db.count_tasks.assert_called_once_with(status="pending")
         s.ready_for_new_run.assert_called_once()
         s.handle_pending.assert_called_once()
         s.handle_managers.assert_called_once()
+        assert s.managers == []

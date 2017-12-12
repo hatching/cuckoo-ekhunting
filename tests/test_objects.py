@@ -344,11 +344,9 @@ class TestAnalysis(object):
         assert not a.changed
         a.set_status(Analysis.STARTING)
 
-        a.status_lock.acquire.assert_called_once()
         assert a.status == "starting"
         assert isinstance(a.started_on, datetime.datetime)
         assert a.changed
-        a.status_lock.release.assert_called_once()
 
     def test_set_status_stopped(self):
         a = Analysis(1, "machine1", "machine1", "virtualbox")
@@ -357,11 +355,9 @@ class TestAnalysis(object):
         assert not a.changed
         a.set_status(Analysis.STOPPED)
 
-        a.status_lock.acquire.assert_called_once()
         assert a.status == "stopped"
         assert isinstance(a.shutdown_on, datetime.datetime)
         assert a.changed
-        a.status_lock.release.assert_called_once()
 
     def test_get_status(self):
         a = Analysis(1, "machine1", "machine1", "virtualbox")
