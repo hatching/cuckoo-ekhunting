@@ -20,7 +20,7 @@ import dateutil.parser
 from alembic import op
 import sqlalchemy as sa
 
-from cuckoo.core.database import Task
+Base = sa.ext.declarative.declarative_base()
 
 TASK_PENDING = "pending"
 TASK_RUNNING = "running"
@@ -35,6 +35,12 @@ status_type = sa.Enum(
     TASK_PENDING, TASK_RUNNING, TASK_COMPLETED, TASK_REPORTED, TASK_RECOVERED,
     TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING,
     name="status_type"
+)
+
+tasks_tags = sa.Table(
+    "tasks_tags", Base.metadata,
+    sa.Column("task_id", sa.Integer, sa.ForeignKey("tasks.id")),
+    sa.Column("tag_id", sa.Integer, sa.ForeignKey("tags.id"))
 )
 
 columns = (
@@ -133,3 +139,50 @@ def upgrade():
 
 def downgrade():
     pass
+
+
+class Task(Base):
+    """Analysis task queue."""
+    __tablename__ = "tasks"
+
+    id = sa.Column(sa.Integer(), primary_key=True)
+    target = sa.Column(sa.Text(), nullable=False)
+    category = sa.Column(sa.String(255), nullable=False)
+    timeout = sa.Column(sa.Integer(), server_default="0", nullable=False)
+    priority = sa.Column(sa.Integer(), server_default="1", nullable=False)
+    custom = sa.Column(sa.Text(), nullable=True)
+    owner = sa.Column(sa.String(64), nullable=True)
+    machine = sa.Column(sa.String(255), nullable=True)
+    package = sa.Column(sa.String(255), nullable=True)
+    tags = sa.orm.relationship(
+        "Tag", secondary=tasks_tags, single_parent=True, backref="task",
+        lazy="subquery"
+    )
+    _options = sa.Column("options", sa.Text(), nullable=True)
+    platform = sa.Column(sa.String(255), nullable=True)
+    memory = sa.Column(sa.Boolean, nullable=False, default=False)
+    enforce_timeout = sa.Column(sa.Boolean, nullable=False, default=False)
+    clock = sa.Column(sa.DateTime(
+        timezone=False), default=datetime.datetime.now, nullable=False
+    )
+    added_on = sa.Column(
+        sa.DateTime(timezone=False), default=datetime.datetime.now,
+        nullable=False
+    )
+    started_on = sa.Column(sa.DateTime(timezone=False), nullable=True)
+    completed_on = sa.Column(sa.DateTime(timezone=False), nullable=True)
+    status = sa.Column(
+        status_type, server_default=TASK_PENDING, nullable=False
+    )
+    sample_id = sa.Column(
+        sa.Integer, sa.ForeignKey("samples.id"), nullable=True
+    )
+    processing = sa.Column(sa.String(16), nullable=True)
+    route = sa.Column(sa.String(16), nullable=True)
+    sample = sa.orm.relationship("Sample", backref="tasks")
+    guest = sa.orm.relationship(
+        "Guest", uselist=False, backref="tasks", cascade="save-update, delete"
+    )
+    errors = sa.orm.relationship(
+        "Error", backref="tasks", cascade="save-update, delete"
+    )
