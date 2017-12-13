@@ -568,7 +568,7 @@ def test_config_load_once():
 
     with mock.patch("cuckoo.common.config.ConfigParser.ConfigParser") as p:
         process_task_range("%d,%d" % (t0, t1))
-        assert p.return_value.read.call_count == 4
+        assert p.return_value.read.call_count == 2
         p.return_value.read.assert_any_call(cwd("conf", "processing.conf"))
         p.return_value.read.assert_any_call(cwd("conf", "reporting.conf"))
 
@@ -669,6 +669,24 @@ class TestMigrateCWD(object):
         )
         assert os.path.exists(cwd("yara", "dumpmem"))
         assert not os.path.exists(cwd("yara", "index_binaries.yar"))
+
+    def test_create_missing_dirs(self):
+        set_cwd(tempfile.mkdtemp())
+        cuckoo_create()
+        t1 = submit_task.add_path(__file__)
+        t2 = submit_task.add_path(__file__)
+        task_dirs = ["shots", "logs", "files", "extracted", "buffer", "memory"]
+
+        shutil.rmtree(cwd(analysis=t1))
+        os.rmdir(cwd("logs", analysis=t2))
+        assert not os.path.exists(cwd(analysis=t1))
+        assert not os.path.exists(cwd("logs", analysis=t2))
+        migrate_cwd()
+        assert os.path.exists(cwd(analysis=t1))
+        assert os.path.exists(cwd(analysis=t2))
+        for task in [t1, t2]:
+            for dir in task_dirs:
+                assert os.path.exists(cwd(dir, analysis=task))
 
     def test_using_community(self):
         def h(filepath):

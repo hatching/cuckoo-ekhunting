@@ -241,17 +241,6 @@ class TestAnalysisManager(object):
         a.analysis.set_status.assert_called_once_with("starting")
         a.request_scheduler_action.assert_called_once()
 
-    def test_release_locks(self):
-        a = abstracts.AnalysisManager(
-            FakeMachine(), mock.MagicMock(), mock.MagicMock()
-        )
-        a.analysis = mock.MagicMock()
-        a.analysis.status_lock.locked = mock.MagicMock(return_value=True)
-        a.action_lock = mock.MagicMock()
-
-        a.release_locks()
-        a.action_lock.release.assert_called_once()
-
     def test_action_requested(self):
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
@@ -288,6 +277,17 @@ class TestAnalysisManager(object):
         )
 
         assert a.init(self.db)
+
+    def test_release_machine_lock(self):
+        a = abstracts.AnalysisManager(
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
+        )
+        a.init(self.db)
+
+        a.release_machine_lock()
+
+        a.machine_lock.release.assert_called_once()
+        assert a.lock_released
 
     def test_run(self):
         a = abstracts.AnalysisManager(

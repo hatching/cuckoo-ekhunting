@@ -1466,20 +1466,44 @@ class Extractor(object):
         self.parent.enhance(filepath, key, value)
 
 class AnalysisManager(threading.Thread):
+    """Abstract class for analysis managers.
+    A analysis manager supports a set of task categories. The correct analysis
+    manager will be selected by the scheduler if a task with a category
+    matching the analysis manager is being handled.
+
+    The analysis manager should not perform any database operations.
+    The analysis object in this class has a status, which can be tied to
+    an implemented method.
+
+    This execution of this method by the scheduler can
+    be invoked by using 'set_analysis_status' or 'request_scheduler_action'.
+    The prefix for such a method is 'on_status_<status>'. These methods must
+    only have a single argument, 'db', which is a database object
+    provided by the scheduler.
+
+    Example:
+    def on_status_starting(self, db):
+        db.set_route(self.task.id, 'vpn')
+
+    After the analysis manager thread has exited, the 'finalize' method is
+    always called by the scheduler.
+    """
 
     supports = []
 
     def __init__(self, machine, machinery, machine_lock):
         threading.Thread.__init__(self)
 
-        self.task = None
-        self.sample = None
         self.machine = machine
         self.machinery = machinery
-        self.analysis = None
-        self.options = {}
         self.action_lock = threading.Lock()
         self.machine_lock = machine_lock
+        self.options = {}
+        # Used to see if the machine_lock was already released
+        self.lock_released = False
+        self.task = None
+        self.sample = None
+        self.analysis = None
         self.guest_manager = None
         self.aux = None
         self.route = None
@@ -1497,9 +1521,7 @@ class AnalysisManager(threading.Thread):
         self.route = Route(task, self.machine)
 
         # Set thread name
-        self.name = "task_%s_%s" % (
-            self.task.id, self.__class__.__name__
-        )
+        self.name = "task_%s_%s" % (self.task.id, self.__class__.__name__)
 
     def build_options(self, options={}):
         """Generate analysis options. Add update_with to options being
@@ -1563,29 +1585,20 @@ class AnalysisManager(threading.Thread):
         self.override_status = None
 
     def set_analysis_status(self, status, wait=False):
-        """Update the status of the analysis. If wait_scheduler_action
-        is True, the execution will block until the scheduler releases
-        the lock. It will do so after executing the method for the status
-        the analysis was set to.
+        """Update the status of the analysis. If wait is set to True,
+        the scheduler will be asked to executed the implemented method
+        for the given status. The manager thread will block until it has been
+        executed. If wait is False, only the status will be changed and no
+        method will be executed by the scheduler
         @param status: The status to set the analysis to
-        @param wait: Block execution until the scheduler executes the action
-        for the given status and releases the lock."""
-        # If a scheduler action is required, keep the analysis status lock,
-        # so it cannot be changed while waiting. It is release by the scheduler
-        # after executing the requested action. Should prevent race condition
+        @param wait: Request the scheduler to execute the action
+        for the given status and block the manager thread until it does.
+        """
         if wait:
             self.analysis.set_status(status)
             self.request_scheduler_action()
         else:
             self.analysis.set_status(status)
-
-    def release_locks(self):
-        """Is called by the scheduler. Releases the action and status lock
-        that were locked by requesting the scheduler for an action."""
-        try:
-            self.action_lock.release()
-        except threading.ThreadError as e:
-            log.error("Error while releasing thread lock: %s", e)
 
     def action_requested(self):
         """Returns True if the analysis status was changed and the
@@ -1601,6 +1614,13 @@ class AnalysisManager(threading.Thread):
         else:
             return self.analysis.get_status()
 
+    def release_machine_lock(self):
+        """Release the scheduler machine_lock. This should be done when
+        the machine has started."""
+        if not self.lock_released:
+            self.machine_lock.release()
+            self.lock_released = True
+
     def init(self, db):
         """Is always called by the scheduler thread before the analysis
         manager thread is started. If it returns False, the analysis
@@ -1614,15 +1634,4 @@ class AnalysisManager(threading.Thread):
     def finalize(self, db):
         """Is always called by de scheduler thread after the analysis manager
         thread has exited."""
-        pass
-
-    def on_status_starting(self, db):
-        """Is called by the scheduler thread when analysis status is starting.
-        Is only called if scheduler action was requested with
-        'set_analysis_status'
-
-        This method format can be used for any status supplied to
-        set_analysis_status
-
-        @param db: Db object supplied by the scheduler."""
         pass

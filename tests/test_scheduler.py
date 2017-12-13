@@ -389,7 +389,7 @@ class TestScheduler(object):
         manager.action_requested.assert_called_once()
         manager.get_analysis_status.assert_called_once()
         manager.on_status_stopped.assert_called_once_with(s.db)
-        manager.release_locks.assert_called_once()
+        manager.action_lock.release.assert_called_once()
         manager.isAlive.assert_called_once()
         manager.finalize.assert_called_once_with(s.db)
 
@@ -406,7 +406,7 @@ class TestScheduler(object):
         manager.action_requested.assert_called_once()
         manager.get_analysis_status.assert_called_once()
         manager.on_status_stopped.assert_called_once_with(s.db)
-        manager.release_locks.assert_called_once()
+        manager.action_lock.release.assert_called_once()
         manager.isAlive.assert_called_once()
         manager.finalize.assert_not_called()
 
@@ -423,7 +423,7 @@ class TestScheduler(object):
         assert result == []
         manager.action_requested.assert_called_once()
         manager.get_analysis_status.assert_called_once()
-        manager.release_locks.assert_called_once()
+        manager.action_lock.release.assert_called_once()
         manager.isAlive.assert_called_once()
         manager.finalize.assert_not_called()
 

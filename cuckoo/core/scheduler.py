@@ -376,7 +376,7 @@ class Scheduler(object):
                         " status '%s', but no action is implemented",
                         manager.task.id, status
                     )
-                manager.release_locks()
+                manager.action_lock.release()
 
             if not manager.isAlive():
                 manager.finalize(self.db)

@@ -408,7 +408,7 @@ class TestRegular(object):
         manager.stop_and_wait = mock.MagicMock()
         manager.task.process = mock.MagicMock(return_value=True)
         manager.set_analysis_status = mock.MagicMock()
-        manager.release_scheduler_lock = mock.MagicMock()
+        manager.release_machine_lock = mock.MagicMock()
 
         manager.run()
 
@@ -428,7 +428,7 @@ class TestRegular(object):
         manager.stop_and_wait = mock.MagicMock()
         manager.task.process = mock.MagicMock(return_value=True)
         manager.set_analysis_status = mock.MagicMock()
-        manager.release_scheduler_lock = mock.MagicMock()
+        manager.release_machine_lock = mock.MagicMock()
 
         manager.run()
 
@@ -479,7 +479,7 @@ class TestRegular(object):
         task_json_path = cwd("task.json", analysis=manager.task.id)
         manager.init(self.db)
         manager.processing_success = True
-        manager.release_scheduler_lock = mock.MagicMock()
+        manager.release_machine_lock = mock.MagicMock()
         # Remove because init creates it. We need to check if it was created
         # on status stopped
         os.remove(task_json_path)
@@ -490,7 +490,7 @@ class TestRegular(object):
         assert manager.task.db_task is not db_task
         assert db_task.status == "reported"
         assert os.path.isfile(task_json_path)
-        manager.release_scheduler_lock.assert_called_once()
+        manager.release_machine_lock.assert_called_once()
 
     def test_finalize_analysis_failed(self):
         self.create_cwd(cfg={
@@ -504,7 +504,7 @@ class TestRegular(object):
         task_json_path = cwd("task.json", analysis=manager.task.id)
         manager.init(self.db)
         manager.analysis.status = "running"
-        manager.release_scheduler_lock = mock.MagicMock()
+        manager.release_machine_lock = mock.MagicMock()
         # Remove because init creates it. We need to check if it was created
         # on status stopped
         os.remove(task_json_path)
@@ -515,7 +515,7 @@ class TestRegular(object):
         assert manager.task.db_task is not db_task
         assert db_task.status == "failed_analysis"
         assert os.path.isfile(task_json_path)
-        manager.release_scheduler_lock.assert_called_once()
+        manager.release_machine_lock.assert_called_once()
 
     def test_finalize_process_failed(self):
         TestRegular.createcwd = True
@@ -559,12 +559,3 @@ class TestRegular(object):
         assert db_task.status != "reported"
         assert db_task.status != "failed_processing"
         assert os.path.isfile(task_json_path)
-
-    def test_release_scheduler_lock(self):
-        manager = self.get_manager()
-        manager.init(self.db)
-
-        manager.release_scheduler_lock()
-
-        manager.machine_lock.release.assert_called_once()
-        assert manager.lock_released

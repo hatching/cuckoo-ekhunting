@@ -66,7 +66,7 @@ class Debug(Processing):
                 "Machine (%s) hasn't been able to contact back to "
                 "the Cuckoo Host. There could be a few reasons for this, "
                 "please refer to our documentation on the matter: %s",
-                self.task.id, self.machine["name"],
+                self.task.id, self.machine.get("name"),
                 faq("troubleshooting-vm-network-configuration"),
                 extra={
                     "error_action": "vmrouting",

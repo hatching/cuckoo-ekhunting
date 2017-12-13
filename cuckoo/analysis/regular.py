@@ -32,9 +32,6 @@ class Regular(AnalysisManager):
 
     def init(self, db):
         """Executed by the scheduler. Prepares the analysis for starting."""
-        # Used to keep track about the Scheduler machine_lock
-        self.lock_released = False
-
         # Used at the processing and final stage to determine is processing
         # was run and successful
         self.processing_success = False
@@ -269,7 +266,7 @@ class Regular(AnalysisManager):
 
         # By the time start returns it will have fully started the Virtual
         # Machine. We can now safely release the machine lock.
-        self.release_scheduler_lock()
+        self.release_machine_lock()
 
         # Request scheduler action for status 'starting'
         self.request_scheduler_action(Analysis.STARTING)
@@ -452,7 +449,7 @@ class Regular(AnalysisManager):
         Updates the task status to the correct one and updates the
         task.json."""
         self.task.set_latest()
-        self.release_scheduler_lock()
+        self.release_machine_lock()
         # If, at this point, the analysis is not stopped, it cannot
         # succeeded, since the manager thread already exited. Updated status
         # to failed if the results were not processed.
@@ -484,10 +481,3 @@ class Regular(AnalysisManager):
                 self.task.set_status(TASK_FAILED_PROCESSING)
 
         task_log_stop(self.task.id)
-
-    def release_scheduler_lock(self):
-        """Release the scheduler machine_lock. Do this when the VM has
-        started."""
-        if not self.lock_released:
-            self.machine_lock.release()
-            self.lock_released = True
