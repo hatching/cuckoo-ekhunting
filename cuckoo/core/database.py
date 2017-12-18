@@ -9,16 +9,16 @@ import logging
 import os
 import sys
 import threading
+import operator
 
 from cuckoo.common.colors import green
 from cuckoo.common.config import config, parse_options, emit_options
 from cuckoo.common.exceptions import CuckooDatabaseError
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.exceptions import CuckooDependencyError
-from cuckoo.common.objects import File, URL, Dictionary
+from cuckoo.common.objects import File, Dictionary
 from cuckoo.common.utils import Singleton, classlock, json_encode
 from cuckoo.misc import cwd, format_command
-from cuckoo.core.task import Task as CoreTask
 
 from sqlalchemy import create_engine, Column, not_, func
 from sqlalchemy import Integer, String, Boolean, DateTime, Enum
@@ -376,6 +376,33 @@ class Database(object):
     management. It also provides some functions for interacting with it.
     """
     __metaclass__ = Singleton
+
+    task_columns = {
+        "id": Task.id,
+        "target": Task.target,
+        "category": Task.category,
+        "timeout": Task.timeout,
+        "priority": Task.priority,
+        "custom": Task.custom,
+        "owner": Task.owner,
+        "machine": Task.machine,
+        "package": Task.package,
+        "tags": Task.tags,
+        "options": Task._options,
+        "platform": Task.platform,
+        "memory": Task.memory,
+        "enforce_timeout": Task.enforce_timeout,
+        "clock": Task.clock,
+        "added_on": Task.added_on,
+        "start_on": Task.start_on,
+        "started_on": Task.started_on,
+        "completed_on": Task.completed_on,
+        "status": Task.status,
+        "sample_id": Task.sample_id,
+        "submit_id": Task.submit_id,
+        "processing": Task.processing,
+        "route": Task.route,
+    }
 
     def __init__(self, schema_check=True, echo=False):
         """
@@ -1037,55 +1064,76 @@ class Database(object):
             session.close()
         return submit
 
-    def list_tasks(self, limit=None, details=True, category=None, owner=None,
-                   offset=None, status=None, sample_id=None, not_status=None,
-                   completed_after=None, order_by=None):
-        """Retrieve list of task.
-        @param limit: specify a limit of entries.
-        @param details: if details about must be included
-        @param category: filter by category
-        @param owner: task owner
-        @param offset: list offset
-        @param status: filter by task status
-        @param sample_id: filter tasks for a sample
-        @param not_status: exclude this task status from filter
-        @param completed_after: only list tasks completed after this timestamp
-        @param order_by: definition which field to sort by
-        @return: list of tasks.
+    def list_tasks(self, filter_by=[], operators=[], values=[], details=True,
+                   offset=None, limit=None, order_by=None, **kwargs):
+        """Retrieve a list of tasks. Any query possible.
+        @param filter_by: contains the columns you want to filter on
+        @param operators: contains the operator(s) you want to use when
+        filtering
+        @param values: contains the values to use when filtering with
+        filter_by and operators
+        @param offset: offset of task list
+        @param limit: max amount of tasks to query
+        @param details: include relationship table data
+        @param order_by: the task table field to order the list by
+
+        Example: list_tasks(filter_by="id", operators=">", values=500)
+        would return all tasks with id larger than 500
+        Example: list_tasks(filter_by="id", operators="between", values=(1, 5))
+        would return all tasks with id between 1 and 5
         """
+        tasklist = []
+        filter_by = filter_by if isinstance(filter_by, list) else [filter_by]
+        values = values if isinstance(values, list) else [values]
+        operators = operators if isinstance(operators, list) else [operators]
+
+        op_lookup = {
+            ">": operator.gt,
+            "<": operator.lt,
+            ">=": operator.ge,
+            "<=": operator.le,
+            "!=": operator.ne
+        }
+
         session = self.Session()
         try:
             search = session.query(Task)
+            for arg, value in kwargs.iteritems():
+                if value is not None:
+                    search = search.filter_by(**{arg: value})
 
-            if status:
-                search = search.filter_by(status=status)
-            if not_status:
-                search = search.filter(Task.status != not_status)
-            if category:
-                search = search.filter_by(category=category)
-            if owner:
-                search = search.filter_by(owner=owner)
+            for field in filter_by:
+                operation = operators.pop(0)
+                value = values.pop(0)
+                if value is None:
+                    continue
+
+                op = op_lookup.get(operation)
+                if op:
+                    search = search.filter(op(
+                        self.task_columns[field], value)
+                    )
+                elif operation == "between":
+                    search = search.filter(
+                        self.task_columns[field].between(*value)
+                    )
+
             if details:
                 search = search.options(
                     joinedload("errors"), joinedload("tags")
                 )
-            if sample_id is not None:
-                search = search.filter_by(sample_id=sample_id)
-            if completed_after:
-                search = search.filter(Task.completed_on > completed_after)
 
-            if order_by is not None:
-                search = search.order_by(order_by)
+            if order_by:
+                search = search.order_by(self.task_columns[order_by])
             else:
-                search = search.order_by(Task.added_on.desc())
+                search = search.order_by(self.task_columns["added_on"].desc())
 
-            tasks = search.limit(limit).offset(offset).all()
-            return tasks
+            tasklist = search.limit(limit).offset(offset).all()
         except SQLAlchemyError as e:
-            log.debug("Database error listing tasks: %s", e)
-            return []
+            log.error("Database error retrieving a list of tasks: %s", e)
         finally:
             session.close()
+        return tasklist
 
     def minmax_tasks(self):
         """Find tasks minimum and maximum

@@ -359,6 +359,80 @@ class DatabaseEngine(object):
         assert m3.locked
         assert m3.name == "name3"
 
+    def test_list_tasks(self):
+        t1 = self.d.add(
+            __file__, category="file",  owner="doge",
+            options={"route": "vpn511"}
+        )
+        t2 = self.d.add(__file__, category="file")
+        self.d.add(__file__, category="file")
+        self.d.set_status(t2, "reported")
+        self.d.set_status(t1, "reported")
+
+        tasks = self.d.list_tasks(owner="doge", status="reported")
+        tasks2 = self.d.list_tasks()
+        tasks3 = self.d.list_tasks(status="reported")
+
+        assert tasks[0].id == t1
+        assert len(tasks2) == 3
+        assert len(tasks3) == 2
+
+    def test_list_tasks_between(self):
+        for x in range(5):
+             self.d.add(__file__, category="file")
+
+        tasks = self.d.list_tasks(
+            filter_by="id", operators="between", values=(1, 3)
+        )
+        assert len(tasks) == 3
+
+    def test_list_tasks_multiple_filter(self):
+        ids = []
+        future = None
+        for x in range(10):
+            id = self.d.add(__file__, category="file")
+            ids.append(id)
+            future = datetime.datetime.now() + datetime.timedelta(days=id)
+            ses = self.d.Session()
+            task = ses.query(Task).get(id)
+            task.completed_on = future
+            ses.commit()
+            ses.close()
+
+        tasks = self.d.list_tasks(
+            filter_by=["id", "completed_on"], operators=[">", "<"],
+            values=[4, future], order_by="id", limit=1
+        )
+        assert len(tasks) == 1
+        assert tasks[0].id == 5
+
+    def test_list_tasks_offset_limit(self):
+        for x in range(10):
+            self.d.add(__file__, category="file")
+
+        tasks = self.d.list_tasks(offset=5, limit=10, order_by="id")
+        assert len(tasks) == 5
+        assert tasks[4].id == 10
+
+    def test_list_tasks_notvalue(self):
+        for x in range(10):
+            id = self.d.add(__file__, category="file")
+            if id % 2 == 0:
+                self.d.set_status(id, "running")
+
+        tasks = self.d.list_tasks(
+            filter_by="status", operators="!=", values="running",
+            order_by="id"
+        )
+        assert len(tasks) == 5
+        assert tasks[4].id == 9
+
+    def test_list_tasks_noresults(self):
+        for x in range(5):
+            self.d.add(__file__, category="file")
+        tasks = self.d.list_tasks(status="reported")
+        assert tasks == []
+
 class TestConnectOnce(object):
     def setup(self):
         set_cwd(tempfile.mkdtemp())

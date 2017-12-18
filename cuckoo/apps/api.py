@@ -17,7 +17,7 @@ from flask import Flask, request, jsonify, make_response
 from cuckoo.common.config import config, parse_options
 from cuckoo.common.files import Files, Folders
 from cuckoo.common.utils import parse_bool
-from cuckoo.core.database import Database, Task as DbTask
+from cuckoo.core.database import Database
 from cuckoo.core.database import TASK_REPORTED, TASK_COMPLETED, TASK_RUNNING
 from cuckoo.core.rooter import rooter
 from cuckoo.core.submit import SubmitManager
@@ -229,9 +229,9 @@ def tasks_list(limit=None, offset=None, sample_id=None):
     status = request.args.get("status")
 
     tasks = db.list_tasks(
-        limit=limit, details=True, offset=offset,
-        completed_after=completed_after, owner=owner,
-        status=status, sample_id=sample_id, order_by=DbTask.completed_on.asc()
+        filter_by="completed_on", operators=">", values=completed_after,
+        status=status, owner=owner, limit=limit, offset=offset, details=True,
+        order_by="completed_on"
     )
 
     for row in tasks:
