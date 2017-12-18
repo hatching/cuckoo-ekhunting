@@ -61,4 +61,7 @@ urlpatterns = [
     url(r"^api/task/export_get_files/$", ExportApi.get_files),
     url(r"^api/task/feedback_send/$", AnalysisApi.feedback_send),
     url(r"^api/task/network_http_data/$", AnalysisNetworkApi.http_data),
+    url(r"^api/tasks/(?P<task_id>\d+)/$", AnalysisApi.list_tasks),
+    url(r"^api/tasks/list/$", AnalysisApi.list_tasks),
+    url(r"^api/tasks/list/(?P<status>\w+)/$", AnalysisApi.list_tasks),
 ]

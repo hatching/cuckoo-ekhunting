@@ -8,7 +8,6 @@ import dateutil.relativedelta
 import io
 import os
 import pymongo
-import sqlalchemy
 import tarfile
 import zipfile
 
@@ -20,7 +19,7 @@ from cuckoo.common.files import Folders
 from cuckoo.common.mongo import mongo
 from cuckoo.common.utils import list_of_strings, list_of_ints
 from cuckoo.core.database import (
-    Database, Task as DbTask, TASK_RUNNING, TASK_REPORTED, TASK_COMPLETED
+    Database, TASK_RUNNING, TASK_REPORTED, TASK_COMPLETED
 )
 from cuckoo.core.feedback import CuckooFeedback
 from cuckoo.core.task import Task
@@ -51,9 +50,11 @@ class AnalysisApi(object):
         owner = body.get("owner")
         status = body.get("status")
 
-        for row in db.list_tasks(limit=limit, details=True, offset=offset,
-                                 completed_after=completed_after, owner=owner,
-                                 status=status, order_by=DbTask.completed_on.asc()):
+        for row in db.list_tasks(
+                limit=limit, details=True, offset=offset, owner=owner,
+                status=status, order_by="completed_on",
+                filter_by="completed_on", operators=">", values=completed_after
+        ):
             task = row.to_dict()
 
             # Sanitize the target in case it contains non-ASCII characters as we
@@ -156,15 +157,19 @@ class AnalysisApi(object):
 
     @api_get
     def task_screenshots(request, task_id, screenshot=None):
-        folder_path = os.path.join(cwd(), "storage", "analyses", str(task_id), "shots")
+        folder_path = os.path.join(
+            cwd(), "storage", "analyses", str(task_id), "shots"
+        )
 
         if os.path.exists(folder_path):
             if screenshot:
                 screenshot_name = "{0}.jpg".format(screenshot)
                 screenshot_path = os.path.join(folder_path, screenshot_name)
                 if os.path.exists(screenshot_path):
-                    response = HttpResponse(FileWrapper(open(screenshot_path, "rb")),
-                                            content_type='image/jpeg')
+                    response = HttpResponse(
+                        FileWrapper(open(screenshot_path, "rb")),
+                        content_type='image/jpeg'
+                    )
                     return response
                 else:
                     return json_error_response("Screenshot not found")
@@ -172,14 +177,18 @@ class AnalysisApi(object):
                 zip_data = io.BytesIO()
                 zip_file = zipfile.ZipFile(zip_data, "w", zipfile.ZIP_STORED)
                 for shot_name in os.listdir(folder_path):
-                    zip_file.write(os.path.join(folder_path, shot_name), shot_name)
+                    zip_file.write(
+                        os.path.join(folder_path, shot_name), shot_name
+                    )
                 zip_file.close()
 
                 zip_data.seek(0)
 
-                response = file_response(data=zip_data,
-                                         filename="analysis_screenshots_%s.tar" % str(task_id),
-                                         content_type="application/zip")
+                response = file_response(
+                    data=zip_data,
+                    filename="analysis_screenshots_%s.tar" % str(task_id),
+                    content_type="application/zip"
+                )
                 return response
 
         return json_error_response("Task not found")
@@ -209,9 +218,10 @@ class AnalysisApi(object):
         }
 
         if report_format.lower() in formats:
-            report_path = os.path.join(cwd(), "storage", "analyses",
-                                       str(task_id), "reports",
-                                       formats[report_format.lower()])
+            report_path = os.path.join(
+                cwd(), "storage", "analyses", str(task_id), "reports",
+                formats[report_format.lower()]
+            )
         elif report_format.lower() in bz_formats:
             bzf = bz_formats[report_format.lower()]
             srcdir = os.path.join(cwd(), "storage",
@@ -374,12 +384,11 @@ class AnalysisApi(object):
         if not isinstance(days, int):
             return json_error_response("parameter \"days\" not an integer")
 
-        q = db.Session().query(DbTask)
-        q = q.filter(DbTask.added_on.between(
-            now - datetime.timedelta(days=days), now)
+        past = now - datetime.timedelta(days=days)
+        tasks = db.list_tasks(
+            filter_by="added_on", operators="between", values=(past, now),
+            order_by="added_on", details=False
         )
-        q = q.order_by(sqlalchemy.asc(DbTask.added_on))
-        tasks = q.all()
 
         def _rtn_structure(start):
             _data = []
@@ -446,3 +455,38 @@ class AnalysisApi(object):
             "status": True,
             "feedback_id": feedback_id,
         }, safe=False)
+
+    @api_get
+    def list_tasks(request, status=None, task_id=None):
+        tasks = []
+        limit = request.GET.get("limit", 100)
+        offset = request.GET.get("offset", 0)
+        category = request.GET.get("category")
+        added_on = request.GET.get("added_on")
+
+        if added_on:
+            if not added_on.isdigit():
+                return json_error_response(
+                  "added_on should be epoch timestamp"
+                )
+            added_on = datetime.datetime.fromtimestamp(int(added_on))
+
+        taskslist = db.list_tasks(
+            filter_by="added_on", operators=">=", values=added_on,
+            status=status, category=category, id=task_id, limit=limit,
+            offset=offset, order_by="added_on"
+        )
+        for row in taskslist:
+            tasks.append(row.to_dict())
+
+        response = {
+            "offset": offset,
+            "limit": limit,
+            "category": category,
+            "date": added_on,
+            "task_id": task_id if task_id is None else int(task_id),
+            "status": status,
+            "tasks": tasks
+        }
+
+        return JsonResponse(response, safe=False)
