@@ -476,8 +476,10 @@ class AnalysisApi(object):
             status=status, category=category, id=task_id, limit=limit,
             offset=offset, order_by="added_on"
         )
+        id_list = []
         for row in taskslist:
             tasks.append(row.to_dict())
+            id_list.append(row.id)
 
         response = {
             "offset": offset,
@@ -485,6 +487,7 @@ class AnalysisApi(object):
             "category": category,
             "date": added_on,
             "task_id": task_id if task_id is None else int(task_id),
+            "available_ids": id_list,
             "status": status,
             "tasks": tasks
         }
