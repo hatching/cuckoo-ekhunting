@@ -252,6 +252,7 @@ class Config(object):
                 "default": Int(120),
                 "critical": Int(60),
                 "vm_state": Int(60),
+                "safe_shutdown": Int(180),
             },
             "remotecontrol": {
                 "enabled": Boolean(False),
