@@ -430,6 +430,39 @@ class TestVirtualbox(object):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
         )
 
+    def test_start_non_revert(self):
+        class machine_with_snapshot(object):
+            snapshot = "snapshot"
+            options = []
+
+        self.m._status = mock.MagicMock(return_value=self.m.POWEROFF)
+        self.m.db.view_machine_by_label.return_value = machine_with_snapshot()
+        self.m._wait_status = mock.MagicMock(return_value=None)
+        self.m.vminfo = mock.MagicMock(return_value="label_hdd")
+        self.m.restore = mock.MagicMock()
+        self.m.compact_hd = mock.MagicMock()
+
+        p1 = mock.MagicMock()
+        p1.communicate.return_value = "", ""
+        p1.returncode = 0
+
+        p2 = mock.MagicMock()
+        p2.communicate.return_value = "", ""
+
+        with mock.patch("cuckoo.machinery.virtualbox.Popen") as p:
+            p.side_effect = p1, p2
+            self.m.start("label", None, revert=False)
+
+        p.assert_called_once_with(
+            [
+                config("virtualbox:virtualbox:path"),
+                "startvm", "label", "--type", "headless",
+            ],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
+        )
+        self.m.restore.assert_not_called()
+        self.m.compact_hd.assert_called_once_with("label")
+
     def test_stop_invalid_status(self):
         self.m._status = mock.MagicMock(return_value=self.m.POWEROFF)
         with pytest.raises(CuckooMachineError) as e:
@@ -679,6 +712,24 @@ class TestVirtualbox(object):
             "host": "127.0.0.1",
             "port": 5000,
         }
+
+    def test_compact_hd(self):
+        self.m.vminfo = mock.MagicMock(return_value="\"30d29d87-e54d\"")
+
+        c1 = mock.MagicMock()
+        c1.returncode = 0
+        c1.return_value = "", ""
+
+        with mock.patch("subprocess.check_output") as co:
+            co.side_effect = c1
+            self.m.compact_hd("label")
+
+        co.assert_called_once_with(
+            [
+                config("virtualbox:virtualbox:path"), "modifyhd",
+                "30d29d87-e54d", "--compact"
+            ], stderr=subprocess.PIPE
+        )
 
 class TestBrokenMachine(object):
     def setup(self):

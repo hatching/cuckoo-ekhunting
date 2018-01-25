@@ -102,10 +102,11 @@ class VirtualBox(Machinery):
                 "how to setup a snapshot for your VM): %s" % (label, e)
             )
 
-    def start(self, label, task):
+    def start(self, label, task, revert=True):
         """Start a virtual machine.
         @param label: virtual machine name.
         @param task: task object.
+        @param revert: Revert machine to snapshot
         @raise CuckooMachineError: if unable to start.
         """
         log.debug("Starting vm %s", label)
@@ -116,9 +117,12 @@ class VirtualBox(Machinery):
             )
 
         machine = self.db.view_machine_by_label(label)
-        self.restore(label, machine)
 
-        self._wait_status(label, self.SAVED)
+        if revert:
+            self.restore(label, machine)
+            self._wait_status(label, self.SAVED)
+        else:
+            self.compact_hd(label)
 
         if self.remote_control:
             self.enable_vrde(label)
@@ -233,6 +237,53 @@ class VirtualBox(Machinery):
             )
 
         self._wait_status(label, self.POWEROFF, self.ABORTED, self.SAVED)
+
+    def stop_safe(self, label):
+        """Stop a machine safely by sending a shutdown signal,
+        allowing the operating system to shut down.
+        @param label: machine name."""
+        log.debug("Stopping vm %s safely", label)
+        status = self._status(label)
+
+        if status == self.SAVED:
+            return
+
+        if status == self.POWEROFF or status == self.ABORTED:
+            raise CuckooMachineError(
+                "Trying to stop an already stopped VM: %s" % label
+            )
+
+        command = [
+            self.options.virtualbox.path, "controlvm", label, "acpipowerbutton"
+        ]
+        state_timeout = config("cuckoo:timeouts:safe_shutdown")
+
+        try:
+            proc = Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                close_fds=True
+            )
+
+
+        except OSError as e:
+            raise CuckooMachineError(
+                "VBoxManage failed powering off the machine: %s" % e
+            )
+
+        stopcount = 0
+        while self._status(label) != self.POWEROFF:
+            log.debug("Waiting for vm %s to shut down safely", label)
+            if stopcount > state_timeout:
+                break
+            stopcount += 1
+            time.sleep(1)
+
+        if self._status(label) != self.POWEROFF:
+            log.warning(
+                "Safe shutdown of vm %s timed out. Using hard shutdown",
+                label
+            )
+            self.stop()
 
     def _list(self):
         """Lists virtual machines installed.
@@ -481,3 +532,27 @@ class VirtualBox(Machinery):
         )
         _, _ = proc.communicate()
         return proc
+
+    def compact_hd(self, label):
+        """Tries to optimize HDD by compacting scattered data.
+        @param label: virtual machine label
+        """
+        hdd_uuid = self.vminfo(label, "\"IDE-ImageUUID-0-0\"")
+
+        if hdd_uuid.count('"') != 2:
+            log.error("Unexpected HDD UUID value: %s", hdd_uuid)
+            return
+
+        hdd_uuid = hdd_uuid.split('"', 2)[1]
+
+        if hdd_uuid:
+            log.debug("Compacting HDD %s for VM %s", hdd_uuid, label)
+            try:
+                args = [
+                    self.options.virtualbox.path, "modifyhd", hdd_uuid,
+                    "--compact"
+                ]
+                subprocess.check_output(args, stderr=subprocess.PIPE)
+            except subprocess.CalledProcessError as e:
+                log.warning("Error compacting HDD of VM %s: %s", label, e)
+
