@@ -79,10 +79,11 @@ class VMware(Machinery):
                                          "No output from "
                                          "`vmrun listSnapshots`" % vmx_path)
 
-    def start(self, vmx_path, task):
+    def start(self, vmx_path, task, revert=True):
         """Start a virtual machine.
         @param vmx_path: path to vmx file.
         @param task: task object.
+        @param revert: Revert machine to snapshot
         @raise CuckooMachineError: if unable to start.
         """
         snapshot = self._snapshot_from_vmx(vmx_path)

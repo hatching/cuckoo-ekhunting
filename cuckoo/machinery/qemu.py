@@ -131,10 +131,11 @@ class QEMU(Machinery):
         self.qemu_dir = os.path.dirname(self.options.qemu.path)
         self.qemu_img = os.path.join(self.qemu_dir, "qemu-img")
 
-    def start(self, label, task):
+    def start(self, label, task, revert=True):
         """Start a virtual machine.
         @param label: virtual machine label.
         @param task: task object.
+        @param revert: Revert machine to snapshot
         @raise CuckooMachineError: if unable to start.
         """
         log.debug("Starting vm %s" % label)

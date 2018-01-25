@@ -194,10 +194,11 @@ class XenServer(Machinery):
         """
         return vm["power_state"] == "Halted"
 
-    def start(self, label, task):
+    def start(self, label, task, revert=True):
         """Start a virtual machine.
         @param label: vm uuid
         @param task: task object.
+        @param revert: Revert machine to snapshot
         """
         vm_ref = self._get_vm_ref(label)
         vm = self._get_vm_record(vm_ref)

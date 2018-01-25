@@ -67,7 +67,7 @@ class Physical(Machinery):
 
         raise CuckooMachineError("No machine with label: %s." % label)
 
-    def start(self, label, task):
+    def start(self, label, task, revert=True):
         """Start a physical machine.
         @param label: physical machine name.
         @param task: task object.
