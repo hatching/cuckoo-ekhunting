@@ -334,16 +334,25 @@ class Machinery(object):
         """
         self.db.set_machine_status(label, status)
 
-    def start(self, label, task):
+    def start(self, label, task, revert=True):
         """Start a machine.
         @param label: machine name.
         @param task: task object.
+        @param revert: Revert machine to snapshot
         @raise NotImplementedError: this method is abstract.
         """
         raise NotImplementedError
 
     def stop(self, label=None):
         """Stop a machine.
+        @param label: machine name.
+        @raise NotImplementedError: this method is abstract.
+        """
+        raise NotImplementedError
+
+    def stop_safe(self, label=None):
+        """Stop a machine safely by sending a shutdown signal,
+        allowing the operating system to shut down.
         @param label: machine name.
         @raise NotImplementedError: this method is abstract.
         """
@@ -454,10 +463,11 @@ class LibVirtMachinery(Machinery):
         # currently still active.
         super(LibVirtMachinery, self)._initialize_check()
 
-    def start(self, label, task):
+    def start(self, label, task, revert=True):
         """Starts a virtual machine.
         @param label: virtual machine name.
         @param task: task object.
+        @param revert: Revert machine to snapshot
         @raise CuckooMachineError: if unable to start virtual machine.
         """
         log.debug("Starting machine %s", label)
