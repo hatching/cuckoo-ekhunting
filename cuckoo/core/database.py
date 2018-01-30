@@ -42,10 +42,18 @@ TASK_FAILED_ANALYSIS = "failed_analysis"
 TASK_FAILED_PROCESSING = "failed_processing"
 TASK_FAILED_REPORTING = "failed_reporting"
 
+# Task types
+TYPE_REGULAR = "regular"
+TYPE_EXPERIMENT = "experiment"
+
 status_type = Enum(
     TASK_PENDING, TASK_RUNNING, TASK_COMPLETED, TASK_REPORTED, TASK_RECOVERED,
     TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING,
     name="status_type"
+)
+
+task_type = Enum(
+    TYPE_REGULAR, TYPE_EXPERIMENT, name="task_type"
 )
 
 # Secondary table used in association Machine - Tag.
@@ -60,6 +68,13 @@ tasks_tags = Table(
     "tasks_tags", Base.metadata,
     Column("task_id", Integer, ForeignKey("tasks.id")),
     Column("tag_id", Integer, ForeignKey("tags.id"))
+)
+
+# Secondary table used to keep track of what targets belong to what tasks
+tasks_targets = Table(
+    "tasks_targets", Base.metadata,
+    Column("task_id", Integer(), ForeignKey("tasks.id")),
+    Column("targets_id", Integer(), ForeignKey("targets.id"))
 )
 
 class JsonType(TypeDecorator):
@@ -91,12 +106,11 @@ class Machine(Base):
     label = Column(String(255), nullable=False)
     ip = Column(String(255), nullable=False)
     platform = Column(String(255), nullable=False)
-    tags = relationship("Tag", secondary=machines_tags, single_parent=True,
-                        backref="machine")
     options = Column(JsonTypeList255(), nullable=True)
     interface = Column(String(255), nullable=True)
     snapshot = Column(String(255), nullable=True)
     locked = Column(Boolean(), nullable=False, default=False)
+    locked_by = Column(Integer(), nullable=True)
     locked_changed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(String(255), nullable=True)
     status_changed_on = Column(DateTime(timezone=False), nullable=True)
@@ -104,6 +118,9 @@ class Machine(Base):
     resultserver_port = Column(Integer(), nullable=False)
     _rcparams = Column("rcparams", Text(), nullable=True)
     manager = Column(String(255), nullable=True)
+    tags = relationship(
+        "Tag", secondary=machines_tags, single_parent=True, backref="machine"
+    )
 
     def __repr__(self):
         return "<Machine('{0}','{1}')>".format(self.id, self.name)
@@ -193,24 +210,39 @@ class Submit(Base):
         self.submit_type = submit_type
         self.data = data
 
-class Sample(Base):
-    """Submitted files details."""
-    __tablename__ = "samples"
+class Experiment(Base):
+    """Longterm analysis details"""
+    __tablename__ = "experiments"
 
     id = Column(Integer(), primary_key=True)
-    file_size = Column(Integer(), nullable=False)
-    file_type = Column(Text(), nullable=False)
+    added_on = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    machine = Column(String(255), nullable=True)
+    runs = Column(Integer(), nullable=False, server_default="1")
+    ran = Column(Integer(), nullable=False, server_default="0")
+    last_completed = Column(Integer(), nullable=True)
+
+class Target(Base):
+    """Submitted target details"""
+    __tablename__ = "targets"
+
+    id = Column(Integer(), primary_key=True)
+    file_size = Column(Integer(), nullable=True)
+    file_type = Column(Text(), nullable=True)
     md5 = Column(String(32), nullable=False)
     crc32 = Column(String(8), nullable=False)
     sha1 = Column(String(40), nullable=False)
     sha256 = Column(String(64), nullable=False)
     sha512 = Column(String(128), nullable=False)
     ssdeep = Column(String(255), nullable=True)
-    __table_args__ = Index("hash_index", "md5", "crc32", "sha1",
-                           "sha256", "sha512", unique=True),
+    category = Column(String(255), nullable=False)
+    target = Column(Text(), nullable=False)
+    last_task = Column(Integer(), nullable=True)
+    __table_args__ = Index(
+        "hash_index", "md5", "crc32", "sha1", "sha256", "sha512", unique=True
+    ),
 
     def __repr__(self):
-        return "<Sample('{0}','{1}')>".format(self.id, self.sha256)
+        return "<Target('{0}','{1}')>".format(self.id, self.sha256)
 
     def to_dict(self):
         """Converts object to dict.
@@ -227,16 +259,18 @@ class Sample(Base):
         """
         return json.dumps(self.to_dict())
 
-    def __init__(self, md5, crc32, sha1, sha256, sha512,
-                 file_size, file_type, ssdeep):
+    def __init__(self, target, category, md5, crc32, sha1, sha256, sha512,
+                 ssdeep=None, file_size=None, file_type=None):
+        self.target = target
+        self.category = category
         self.md5 = md5
-        self.sha1 = sha1
         self.crc32 = crc32
+        self.sha1 = sha1
         self.sha256 = sha256
         self.sha512 = sha512
+        self.ssdeep = ssdeep
         self.file_size = file_size
         self.file_type = file_type
-        self.ssdeep = ssdeep
 
 class Error(Base):
     """Analysis errors."""
@@ -268,49 +302,58 @@ class Error(Base):
         self.task_id = task_id
 
     def __repr__(self):
-        return "<Error('{0}','{1}','{2}')>".format(self.id, self.message, self.task_id)
+        return "<Error('{0}','{1}','{2}')>".format(
+            self.id, self.message, self.task_id
+        )
 
 class Task(Base):
     """Analysis task queue."""
     __tablename__ = "tasks"
 
     id = Column(Integer(), primary_key=True)
-    target = Column(Text(), nullable=False)
-    category = Column(String(255), nullable=False)
+    type = Column(task_type, server_default=TYPE_REGULAR, nullable=False)
     timeout = Column(Integer(), server_default="0", nullable=False)
     priority = Column(Integer(), server_default="1", nullable=False)
     custom = Column(Text(), nullable=True)
     owner = Column(String(64), nullable=True)
     machine = Column(String(255), nullable=True)
     package = Column(String(255), nullable=True)
-    tags = relationship("Tag", secondary=tasks_tags, single_parent=True,
-                        backref="task", lazy="subquery")
     _options = Column("options", Text(), nullable=True)
     platform = Column(String(255), nullable=True)
     memory = Column(Boolean, nullable=False, default=False)
     enforce_timeout = Column(Boolean, nullable=False, default=False)
-    clock = Column(DateTime(timezone=False),
-                   default=datetime.datetime.now,
-                   nullable=False)
-    added_on = Column(DateTime(timezone=False),
-                      default=datetime.datetime.now,
-                      nullable=False)
-    start_on = Column(DateTime(timezone=False), default=datetime.datetime.now,
-                      nullable=False)
+    clock = Column(
+        DateTime(timezone=False), default=datetime.datetime.now, nullable=False
+    )
+    added_on = Column(
+        DateTime(timezone=False), default=datetime.datetime.now, nullable=False
+    )
+    start_on = Column(
+        DateTime(timezone=False), default=datetime.datetime.now, nullable=False
+    )
     started_on = Column(DateTime(timezone=False), nullable=True)
     completed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(status_type, server_default=TASK_PENDING, nullable=False)
-    sample_id = Column(Integer, ForeignKey("samples.id"), nullable=True)
-    submit_id = Column(
-        Integer, ForeignKey("submit.id"), nullable=True, index=True
-    )
     processing = Column(String(16), nullable=True)
     route = Column(String(16), nullable=True)
-    sample = relationship("Sample", backref="tasks")
-    submit = relationship("Submit", backref="tasks")
+    submit_id = Column(
+        Integer(), ForeignKey("submit.id"), nullable=True, index=True
+    )
+    experiment_id = Column(
+        Integer(), ForeignKey("experiments.id"), nullable=True
+    )
+    tags = relationship(
+        "Tag", secondary=tasks_tags, single_parent=True, backref="task",
+        lazy="subquery"
+    )
+    targets = relationship(
+        "Target", secondary=tasks_targets, backref="task", lazy="subquery"
+    )
     errors = relationship(
         "Error", backref="tasks", cascade="save-update, delete"
     )
+    sample = relationship("Sample", backref="tasks")
+    submit = relationship("Submit", backref="tasks")
 
     def duration(self):
         if self.started_on and self.completed_on:
@@ -379,8 +422,7 @@ class Database(object):
 
     task_columns = {
         "id": Task.id,
-        "target": Task.target,
-        "category": Task.category,
+        "type": Task.type,
         "timeout": Task.timeout,
         "priority": Task.priority,
         "custom": Task.custom,
@@ -398,10 +440,10 @@ class Database(object):
         "started_on": Task.started_on,
         "completed_on": Task.completed_on,
         "status": Task.status,
-        "sample_id": Task.sample_id,
         "submit_id": Task.submit_id,
         "processing": Task.processing,
         "route": Task.route,
+        "experiment_id": Task.experiment_id
     }
 
     def __init__(self, schema_check=True, echo=False):
@@ -938,39 +980,74 @@ class Database(object):
         finally:
             session.close()
 
+    # @classlock
+    # def add_sample(self, file_obj):
+    #     """Add a new sample to the database.
+    #     @param file_obj: cuckoo.common.objects.File object of the sample
+    #     """
+    #     if not isinstance(file_obj, File):
+    #         log.error("Cannot store sample. %s is not a file object", file_obj)
+    #         return None
+    #
+    #     sample = Sample(
+    #         md5=file_obj.get_md5(),
+    #         crc32=file_obj.get_crc32(),
+    #         sha1=file_obj.get_sha1(),
+    #         sha256=file_obj.get_sha256(),
+    #         sha512=file_obj.get_sha512(),
+    #         file_size=file_obj.get_size(),
+    #         file_type=file_obj.get_type(),
+    #         ssdeep=file_obj.get_ssdeep()
+    #     )
+    #
+    #     session = self.Session()
+    #     try:
+    #         session.add(sample)
+    #         session.commit()
+    #         sample_id = sample.id
+    #     except SQLAlchemyError as e:
+    #         session.rollback()
+    #         log.debug("Database error storing new sample: %s", e)
+    #         return None
+    #     finally:
+    #         session.close()
+    #
+    #     return sample_id
+
     @classlock
-    def add_sample(self, file_obj):
-        """Add a new sample to the database.
-        @param file_obj: cuckoo.common.objects.File object of the sample
+    def add_target(self, target, category, crc32, md5, sha1, sha256, sha512,
+                   ssdeep=None, file_type=None, file_size=None):
+        """Add new target to the database
+        @param target: The target for this category(url for url, path for file)
+        @param category: url, file, archive
+        @param file_type: type of a file
+        @param file_size: Size in bytes of a file
         """
-        if not isinstance(file_obj, File):
-            log.error("Cannot store sample. %s is not a file object", file_obj)
-            return None
-
-        sample = Sample(
-            md5=file_obj.get_md5(),
-            crc32=file_obj.get_crc32(),
-            sha1=file_obj.get_sha1(),
-            sha256=file_obj.get_sha256(),
-            sha512=file_obj.get_sha512(),
-            file_size=file_obj.get_size(),
-            file_type=file_obj.get_type(),
-            ssdeep=file_obj.get_ssdeep()
-        )
-
         session = self.Session()
+        target = Target(
+            target=target,
+            category=category,
+            crc32=crc32,
+            md5=md5,
+            sha1=sha1,
+            sha256=sha256,
+            sha512=sha512,
+            ssdeep=ssdeep,
+            file_type=file_type,
+            file_size=file_size
+        )
         try:
-            session.add(sample)
+            session.add(target)
             session.commit()
-            sample_id = sample.id
+            session.expunge(target)
         except SQLAlchemyError as e:
             session.rollback()
-            log.debug("Database error storing new sample: %s", e)
+            log.debug("Database error storing new target: %s", e)
             return None
         finally:
             session.close()
 
-        return sample_id
+        return target
 
     # The following functions are mostly used by external utils.
     @classlock
@@ -1266,27 +1343,51 @@ class Database(object):
 
         return sample
 
+
+    # @classlock
+    # def find_sample(self, md5=None, sha256=None):
+    #     """Search samples by MD5.
+    #     @param md5: md5 string
+    #     @return: matches list
+    #     """
+    #     session = self.Session()
+    #     try:
+    #         if md5:
+    #             sample = session.query(Sample).filter_by(md5=md5).first()
+    #         elif sha256:
+    #             sample = session.query(Sample).filter_by(sha256=sha256).first()
+    #     except SQLAlchemyError as e:
+    #         log.debug("Database error searching sample: %s", e)
+    #         return None
+    #     else:
+    #         if sample:
+    #             session.expunge(sample)
+    #     finally:
+    #         session.close()
+    #     return sample
+
     @classlock
-    def find_sample(self, md5=None, sha256=None):
-        """Search samples by MD5.
-        @param md5: md5 string
-        @return: matches list
-        """
+    def find_target(self, **kwargs):
+        """Search target by any target field. Returns single target. None if
+        no matching target"""
         session = self.Session()
         try:
-            if md5:
-                sample = session.query(Sample).filter_by(md5=md5).first()
-            elif sha256:
-                sample = session.query(Sample).filter_by(sha256=sha256).first()
+            search = session.query(Target)
+            for arg, value in kwargs.iteritems():
+                search = search.filter_by(**{arg: value})
+
+            target = search.first()
+            if not target:
+                return None
+
+            session.expunge(target)
+            return target
+
         except SQLAlchemyError as e:
-            log.debug("Database error searching sample: %s", e)
+            log.debug("Database error searching for target: %s", e)
             return None
-        else:
-            if sample:
-                session.expunge(sample)
         finally:
             session.close()
-        return sample
 
     @classlock
     def count_samples(self):
