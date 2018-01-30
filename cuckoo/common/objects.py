@@ -68,69 +68,22 @@ class Dictionary(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-class URL:
-    """URL base object."""
-
-    def __init__(self, url):
-        """@param url: URL"""
-        self.url = url
-
-class File(object):
-    """Basic file object class with all useful utilities."""
+class Hashable(object):
     # Given that ssdeep hashes are not really used much in practice we're just
     # going to disable its warning by default for now.
     notified_pydeep = True
 
-    # The yara rules should not change during one Cuckoo run and as such we're
-    # caching 'em. This dictionary is filled during init_yara().
-    yara_rules = {}
-
-    def __init__(self, file_path, temporary=False):
-        """@param file_path: file path."""
-        self.file_path = file_path
-        self.temporary = temporary
-
-        # these will be populated when first accessed
-        self._file_data = None
+    def __init__(self):
+        # These will be populated when first accessed
         self._crc32 = None
         self._md5 = None
         self._sha1 = None
         self._sha256 = None
         self._sha512 = None
 
-    def __del__(self):
-        self.temporary and os.unlink(self.file_path)
-
-    def get_name(self):
-        """Get file name.
-        @return: file name.
-        """
-        file_name = os.path.basename(self.file_path)
-        return file_name
-
-    def valid(self):
-        return (
-            self.file_path and
-            os.path.exists(self.file_path) and
-            os.path.isfile(self.file_path) and
-            os.path.getsize(self.file_path) != 0
-        )
-
-    def get_data(self):
-        """Read file contents.
-        @return: data.
-        """
-        return self.file_data
-
     def get_chunks(self):
-        """Read file contents in chunks (generator)."""
-
-        with open(self.file_path, "rb") as fd:
-            while True:
-                chunk = fd.read(FILE_CHUNK_SIZE)
-                if not chunk:
-                    break
-                yield chunk
+        """Read contents in chunks (generator)."""
+        raise NotImplementedError
 
     def calc_hashes(self):
         """Calculate all possible hashes for this file."""
@@ -153,18 +106,6 @@ class File(object):
         self._sha1 = sha1.hexdigest()
         self._sha256 = sha256.hexdigest()
         self._sha512 = sha512.hexdigest()
-
-    @property
-    def file_data(self):
-        if not self._file_data:
-            self._file_data = open(self.file_path, "rb").read()
-        return self._file_data
-
-    def get_size(self):
-        """Get file size.
-        @return: file size.
-        """
-        return os.path.getsize(self.file_path)
 
     def get_crc32(self):
         """Get CRC32.
@@ -212,8 +153,8 @@ class File(object):
         @return: SSDEEP.
         """
         if not HAVE_PYDEEP:
-            if not File.notified_pydeep:
-                File.notified_pydeep = True
+            if not Hashable.notified_pydeep:
+                Hashable.notified_pydeep = True
                 log.warning("Unable to import pydeep (install with `pip install pydeep`)")
             return None
 
@@ -221,6 +162,77 @@ class File(object):
             return pydeep.hash_file(self.file_path)
         except Exception:
             return None
+
+class URL(Hashable):
+    """URL base object."""
+
+    def __init__(self, url):
+        """@param url: URL"""
+        super(URL, self).__init__()
+
+        self.url = url
+
+    def get_chunks(self):
+        yield self.url
+
+class File(Hashable):
+    """Basic file object class with all useful utilities."""
+    # The yara rules should not change during one Cuckoo run and as such we're
+    # caching 'em. This dictionary is filled during init_yara().
+    yara_rules = {}
+
+    def __init__(self, file_path, temporary=False):
+        """@param file_path: file path."""
+        super(File, self).__init__()
+
+        self.file_path = file_path
+        self.temporary = temporary
+
+        # these will be populated when first accessed
+        self._file_data = None
+
+    def __del__(self):
+        self.temporary and os.unlink(self.file_path)
+
+    def get_name(self):
+        """Get file name.
+        @return: file name.
+        """
+        file_name = os.path.basename(self.file_path)
+        return file_name
+
+    def valid(self):
+        return os.path.exists(self.file_path) and \
+            os.path.isfile(self.file_path) and \
+            os.path.getsize(self.file_path) != 0
+
+    def get_data(self):
+        """Read file contents.
+        @return: data.
+        """
+        return self.file_data
+
+    def get_chunks(self):
+        """Read file contents in chunks (generator)."""
+
+        with open(self.file_path, "rb") as fd:
+            while True:
+                chunk = fd.read(FILE_CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+
+    @property
+    def file_data(self):
+        if not self._file_data:
+            self._file_data = open(self.file_path, "rb").read()
+        return self._file_data
+
+    def get_size(self):
+        """Get file size.
+        @return: file size.
+        """
+        return os.path.getsize(self.file_path)
 
     def get_type(self):
         """Get MIME file type.

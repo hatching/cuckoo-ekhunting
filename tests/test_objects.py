@@ -12,7 +12,7 @@ import tempfile
 
 from cuckoo.common.files import Files
 from cuckoo.common.objects import (
-    Dictionary, File, Archive, Buffer, YaraMatch, URL_REGEX, Analysis
+    Dictionary, File, Archive, Buffer, YaraMatch, URL_REGEX, Analysis, URL
 )
 from cuckoo.core.startup import init_yara
 from cuckoo.main import cuckoo_create
@@ -85,6 +85,33 @@ class TestFile(object):
     def test_get_all_keys(self):
         for key in ["name", "size", "crc32", "md5", "sha1", "sha256", "sha512", "ssdeep", "type"]:
             assert key in self.file.get_all()
+
+class TestURL(object):
+    def setup(self):
+        self.url = URL("http://example.com/example.php")
+
+    def test_get_crc32(self):
+        assert "415BE76E" == self.url.get_crc32()
+
+    def test_get_md5(self):
+        assert "aebfa7666efecfe3ec9fab353f27e04a" == self.url.get_md5()
+
+    def test_get_sha1(self):
+        assert "dbf7661e97bea89c4bf393343c509e9840de891a" == self.url.get_sha1()
+
+    def test_get_sha256(self):
+        assert "9e7d9ee7d7318a138a294e70b19c1ee2643b7f9e447d5f0d0c9d119654352398" == self.url.get_sha256()
+
+    def test_get_sha512(self):
+        assert "1eb9d6e3cc3eb90b9e1daf8574b0000e66c367127c18f0fb11478f307ab52b08521d147efab0646bd4e026e746e7b77f2d584b91408a63616e3207d9f2cd8506" == self.url.get_sha512()
+
+    def test_get_ssdeep(self):
+        try:
+            import pydeep
+            assert self.url.get_ssdeep() is not None
+            pydeep  # Fake usage.
+        except ImportError:
+            assert self.url.get_ssdeep() is None
 
 class TestMagic(object):
     def test_magic1(self):
