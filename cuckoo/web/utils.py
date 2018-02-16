@@ -111,6 +111,14 @@ def dropped_filepath(task_id, sha1):
             return dropped["path"]
 
 def normalize_task(task):
+    if task["targets"]:
+        target = task["targets"][0]
+        task["category"] = target["category"]
+        task["target"] = target["target"]
+    else:
+        task["category"] = ""
+        task["target"] = ""
+
     if task["category"] == "file":
         task["target"] = os.path.basename(task["target"])
     elif task["category"] == "url":

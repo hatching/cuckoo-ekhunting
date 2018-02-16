@@ -57,18 +57,17 @@ class AnalysisApi(object):
         ):
             task = row.to_dict()
 
-            # Sanitize the target in case it contains non-ASCII characters as we
-            # can't pass along an encoding to flask's jsonify().
-            task["target"] = task["target"].decode("latin-1")
-
             task["errors"] = []
             for error in row.errors:
                 task["errors"].append(error.message)
 
+            task["target"] = ""
             task["sample"] = {}
-            if row.sample_id:
-                sample = db.view_sample(row.sample_id)
-                task["sample"] = sample.to_dict()
+            if row.targets:
+                # Sanitize the target in case it contains non-ASCII characters
+                # as we can't pass along an encoding to flask's jsonify().
+                task["target"] = row.targets[0].decode("latin-1")
+                task["sample"] = row.targets[0].to_dict()
 
             data["tasks"].append(task)
 
@@ -478,7 +477,15 @@ class AnalysisApi(object):
         )
         id_list = []
         for row in taskslist:
-            tasks.append(row.to_dict())
+            task = row.to_dict()
+            # For backwards compatibility until web deals with target lists
+            # TODO Remove
+            if row.targets:
+                target = row.targets[0].target
+                task["target"] = target.decode("latin-1")
+                task["category"] = target.category
+
+            tasks.append(task)
             id_list.append(row.id)
 
         response = {

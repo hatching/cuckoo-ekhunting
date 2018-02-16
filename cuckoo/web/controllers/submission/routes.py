@@ -69,8 +69,9 @@ class SubmissionRoutes(object):
 
     @staticmethod
     def resubmit(request, task_id):
-        task = Database().view_task(task_id)
-        if not task:
+        task = Task()
+
+        if not task.load_from_db(task_id):
             return view_error(request, "No Task was found with this ID")
 
         if task.category == "url":

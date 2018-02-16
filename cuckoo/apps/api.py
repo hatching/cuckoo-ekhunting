@@ -78,7 +78,7 @@ def tasks_create_file():
     enforce_timeout = parse_bool(request.form.get("enforce_timeout", 0))
 
     content = data.read()
-    if unique and db.find_sample(sha256=hashlib.sha256(content).hexdigest()):
+    if unique and db.find_target(sha256=hashlib.sha256(content).hexdigest()):
         return json_error(400, "This file has already been submitted")
 
     temp_file_path = Files.temp_named_put(content, data.filename)
@@ -242,9 +242,10 @@ def tasks_list(limit=None, offset=None, sample_id=None):
             task["errors"].append(error.message)
 
         task["sample"] = {}
-        if row.sample_id:
-            sample = db.view_sample(row.sample_id)
-            task["sample"] = sample.to_dict()
+        task["target"] = ""
+        if row.targets:
+            task["sample"] = row.targets[0].to_dict()
+            task["target"] = row.targets[0].target
 
         response["tasks"].append(task)
 
@@ -266,9 +267,10 @@ def tasks_view(task_id):
         entry["errors"].append(error.message)
 
     entry["sample"] = {}
-    if task.sample_id:
-        sample = db.view_sample(task.sample_id)
-        entry["sample"] = sample.to_dict()
+    entry["target"] = ""
+    if task.targets:
+        entry["sample"] = task.targets[0].to_dict()
+        entry["target"] = task.targets[0].target
 
     response["task"] = entry
     return jsonify(response)
@@ -440,11 +442,11 @@ def files_view(md5=None, sha256=None, sample_id=None):
     response = {}
 
     if md5:
-        sample = db.find_sample(md5=md5)
+        sample = db.find_target(md5=md5)
     elif sha256:
-        sample = db.find_sample(sha256=sha256)
+        sample = db.find_target(sha256=sha256)
     elif sample_id:
-        sample = db.view_sample(sample_id)
+        sample = db.find_target(id=sample_id)
     else:
         return json_error(400, "Invalid lookup term")
 

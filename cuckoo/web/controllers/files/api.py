@@ -20,11 +20,11 @@ class FilesApi:
         data = {}
 
         if md5:
-            sample = db.find_sample(md5=md5)
+            sample = db.find_target(md5=md5)
         elif sha256:
-            sample = db.find_sample(sha256=sha256)
+            sample = db.find_target(sha256=sha256)
         elif sample_id:
-            sample = db.view_sample(sample_id)
+            sample = db.view_target(id=sample_id)
         else:
             return json_fatal_response("Invalid lookup term")
 
