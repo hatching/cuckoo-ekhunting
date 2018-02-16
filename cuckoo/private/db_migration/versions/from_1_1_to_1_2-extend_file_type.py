@@ -18,7 +18,9 @@ down_revision = "263a45963c72"
 from alembic import op
 import sqlalchemy as sa
 
-from cuckoo.core.database import Database, Sample
+from cuckoo.core.database import Database
+
+Base = sa.ext.declarative.declarative_base()
 
 def upgrade():
     conn = op.get_bind()
@@ -93,3 +95,17 @@ def upgrade():
 
 def downgrade():
     pass
+
+
+class Sample(Base):
+    """Submitted files details."""
+    __tablename__ = "samples"
+    id = sa.Column(sa.Integer(), primary_key=True)
+    file_size = sa.Column(sa.Integer(), nullable=False)
+    file_type = sa.Column(sa.Text(), nullable=False)
+    md5 = sa.Column(sa.String(32), nullable=False)
+    crc32 = sa.Column(sa.String(8), nullable=False)
+    sha1 = sa.Column(sa.String(40), nullable=False)
+    sha256 = sa.Column(sa.String(64), nullable=False)
+    sha512 = sa.Column(sa.String(128), nullable=False)
+    ssdeep = sa.Column(sa.String(255), nullable=True)
