@@ -43,11 +43,14 @@ class Scheduler(object):
         # starting at the same time.
         self.machine_lock = threading.Semaphore(max_vmstartup)
 
-        log.info("Using \"%s\" as machine manager", machinery_name, extra={
-            "action": "init.machinery",
-            "status": "success",
-            "machinery": machinery_name,
-        })
+        log.info(
+            "Using '%s' as machine manager", machinery_name,
+            extra={
+                "action": "init.machinery",
+                "status": "success",
+                "machinery": machinery_name,
+            }
+        )
 
         # Create the machine manager
         self.machinery = cuckoo.machinery.plugins[machinery_name]()
@@ -68,24 +71,30 @@ class Scheduler(object):
         if not machines:
             raise CuckooCriticalError("No machines available.")
 
-        log.info("Loaded %s machine/s", len(machines), extra={
-            "action": "init.machines",
-            "status": "success",
-            "count": len(machines),
-        })
+        log.info(
+            "Loaded %s machine/s", len(machines),
+            extra={
+                "action": "init.machines",
+                "status": "success",
+                "count": len(machines)
+            }
+        )
 
         if len(machines) > 1 and self.db.engine.name == "sqlite":
-            log.warning("As you've configured Cuckoo to execute parallel "
-                        "analyses, we recommend you to switch to a MySQL or "
-                        "a PostgreSQL database as SQLite might cause some "
-                        "issues.")
+            log.warning(
+                "As you've configured Cuckoo to execute parallel "
+                "analyses, we recommend you to switch to a MySQL or"
+                "a PostgreSQL database as SQLite might cause some "
+                "issues."
+            )
 
         if len(machines) > 4 and config("cuckoo:cuckoo:process_results"):
-            log.warning("When running many virtual machines it is recommended "
-                        "to process the results in separate 'cuckoo process' "
-                        "instances increase throughput and stability."
-                        " Please read the documentation about the "
-                        "`Processing Utility`.")
+            log.warning(
+                "When running many virtual machines it is recommended to "
+                "process the results in separate 'cuckoo process' instances "
+                "increase throughput and stability. Please read the "
+                "documentation about the `Processing Utility`."
+            )
 
         self.drop_forwarding_rules()
 
@@ -99,12 +108,14 @@ class Scheduler(object):
         have thus not been dropped yet."""
         for machine in self.machinery.machines():
             if not machine.interface:
-                log.info("Unable to determine the network interface for VM "
-                         "with name %s, Cuckoo will not be able to give it "
-                         "full internet access or route it through a VPN! "
-                         "Please define a default network interface for the "
-                         "machinery or define a network interface for each "
-                         "VM.", machine.name)
+                log.info(
+                    "Unable to determine the network interface for VM "
+                     "with name %s, Cuckoo will not be able to give it "
+                     "full internet access or route it through a VPN! "
+                     "Please define a default network interface for the "
+                     "machinery or define a network interface for each "
+                     "VM.", machine.name
+                )
                 continue
 
             # Drop forwarding rule to each VPN.
@@ -123,7 +134,7 @@ class Scheduler(object):
                 )
 
     def stop(self):
-        """Stop scheduler."""
+        """Stop the Cuckoo task scheduler."""
         self.running = False
         # Shutdown machine manager (used to kill machines that still alive).
         self.machinery.shutdown()
@@ -211,7 +222,7 @@ class Scheduler(object):
         """Handles pending tasks. Checks if a new task can be started. Eg:
         not too many machines already running, disk space left etc. Selects a
         machine matching the task requirements and creates
-        a matching analysis manager for the category of the selected pending
+        a matching analysis manager for the type of the selected pending
         task"""
         # Acquire machine lock non-blocking. This is because the scheduler
         # also handles requests made by analysis manager. A blocking lock
@@ -220,9 +231,22 @@ class Scheduler(object):
             return
 
         # Select task that is specifically for one of the available machines
-        # possibly a service machine
+        # possibly a service machine or reserved machine
         machine, task, analysis = None, None, False
         for available_machine in self.db.get_available_machines():
+
+            # If the machine has been reserved for a specific task, this
+            # task should be processed first, as the machine will only be
+            # released it has finished (Example: Experiment task).
+            if available_machine.reserved_by:
+                task = self.db.fetch(task_id=available_machine.reserved_by)
+                if task:
+                    machine = self.machinery.acquire(
+                        machine_id=available_machine.name
+                    )
+                    break
+                continue
+
             task = self.db.fetch(machine=available_machine.name)
             if task:
                 machine = self.machinery.acquire(
@@ -291,11 +315,11 @@ class Scheduler(object):
         )
 
         # Task and matching machine found. Find analysis manager
-        # which supports the category of this task. Lock it when found
+        # which supports the type of this task. Lock it when found
         analysis_manager = self.get_analysis_manager(task, machine)
 
         if not analysis_manager:
-            # If no analysis manager is found for this task category, it
+            # If no analysis manager is found for this task type, it
             # cannot be started, therefore we release the machine again
             self.machinery.release(label=machine.label)
 
@@ -326,24 +350,21 @@ class Scheduler(object):
 
     def get_analysis_manager(self, db_task, machine):
         """Searches all available analysis managers for one
-        that supports the category of the given task. Returns an
-        analysis manager. Returns None if no manager supports the category"""
+        that supports the type of the given task. Returns an
+        analysis manager. Returns None if no manager supports the type"""
 
         managers = cuckoo.analysis.plugins
         analysis_manager = None
         for manager in managers:
-            if db_task.category in manager.supports:
-                core_task = Task(db_task)
-                sample = None
+            if db_task.type in manager.supports:
 
-                # Check if this task is a file
-                if core_task.is_file:
-                    sample = self.db.view_sample(db_task.sample_id)
+                core_task = Task(db_task)
 
                 analysis_manager = manager(
                     machine, self.machinery, self.machine_lock
                 )
-                analysis_manager.set_task(core_task, sample)
+                analysis_manager.set_task(core_task)
+                analysis_manager.set_target(core_task.targets)
                 break
 
         return analysis_manager
@@ -388,6 +409,7 @@ class Scheduler(object):
         return self.running
 
     def start(self):
+        """Start the Cuckoo task scheduler"""
         self.initialize()
 
         log.info("Waiting for analysis tasks")
