@@ -15,7 +15,6 @@ import subprocess
 import sys
 import tarfile
 import time
-import traceback
 
 from cuckoo.common.colors import bold, red, yellow
 from cuckoo.common.config import emit_options, Config
@@ -25,7 +24,7 @@ from cuckoo.common.exceptions import (
 )
 from cuckoo.common.mongo import mongo
 from cuckoo.common.objects import File
-from cuckoo.common.utils import to_unicode
+from cuckoo.common.utils import to_unicode, json_decode
 from cuckoo.core.database import (
     Database, TASK_PENDING, TASK_FAILED_PROCESSING, TASK_REPORTED
 )
@@ -33,6 +32,7 @@ from cuckoo.core.init import write_cuckoo_conf
 from cuckoo.core.log import task_log_start, task_log_stop, logger
 from cuckoo.core.startup import init_console_logging
 from cuckoo.core.task import Task
+from cuckoo.core.target import Target
 from cuckoo.misc import cwd, mkdir
 
 log = logging.getLogger(__name__)
@@ -194,7 +194,7 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
             if not remote:
                 if is_unique:
                     sha256 = File(filepath).get_sha256()
-                    if db.find_sample(sha256=sha256):
+                    if db.find_target(sha256=sha256):
                         log.info(
                             "File \"%s\" has already been analyzed", filepath
                         )
@@ -224,13 +224,17 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
 
 def process_task(task):
     db = Database()
-
     task_log_start(task.id)
+
+    if task.targets:
+        target = task.targets[0]
+    else:
+        target = Target()
 
     logger(
         "Starting task reporting",
         action="task.report", status="pending",
-        target=task["target"], category=task["category"],
+        target=target.target, category=target.category,
         package=task["package"], options=emit_options(task["options"]),
         custom=task["custom"]
     )
@@ -288,14 +292,20 @@ def process_task_range(tasks):
         db_task = db.view_task(task_id)
         task = Task()
         if not db_task:
-            task.load_task_dict({
-                "id": task_id,
-                "category": "file",
-                "target": "",
-                "options": {},
-                "package": None,
-                "custom": None,
-            })
+            task_json = cwd("task.json", analysis=task_id)
+            if os.path.isfile(task_json):
+                task_dict = json_decode(open(task_json, "rb").read())
+            else:
+                task_dict = {
+                    "id": task_id,
+                    "category": "file",
+                    "target": "",
+                    "options": {},
+                    "package": None,
+                    "custom": None,
+                }
+
+            task.load_task_dict(task_dict)
         else:
             task.set_task(db_task)
 
