@@ -18,6 +18,7 @@ import tempfile
 import threading
 import zipfile
 
+from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.whitelist import is_whitelisted_domain
 
 try:
@@ -435,6 +436,24 @@ class File(Hashable):
         infos["yara"] = self.get_yara()
         infos["urls"] = self.get_urls()
         return infos
+
+    def read(self):
+        """Returns file contents"""
+        try:
+            return open(self.file_path, "rb").read()
+        except (IOError, OSError) as e:
+            raise CuckooOperationalError(
+                "Error reading file %s. Error: %s" % (self.file_path, e)
+            )
+
+    def get_filepointer(self, mode="rb"):
+        """Get a file pointer with mode"""
+        try:
+            return open(self.file_path, mode)
+        except (IOError, OSError) as e:
+            raise CuckooOperationalError(
+                "Error opening file %s. Error: %s" % (self.file_path, e)
+            )
 
 class Archive(object):
     def __init__(self, filepath):
