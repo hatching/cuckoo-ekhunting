@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Cuckoo Foundation.
+# Copyright (C) 2017-2018 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -14,23 +14,22 @@ from cuckoo.common.config import config
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.files import Folders, Files
 from cuckoo.common.objects import Dictionary, File, URL
+from cuckoo.common.utils import get_directory_size, json_default, json_encode
 from cuckoo.core.database import Database, TASK_RECOVERED
 from cuckoo.core.plugins import RunProcessing, RunSignatures, RunReporting
+from cuckoo.core.target import Target
 from cuckoo.misc import cwd
-from cuckoo.common.utils import get_directory_size, json_default, json_encode
 
 log = logging.getLogger(__name__)
 db = Database()
 
 class Task(object):
 
-    files = ["file", "archive"]
     dirs = ["shots", "logs", "files", "extracted", "buffer", "memory"]
     latest_symlink_lock = threading.Lock()
 
     def __init__(self, db_task=None):
         self.db_task = None
-        self.copied_binary = None
         self.task_dict = {}
 
         if db_task:
@@ -41,17 +40,22 @@ class Task(object):
         @param db_task: Task Db object"""
         self.db_task = db_task
         self.path = cwd(analysis=db_task.id)
-        self.is_file = db_task.category in Task.files
         self.task_dict = db_task.to_dict()
-        self._read_symlink()
+        self.task_dict["targets"] = [
+            Target(db_target) for db_target in self.db_task.targets
+        ]
+        # For backwards compatibility, load these two attributes
+        # TODO Remove when processing and reporting changes
+        if self.task_dict["targets"]:
+            self.task_dict["target"] = self.task_dict["targets"][0].target
+            self.task_dict["category"] = self.task_dict["targets"][0].category
 
     def load_task_dict(self, task_dict):
         """Load all dict key values as attributes to the object"""
         # Cast to Cuckoo dictionary, so keys can be accessed as attributes
         self.task_dict = Dictionary(task_dict)
         self.path = cwd(analysis=task_dict["id"])
-        self.is_file = task_dict["category"] in Task.files
-        self._read_symlink()
+
 
     def load_from_db(self, task_id):
         """Load task from id. Returns True of success, False otherwise"""
@@ -66,7 +70,8 @@ class Task(object):
         """Create task directory and copy files to binary folder"""
         log.debug("Creating directories for task #%s", self.id)
         self.create_dirs()
-        self.bin_copy_and_symlink()
+        if self.targets:
+            self.targets[0].symlink_to_task(self.id)
 
     def create_dirs(self):
         """Create the folders for this analysis. Returns True if
@@ -84,42 +89,6 @@ class Task(object):
                 return False
 
         return True
-
-    def bin_copy_and_symlink(self):
-        """Create a copy of the submitted sample to the binaries directory
-        and create a symlink to it in the task folder
-
-        @param copyto: overwrite the default copy location. Default is
-        the binaries folder in the cwd. File name will be the sha256 hash of
-        the file
-        """
-        symlink = os.path.join(self.path, "binary")
-        if not self.is_file or os.path.exists(symlink):
-            return
-
-        if not os.path.exists(self.target):
-            log.error(
-                "Original binary '%s' for task #%s does not exist",
-                self.target, self.id
-            )
-            return
-
-        copy_to = cwd("storage", "binaries", File(self.target).get_sha256())
-
-        if not os.path.exists(copy_to):
-            Files.copy(self.target, copy_to)
-            self.copied_binary = copy_to
-
-        try:
-            Files.symlink_or_copy(copy_to, symlink)
-        except OSError as e:
-            log.error(
-                "Failed to create symlink in task folder #%s to file %s."
-                " Error: %s", self.id, copy_to, e
-            )
-
-        # Update copied binary path attribute
-        self._read_symlink()
 
     def set_latest(self):
         """Create a symlink called 'latest' pointing to this analysis
@@ -139,57 +108,9 @@ class Task(object):
         finally:
             self.latest_symlink_lock.release()
 
-    def _read_symlink(self):
-        """Use the 'binary' symlink in the task folder to read the
-        path of the copy of the sample"""
-        symlink = os.path.join(self.path, "binary")
-        if not os.path.exists(symlink):
-            return
-
-        self.copied_binary = os.path.realpath(symlink)
-
-    def delete_original_sample(self):
-        """Delete the original sample file for this task. This is the location
-        of where the file was submitted from"""
-        if not self.target:
-            return
-
-        if not os.path.isfile(self.target):
-            log.warning(
-                "Cannot delete original file '%s'. It does not exist anymore",
-                self.target
-            )
-            return
-
-        try:
-            os.remove(self.target)
-        except OSError as e:
-            log.error(
-                "Failed to delete original file at path '%s' Error: %s",
-                self.target, e
-            )
-
-    def delete_copied_sample(self):
-        """Delete the copy of the sample, which is stored in the working
-        directory binaries folder. Also removes the symlink to this file"""
-        if not os.path.exists(self.copied_binary):
-            log.warning(
-                "Cannot delete copied file '%s'. It does not exist anymore",
-                self.copied_binary
-            )
-            return
-
-        try:
-            os.remove(self.copied_binary)
-        except OSError as e:
-            log.error(
-                "Failed to delete copied file at path '%s' Error: %s",
-                self.copied_binary, e
-            )
-            return
-
+    def delete_binary_symlink(self):
         # If the copied binary was deleted, also delete the symlink to it
-        symlink = os.path.join(self.path, "binary")
+        symlink = cwd("binary", analysis=self.id)
         if os.path.islink(symlink):
             try:
                 os.remove(symlink)
@@ -213,6 +134,14 @@ class Task(object):
         """Change task to JSON and write it to disk"""
         path = os.path.join(self.path, "task.json")
         dump = self.db_task.to_dict()
+
+        # For backwards compatibility, add these to task json.
+        # TODO: Remove when processing and reporting change
+        dump.update({
+            "category": self.category,
+            "target": self.target
+        })
+
         if kwargs:
             dump.update(kwargs)
 
@@ -226,10 +155,12 @@ class Task(object):
         RunReporting(task=self.task_dict, results=results).run()
 
         if config("cuckoo:cuckoo:delete_original"):
-            self.delete_original_sample()
+            for target in self.targets:
+                target.delete_original()
 
         if config("cuckoo:cuckoo:delete_bin_copy"):
-            self.delete_copied_sample()
+            for target in self.targets:
+                target.delete_copy()
 
         return True
 
@@ -248,9 +179,9 @@ class Task(object):
 
         return ret
 
-    def add(self, obj, timeout=0, package="", options="", priority=1,
+    def add(self, targets=[], timeout=0, package="", options="", priority=1,
             custom="", owner="", machine="", platform="", tags=None,
-            memory=False, enforce_timeout=False, clock=None, category=None,
+            memory=False, enforce_timeout=False, clock=None, task_type=None,
             submit_id=None, start_on=None):
         """Create new task
         @param obj: object to add (File or URL).
@@ -266,6 +197,7 @@ class Task(object):
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
+        @param task_type: The type of task: regular, experiment, other type
         @return: task id or None.
         """
         # Convert empty strings and None values to a valid int
@@ -283,25 +215,6 @@ class Task(object):
                 log.error("'start on' format should be: 'YYYY-M-D H:M'")
                 return None
 
-        sample_id = None
-        if category in self.files and isinstance(obj, File):
-
-            sample = db.find_sample(sha256=obj.get_sha256())
-            if not sample:
-                sample_id = db.add_sample(obj)
-            else:
-                sample_id = sample.id
-            if not sample_id:
-                log.error("Failed to add sample to database")
-                return None
-
-            target = obj.file_path
-
-        elif isinstance(obj, URL):
-            target = obj.url
-        else:
-            target = "none"
-
         if clock:
             if isinstance(clock, basestring):
                 dfmt = "%m-%d-%Y %H:%M:%S"
@@ -315,11 +228,11 @@ class Task(object):
                     clock = datetime.datetime.now()
 
         task = db.add(
-            target, timeout=timeout, package=package, options=options,
+            targets, timeout=timeout, package=package, options=options,
             priority=priority, custom=custom, owner=owner, machine=machine,
             platform=platform, tags=self.get_tags_list(tags), memory=memory,
-            enforce_timeout=enforce_timeout, clock=clock, category=category,
-            submit_id=submit_id, sample_id=sample_id, start_on=start_on
+            enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
+            submit_id=submit_id,  start_on=start_on
         )
 
         if not task:
@@ -335,7 +248,7 @@ class Task(object):
     def add_path(self, file_path, timeout=0, package="", options="",
                  priority=1, custom="", owner="", machine="", platform="",
                  tags=None, memory=False, enforce_timeout=False, clock=None,
-                 submit_id=None, start_on=None):
+                 submit_id=None, start_on=None, task_type="regular"):
         """Add a task to database from file path.
         @param file_path: sample path.
         @param timeout: selected timeout.
@@ -349,23 +262,31 @@ class Task(object):
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
+        @param task_type: The type of task: regular, experiment, other type
         @return: task id or None
         """
-        if not file_path or not os.path.exists(file_path):
-            log.error("File does not exist: %s.", file_path)
+        if not file_path:
+            log.error("No file path given to analyze, cannot create task")
+            return None
+
+        target = Target()
+        if not target.create_file(file_path):
+            log.error("New task creation failed, could not create target")
             return None
 
         return self.add(
-            File(file_path), timeout, package, options, priority, custom,
-            owner, machine, platform, tags, memory, enforce_timeout, clock,
-            "file", submit_id, start_on
+            targets=[target.db_target], timeout=timeout, package=package,
+            options=options, priority=priority, custom=custom, owner=owner,
+            machine=machine, platform=platform, tags=tags, memory=memory,
+            enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
+            submit_id=submit_id, start_on=start_on
         )
 
     def add_archive(self, file_path, filename, package, timeout=0,
                     options=None, priority=1, custom="", owner="", machine="",
                     platform="", tags=None, memory=False,
                     enforce_timeout=False, clock=None, submit_id=None,
-                    start_on=None):
+                    start_on=None, task_type="regular"):
         """Add a task to the database that's packaged in an archive file.
         @param file_path: path to archive
         @param filename: name of file in archive
@@ -382,23 +303,30 @@ class Task(object):
         @param clock: virtual machine clock time
         @return: task id or None.
         """
-        if not file_path or not os.path.exists(file_path):
-            log.error("File does not exist: %s.", file_path)
+        if not file_path:
+            log.error("No file path given to analyze, cannot create task")
             return None
 
         options = options or {}
         options["filename"] = filename
 
+        target = Target()
+        if not target.create_archive(file_path):
+            log.error("New task creation failed, could not create target")
+            return None
+
         return self.add(
-            File(file_path), timeout, package, options, priority, custom,
-            owner, machine, platform, tags, memory, enforce_timeout, clock,
-            "archive", submit_id, start_on
+            targets=[target.db_target], timeout=timeout, package=package,
+            options=options, priority=priority, custom=custom, owner=owner,
+            machine=machine, platform=platform, tags=tags, memory=memory,
+            enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
+            submit_id=submit_id, start_on=start_on
         )
 
     def add_url(self, url, timeout=0, package="", options="", priority=1,
                 custom="", owner="", machine="", platform="", tags=None,
                 memory=False, enforce_timeout=False, clock=None,
-                submit_id=None, start_on=None):
+                submit_id=None, start_on=None, task_type="regular"):
         """Add a task to database from url.
         @param url: url.
         @param timeout: selected timeout.
@@ -415,15 +343,26 @@ class Task(object):
         @param clock: virtual machine clock time
         @return: task id or None.
         """
+        if not url:
+            log.error("No URL given, cannot create task")
+            return None
+
+        target = Target()
+        if not target.create_url(url):
+            log.error("New task creation failed, could not create target")
+
         return self.add(
-            URL(url), timeout, package, options, priority, custom, owner,
-            machine, platform, tags, memory, enforce_timeout, clock, "url",
-            submit_id, start_on
+            targets=[target.db_target], timeout=timeout, package=package,
+            options=options, priority=priority, custom=custom, owner=owner,
+            machine=machine, platform=platform, tags=tags, memory=memory,
+            enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
+            submit_id=submit_id, start_on=start_on
         )
 
     def add_reboot(self, task_id, timeout=0, options="", priority=1,
                    owner="", machine="", platform="", tags=None, memory=False,
-                   enforce_timeout=False, clock=None, submit_id=None):
+                   enforce_timeout=False, clock=None, submit_id=None,
+                   task_type="regular"):
         """Add a reboot task to database from an existing analysis.
         @param task_id: task id of existing analysis.
         @param timeout: selected timeout.
@@ -440,8 +379,7 @@ class Task(object):
         @return: task id or None.
         """
 
-        if not self.load_from_db(task_id) or not \
-                os.path.exists(self.copied_binary):
+        if not self.load_from_db(task_id):
             log.error(
                 "Unable to add reboot analysis as the original task or its "
                 "sample has already been deleted."
@@ -450,10 +388,25 @@ class Task(object):
 
         custom = "%s" % task_id
 
+        if not self.targets:
+            log.error(
+                "No target to reboot available to reboot task #%s", self.id
+            )
+            return None
+
+        target = self.targets[0]
+        if target.is_file and not target.copy_exists():
+            log.error(
+                "Target file no longer exists, cannot reboot task #%s", self.id
+            )
+            return None
+
         return self.add(
-            File(self.target), timeout, "reboot", options, priority, custom,
-            owner, machine, platform, tags, memory, enforce_timeout, clock,
-            "file", submit_id
+            targets=[target.db_target], timeout=timeout, package="reboot",
+            options=options, priority=priority, custom=custom, owner=owner,
+            machine=machine, platform=platform, tags=tags, memory=memory,
+            enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
+            submit_id=submit_id
         )
 
     def add_baseline(self, timeout=0, owner="", machine="", memory=False):
@@ -465,8 +418,8 @@ class Task(object):
         @return: task id or None.
         """
         return self.add(
-            None, timeout=timeout, priority=999, owner=owner, machine=machine,
-            memory=memory, category="baseline"
+            timeout=timeout, priority=999, owner=owner, machine=machine,
+            memory=memory, task_type="baseline"
         )
 
     def add_service(self, timeout, owner, tags):
@@ -477,14 +430,14 @@ class Task(object):
         @return: task id or None.
         """
         return self.add(
-            None, timeout=timeout, priority=999, owner=owner, tags=tags,
-            category="service"
+            timeout=timeout, priority=999, owner=owner, tags=tags,
+            task_type="service"
         )
 
     def reschedule(self, task_id=None, priority=None):
         """Reschedule this task or the given task
         @param task_id: task_id to reschedule
-        @param priority: overwrites the prority the task already has"""
+        @param priority: overwrites the priority the task already has"""
         if not self.db_task and not task_id:
             log.error(
                 "Task is None and no task_id provided Cannot reschedule"
@@ -495,28 +448,19 @@ class Task(object):
                 log.error("Failed to load task from id: %s", task_id)
                 return None
 
-        handlers = {
-            "file": self.add_path,
-            "url": self.add_url
-        }
-
-        add = handlers.get(self.category, None)
-        if not add:
-            log.error(
-                "Rescheduling task category %s not supported", self.category
-            )
-            return None
-
         priority = priority or self.priority
 
         # Change status to recovered
         db.set_status(self.id, TASK_RECOVERED)
 
-        return add(
-            self.target, self.timeout, self.package, self.options, priority,
-            self.custom, self.owner, self.machine, self.platform,
-            self.get_tags_list(self.tags), self.memory, self.enforce_timeout,
-            self.clock
+        return self.add(
+            targets=[target.db_target for target in self.targets],
+            timeout=self.timeout, package=self.package,
+            options=self.options, priority=priority, custom=self.custom,
+            owner=self.owner, machine=self.machine, platform=self.platform,
+            tags=self.tags, memory=self.memory,
+            enforce_timeout=self.enforce_timeout, clock=self.clock,
+            task_type=self.type,
         )
 
     @staticmethod
@@ -725,12 +669,20 @@ class Task(object):
         return self.task_dict.get("id")
 
     @property
+    def type(self):
+        return self.task_dict.get("type")
+
+    @property
     def target(self):
         return self.task_dict.get("target")
 
     @property
     def category(self):
         return self.task_dict.get("category")
+
+    @property
+    def targets(self):
+        return self.task_dict.get("targets")
 
     @property
     def timeout(self):
