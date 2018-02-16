@@ -167,7 +167,7 @@ def init_tasks():
             )
 
     log.debug("Checking for pending service tasks..")
-    for task in db.list_tasks(status=TASK_PENDING, category="service"):
+    for task in db.list_tasks(status=TASK_PENDING, type="service"):
         db.set_status(task.id, TASK_FAILED_ANALYSIS)
 
 def init_modules():
