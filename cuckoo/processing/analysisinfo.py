@@ -9,8 +9,6 @@ import logging
 from cuckoo.common.abstracts import Processing
 from cuckoo.common.config import emit_options
 from cuckoo.common.objects import File
-from cuckoo.common.utils import json_decode
-from cuckoo.core.database import Database, Task
 from cuckoo.misc import cwd, version
 
 log = logging.getLogger(__name__)
@@ -24,23 +22,6 @@ class AnalysisInfo(Processing):
         """
         self.key = "info"
 
-        db = Database()
-        dbtask = db.view_task(self.task["id"], details=True)
-
-        # Fetch the task.
-        if dbtask:
-            task = dbtask.to_dict()
-        else:
-            # Task is gone from the database.
-            if os.path.isfile(self.taskinfo_path):
-                # We've got task.json, so grab info from there.
-                task = json_decode(open(self.taskinfo_path).read())
-            else:
-                # We don't have any info on the task :(
-                emptytask = Task()
-                emptytask.id = self.task["id"]
-                task = emptytask.to_dict()
-
         # Get git head.
         if os.path.exists(cwd(".cwd")):
             git_head = git_fetch_head = open(cwd(".cwd"), "rb").read()
@@ -52,7 +33,7 @@ class AnalysisInfo(Processing):
             git_head = git_fetch_head = None
 
         # Monitor.
-        monitor = cwd("monitor", task["options"].get("monitor", "latest"))
+        monitor = cwd("monitor", self.task["options"].get("monitor", "latest"))
         if os.path.islink(monitor):
             monitor = os.readlink(monitor)
         elif os.path.isfile(monitor):
@@ -69,18 +50,18 @@ class AnalysisInfo(Processing):
                 "fetch_head": git_fetch_head,
             },
             monitor=monitor,
-            added=task.get("added_on"),
-            started=task["started_on"],
-            ended=task.get("completed_on", "none"),
-            duration=task.get("duration", -1),
-            id=int(task["id"]),
-            category=task["category"],
-            custom=task["custom"],
-            owner=task["owner"],
-            package=task["package"],
-            platform=task["platform"],
-            options=emit_options(task["options"]),
-            route=task["route"],
+            added=self.task.get("added_on"),
+            started=self.task["started_on"],
+            ended=self.task.get("completed_on", "none"),
+            duration=self.task.get("duration", -1),
+            id=int(self.task["id"]),
+            category=self.task["category"],
+            custom=self.task["custom"],
+            owner=self.task["owner"],
+            package=self.task["package"],
+            platform=self.task["platform"],
+            options=emit_options(self.task["options"]),
+            route=self.task["route"],
         )
 
 class MetaInfo(Processing):
