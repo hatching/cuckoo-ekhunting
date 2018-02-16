@@ -92,15 +92,16 @@ class OldGuestManager(object):
     virtual machine.
     """
 
-    def __init__(self, vm_id, ip, platform, task_id, analysis):
+    def __init__(self, vm_id, ip, platform, task, analysis, target):
         """@param ip: guest's IP address.
         @param platform: guest's operating system type.
         """
         self.id = vm_id
         self.ip = ip
         self.platform = platform
-        self.task_id = task_id
+        self.task = task
         self.analysis = analysis
+        self.target = target
 
         # initialized in start_analysis so we can update the critical timeout
         # TODO, pull options parameter into __init__ so we can do this here
@@ -194,15 +195,8 @@ class OldGuestManager(object):
                 )
 
             # If the target of the analysis is a file, upload it to the guest.
-            if options["category"] in ("file", "archive"):
-                try:
-                    file_data = open(options["target"], "rb").read()
-                except (IOError, OSError) as e:
-                    raise CuckooGuestError(
-                        "Unable to read %s, error: %s" %
-                        (options["target"], e)
-                    )
-
+            if self.target.category in ("file", "archive"):
+                file_data = self.target.helper.read()
                 data = xmlrpclib.Binary(file_data)
 
                 try:
@@ -267,20 +261,23 @@ class GuestManager(object):
     """This class represents the new Guest Manager. It operates on the new
     Cuckoo Agent which features a more abstract but more feature-rich API."""
 
-    def __init__(self, vmid, ipaddr, platform, task_id, analysis_manager,
-                 analysis):
+    def __init__(self, vmid, ipaddr, platform, task, analysis_manager,
+                 analysis, target):
         self.vmid = vmid
         self.ipaddr = ipaddr
         self.port = CUCKOO_GUEST_PORT
         self.platform = platform
-        self.task_id = task_id
+        self.task = task
         self.analysis_manager = analysis_manager
         self.analysis = analysis
+        self.target = target
         self.timeout = None
 
         # Just in case we have an old agent inside the Virtual Machine. This
         # allows us to remain backwards compatible (for now).
-        self.old = OldGuestManager(vmid, ipaddr, platform, task_id, analysis)
+        self.old = OldGuestManager(
+            vmid, ipaddr, platform, task, analysis, target
+        )
         self.is_old = False
 
         # We maintain the path of the Cuckoo Analyzer on the host.
@@ -491,14 +488,14 @@ class GuestManager(object):
         self.aux.callback("prepare_guest")
 
         # If the target is a file, upload it to the guest.
-        if options["category"] == "file" or options["category"] == "archive":
+        if self.target.category in ("file", "archive"):
             data = {
                 "filepath": os.path.join(
                     self.determine_temp_path(), options["file_name"]
                 ),
             }
             files = {
-                "file": ("sample.bin", open(options["target"], "rb")),
+                "file": ("sample.bin", self.target.helper.get_filepointer()),
             }
             self.post("/store", files=files, data=data)
 
