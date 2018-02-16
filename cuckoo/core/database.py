@@ -45,6 +45,8 @@ TASK_FAILED_REPORTING = "failed_reporting"
 # Task types
 TYPE_REGULAR = "regular"
 TYPE_EXPERIMENT = "experiment"
+TYPE_BASELINE = "baseline"
+TYPE_SERVICE = "service"
 
 status_type = Enum(
     TASK_PENDING, TASK_RUNNING, TASK_COMPLETED, TASK_REPORTED, TASK_RECOVERED,
@@ -53,7 +55,8 @@ status_type = Enum(
 )
 
 task_type = Enum(
-    TYPE_REGULAR, TYPE_EXPERIMENT, name="task_type"
+    TYPE_REGULAR, TYPE_BASELINE, TYPE_SERVICE, TYPE_EXPERIMENT,
+    name="task_type"
 )
 
 # Secondary table used in association Machine - Tag.
@@ -110,7 +113,7 @@ class Machine(Base):
     interface = Column(String(255), nullable=True)
     snapshot = Column(String(255), nullable=True)
     locked = Column(Boolean(), nullable=False, default=False)
-    locked_by = Column(Integer(), nullable=True)
+    reserved_by = Column(Integer(), nullable=True)
     locked_changed_on = Column(DateTime(timezone=False), nullable=True)
     status = Column(String(255), nullable=True)
     status_changed_on = Column(DateTime(timezone=False), nullable=True)
@@ -170,7 +173,8 @@ class Machine(Base):
         return True
 
     def __init__(self, name, label, ip, platform, options, interface,
-                 snapshot, resultserver_ip, resultserver_port, manager):
+                 snapshot, resultserver_ip, resultserver_port, manager,
+                 reserved_by=None):
         self.name = name
         self.label = label
         self.ip = ip
@@ -181,6 +185,7 @@ class Machine(Base):
         self.resultserver_ip = resultserver_ip
         self.resultserver_port = resultserver_port
         self.manager = manager
+        self.reserved_by = reserved_by
 
 class Tag(Base):
     """Tag describing anything you want."""
@@ -242,7 +247,9 @@ class Target(Base):
     ),
 
     def __repr__(self):
-        return "<Target('{0}','{1}')>".format(self.id, self.sha256)
+        return "<Target('%s','%s','%s')>" % (
+            self.id, self.category, self.sha256
+        )
 
     def to_dict(self):
         """Converts object to dict.
@@ -259,7 +266,7 @@ class Target(Base):
         """
         return json.dumps(self.to_dict())
 
-    def __init__(self, target, category, md5, crc32, sha1, sha256, sha512,
+    def __init__(self, target, category, crc32, md5, sha1, sha256, sha512,
                  ssdeep=None, file_size=None, file_type=None):
         self.target = target
         self.category = category
@@ -352,7 +359,6 @@ class Task(Base):
     errors = relationship(
         "Error", backref="tasks", cascade="save-update, delete"
     )
-    sample = relationship("Sample", backref="tasks")
     submit = relationship("Submit", backref="tasks")
 
     def duration(self):
@@ -388,6 +394,7 @@ class Task(Base):
 
         # Tags are a relation so no column to iterate.
         d["tags"] = [tag.name for tag in self.tags]
+        d["targets"] = [target.to_dict() for target in self.targets]
         d["duration"] = self.duration()
 
         return d
@@ -398,13 +405,12 @@ class Task(Base):
         """
         return json_encode(self.to_dict())
 
-    def __init__(self, target=None, id=None, category=None):
-        self.target = target
+    def __init__(self, type, id=None):
+        self.type = type
         self.id = id
-        self.category = category
 
     def __repr__(self):
-        return "<Task('{0}','{1}')>".format(self.id, self.target)
+        return "<Task('%s','%s','%s')>" % (self.id, self.type, self.status)
 
 class AlembicVersion(Base):
     """Table used to pinpoint actual database schema release."""
@@ -611,7 +617,8 @@ class Database(object):
 
     @classlock
     def add_machine(self, name, label, ip, platform, options, tags, interface,
-                    snapshot, resultserver_ip, resultserver_port, manager):
+                    snapshot, resultserver_ip, resultserver_port, manager,
+                    reserved_by=None):
         """Add a guest machine.
         @param name: machine id
         @param label: machine label
@@ -631,16 +638,19 @@ class Database(object):
             options = options.split()
 
         session = self.Session()
-        machine = Machine(name=name,
-                          label=label,
-                          ip=ip,
-                          platform=platform,
-                          options=options,
-                          interface=interface,
-                          snapshot=snapshot,
-                          resultserver_ip=resultserver_ip,
-                          resultserver_port=resultserver_port,
-                          manager=manager)
+        machine = Machine(
+            name=name,
+            label=label,
+            ip=ip,
+            platform=platform,
+            options=options,
+            interface=interface,
+            snapshot=snapshot,
+            resultserver_ip=resultserver_ip,
+            resultserver_port=resultserver_port,
+            manager=manager,
+            reserved_by=reserved_by
+        )
 
         # Deal with tags format (i.e., foo,bar,baz)
         if tags:
@@ -707,6 +717,48 @@ class Database(object):
             session.close()
 
     @classlock
+    def machine_reserve(self, name, task_id):
+        """Set a machine as reserved for a specific task id
+        @param name: name of the machine to reserve
+        @param task_id: id of the task to reserve the machine for"""
+        session = self.Session()
+        try:
+            machine = session.query(Machine).filter_by(name=name).first()
+            if not machine:
+                raise CuckooDatabaseError(
+                    "Tried to reserve non-existent machine %s" % name
+                )
+
+            machine.reserved_by = task_id
+            session.commit()
+        except SQLAlchemyError as e:
+            log.debug("Database error reserving machine for task: %s", e)
+            session.rollback()
+        finally:
+            session.close()
+
+    @classlock
+    def clear_reservation(self, name):
+        """Clear reservation of a machine
+        @param name: name of the machine to reserve"""
+        session = self.Session()
+        try:
+            machine = session.query(Machine).filter_by(name=name).first()
+            if not machine:
+                raise CuckooDatabaseError(
+                    "Tried to remove reservation from non-existent"
+                    " machine %s" % name
+                )
+
+            machine.reserved_by = None
+            session.commit()
+        except SQLAlchemyError as e:
+            log.debug("Database error removing reservation of machine: %s", e)
+            session.rollback()
+        finally:
+            session.close()
+
+    @classlock
     def set_route(self, task_id, route):
         """Set the taken route of this task.
         @param task_id: task identifier
@@ -728,7 +780,8 @@ class Database(object):
             session.close()
 
     @classlock
-    def fetch(self, machine=None, service=True, exclude=[], use_start_on=True):
+    def fetch(self, machine=None, service=True, exclude=[], use_start_on=True,
+              task_id=None):
         """Fetches a task waiting to be processed and locks it for running.
         @param machine: Fetch task for specific machine
         @param service: Fetch service machine tasks
@@ -736,6 +789,7 @@ class Database(object):
         @param exclude: List of task ids to exclude while fetching a task
         @param use_start_on: Only fetch tasks that have reached the time at
         which they should start
+        @param task_id: Retrieve given task if it is ready to start
         @return: None or task
         """
         session = self.Session()
@@ -750,6 +804,9 @@ class Database(object):
 
             if not service:
                 q = q.filter(not_(Task.tags.any(name="service")))
+
+            if task_id:
+                q = q.filter_by(id=task_id)
 
             if exclude:
                 q = q.filter(~Task.id.in_(exclude))
@@ -980,40 +1037,6 @@ class Database(object):
         finally:
             session.close()
 
-    # @classlock
-    # def add_sample(self, file_obj):
-    #     """Add a new sample to the database.
-    #     @param file_obj: cuckoo.common.objects.File object of the sample
-    #     """
-    #     if not isinstance(file_obj, File):
-    #         log.error("Cannot store sample. %s is not a file object", file_obj)
-    #         return None
-    #
-    #     sample = Sample(
-    #         md5=file_obj.get_md5(),
-    #         crc32=file_obj.get_crc32(),
-    #         sha1=file_obj.get_sha1(),
-    #         sha256=file_obj.get_sha256(),
-    #         sha512=file_obj.get_sha512(),
-    #         file_size=file_obj.get_size(),
-    #         file_type=file_obj.get_type(),
-    #         ssdeep=file_obj.get_ssdeep()
-    #     )
-    #
-    #     session = self.Session()
-    #     try:
-    #         session.add(sample)
-    #         session.commit()
-    #         sample_id = sample.id
-    #     except SQLAlchemyError as e:
-    #         session.rollback()
-    #         log.debug("Database error storing new sample: %s", e)
-    #         return None
-    #     finally:
-    #         session.close()
-    #
-    #     return sample_id
-
     @classlock
     def add_target(self, target, category, crc32, md5, sha1, sha256, sha512,
                    ssdeep=None, file_type=None, file_size=None):
@@ -1039,7 +1062,7 @@ class Database(object):
         try:
             session.add(target)
             session.commit()
-            session.expunge(target)
+            target_id = target.id
         except SQLAlchemyError as e:
             session.rollback()
             log.debug("Database error storing new target: %s", e)
@@ -1047,16 +1070,16 @@ class Database(object):
         finally:
             session.close()
 
-        return target
+        return target_id
 
     # The following functions are mostly used by external utils.
     @classlock
-    def add(self, target, timeout=0, package="", options="", priority=1,
+    def add(self, targets=[], timeout=0, package="", options="", priority=1,
             custom="", owner="", machine="", platform="", tags=None,
-            memory=False, enforce_timeout=False, clock=None, category=None,
-            submit_id=None, sample_id=None, start_on=None):
+            memory=False, enforce_timeout=False, clock=None,
+            task_type="regular", submit_id=None, start_on=None):
         """Add a task to database.
-        @param target: target of this task(file path or url)
+        @param targets: list of target db objects
         @param timeout: selected timeout.
         @param package: the analysis package to use
         @param options: analysis options.
@@ -1069,11 +1092,12 @@ class Database(object):
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
-        @return: cursor or None.
+        @param task_type: The type of task: regular, experiment, other type
+        @return: task id or None.
         """
         session = self.Session()
 
-        task = Task(target=target, category=category)
+        task = Task(type=task_type)
         task.timeout = timeout
         task.priority = priority
         task.custom = custom
@@ -1086,12 +1110,13 @@ class Database(object):
         task.enforce_timeout = enforce_timeout
         task.clock = clock
         task.submit_id = submit_id
-        task.sample_id = sample_id
         task.start_on = start_on
 
         if tags:
             for tag in tags:
                 task.tags.append(self._get_or_create(session, Tag, name=tag))
+
+        task.targets.extend(targets)
 
         session.add(task)
 
@@ -1142,7 +1167,8 @@ class Database(object):
         return submit
 
     def list_tasks(self, filter_by=[], operators=[], values=[], details=True,
-                   offset=None, limit=None, order_by=None, **kwargs):
+                   category=None, offset=None, limit=None, order_by=None,
+                   **kwargs):
         """Retrieve a list of tasks. Any query possible.
         @param filter_by: contains the columns you want to filter on
         @param operators: contains the operator(s) you want to use when
@@ -1195,9 +1221,13 @@ class Database(object):
                         self.task_columns[field].between(*value)
                     )
 
+            if category:
+                search = search.join(Task.targets).filter_by(category=category)
+
             if details:
                 search = search.options(
-                    joinedload("errors"), joinedload("tags")
+                    joinedload("errors"), joinedload("tags"),
+                    joinedload("targets")
                 )
 
             if order_by:
@@ -1267,7 +1297,8 @@ class Database(object):
         try:
             if details:
                 task = session.query(Task).options(
-                    joinedload("errors"), joinedload("tags")
+                    joinedload("errors"), joinedload("tags"),
+                    joinedload("targets")
                 ).get(task_id)
             else:
                 task = session.query(Task).get(task_id)
@@ -1290,7 +1321,7 @@ class Database(object):
         session = self.Session()
         try:
             tasks = session.query(Task).options(
-                joinedload("errors"), joinedload("tags")
+                joinedload("errors"), joinedload("tags"), joinedload("targets")
             ).filter(Task.id.in_(task_ids)).order_by(Task.id).all()
         except SQLAlchemyError as e:
             log.debug("Database error viewing tasks: %s", e)
@@ -1321,50 +1352,28 @@ class Database(object):
             session.close()
         return True
 
-    @classlock
-    def view_sample(self, sample_id):
-        """Retrieve information on a sample given a sample id.
-        @param sample_id: ID of the sample to query.
-        @return: details on the sample used in sample: sample_id.
-        """
-        session = self.Session()
-        try:
-            sample = session.query(Sample).get(sample_id)
-        except AttributeError:
-            return None
-        except SQLAlchemyError as e:
-            log.debug("Database error viewing task: %s", e)
-            return None
-        else:
-            if sample:
-                session.expunge(sample)
-        finally:
-            session.close()
-
-        return sample
-
-
     # @classlock
-    # def find_sample(self, md5=None, sha256=None):
-    #     """Search samples by MD5.
-    #     @param md5: md5 string
-    #     @return: matches list
+    # def view_sample(self, sample_id):
+    #     """Retrieve information on a sample given a sample id.
+    #     @param sample_id: ID of the sample to query.
+    #     @return: details on the sample used in sample: sample_id.
     #     """
     #     session = self.Session()
     #     try:
-    #         if md5:
-    #             sample = session.query(Sample).filter_by(md5=md5).first()
-    #         elif sha256:
-    #             sample = session.query(Sample).filter_by(sha256=sha256).first()
+    #         sample = session.query(Sample).get(sample_id)
+    #     except AttributeError:
+    #         return None
     #     except SQLAlchemyError as e:
-    #         log.debug("Database error searching sample: %s", e)
+    #         log.debug("Database error viewing task: %s", e)
     #         return None
     #     else:
     #         if sample:
     #             session.expunge(sample)
     #     finally:
     #         session.close()
+    #
     #     return sample
+
 
     @classlock
     def find_target(self, **kwargs):
@@ -1377,30 +1386,32 @@ class Database(object):
                 search = search.filter_by(**{arg: value})
 
             target = search.first()
-            if not target:
-                return None
-
-            session.expunge(target)
-            return target
+            if target:
+                session.expunge(target)
 
         except SQLAlchemyError as e:
             log.debug("Database error searching for target: %s", e)
             return None
         finally:
             session.close()
+        return target
 
     @classlock
-    def count_samples(self):
-        """Counts the amount of samples in the database."""
+    def count_targets(self, category=None):
+        """Counts the amount of targets in the database"""
         session = self.Session()
         try:
-            sample_count = session.query(Sample).count()
+            query = session.query(Target)
+            if category:
+                query.filter_by(category=category)
+
+            count = query.count()
         except SQLAlchemyError as e:
-            log.debug("Database error counting samples: %s", e)
-            return 0
+            log.debug("Database error counting targets: %s", e)
+            return None
         finally:
             session.close()
-        return sample_count
+        return count
 
     @classlock
     def view_machine(self, name):
