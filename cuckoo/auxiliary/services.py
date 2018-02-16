@@ -38,7 +38,7 @@ class Services(Auxiliary):
     def start(self):
         self.tasks = []
 
-        if self.task.category == "service":
+        if self.task.type == "service":
             return
 
         # Have to explicitly enable services.
@@ -69,7 +69,7 @@ class Services(Auxiliary):
             time.sleep(timeout)
 
     def stop(self):
-        if self.task.category == "service":
+        if self.task.type == "service":
             return
 
         for task_id, service in self.tasks:
