@@ -14,7 +14,7 @@ from cuckoo.common.exceptions import (
     CuckooMachineSnapshotError, CuckooMachineError, CuckooGuestError,
     CuckooGuestCriticalTimeout
 )
-from cuckoo.common.objects import File, Analysis
+from cuckoo.common.objects import Analysis
 from cuckoo.core.database import (
     TASK_COMPLETED, TASK_REPORTED, TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING
 )
@@ -22,13 +22,13 @@ from cuckoo.core.guest import GuestManager
 from cuckoo.core.log import task_log_start, task_log_stop, logger
 from cuckoo.core.plugins import RunAuxiliary
 from cuckoo.core.resultserver import ResultServer
-from cuckoo.core.scheduler import Scheduler
+from cuckoo.core.target import Target
 
 log = logging.getLogger(__name__)
 
 class Regular(AnalysisManager):
 
-    supports = ["file", "url", "archive", "baseline", "service"]
+    supports = ["regular", "baseline", "service"]
 
     def init(self, db):
         """Executed by the scheduler. Prepares the analysis for starting."""
@@ -44,51 +44,58 @@ class Regular(AnalysisManager):
             )
             return False
 
-        if not self.task.is_file:
-            self.build_options()
-        else:
-            self.f = File(self.task.copied_binary)
-
-            if not self.task.copied_binary or\
-                    not os.path.isfile(self.task.copied_binary):
-                log.error(
-                    "The file to submit '%s' does not exist",
-                    self.task.copied_binary
-                )
-                return False
-
-            if not self.f.is_readable():
-                log.error(
-                    "Unable to read target file %s, please check if it is"
-                    " readable for the user executing Cuckoo Sandbox",
-                    self.task.copied_binary
-                )
-                return False
-
-            options = {}
-            package, activity = self.f.get_apk_entry()
-            if package and activity:
-                options["apk_entry"] = "%s:%s" % (package, activity)
-
-            self.build_options(options={
-                "target": self.task.copied_binary,
-                "file_name": os.path.basename(self.task.target),
-                "file_type": self.f.get_type(),
-                "pe_exports": ",".join(self.f.get_exported_functions()),
-                "options": options
-            })
-
         self.guest_manager = GuestManager(
             self.machine.name, self.machine.ip, self.machine.platform,
-            self.task.id, self, self.analysis
+            self.task, self, self.analysis, self.target
         )
 
         self.aux = RunAuxiliary(
-            self.task.db_task.to_dict(), self.machine, self.guest_manager
+            self.task.task_dict, self.machine, self.guest_manager
         )
 
         # Write task to disk in json file
         self.task.write_task_json()
+
+        if not self.target.target:
+            self.build_options()
+            return True
+
+        options = {
+            "category": self.target.category,
+            "target": self.target.target
+        }
+
+        if self.target.is_file:
+            if not self.target.copy_exists():
+                log.error(
+                    "The file to submit '%s' does not exist",
+                    self.target.copied_binary
+                )
+                return False
+
+            if not self.target.helper.is_readable():
+                log.error(
+                    "Unable to read target file %s, please check if it is"
+                    " readable for the user executing Cuckoo Sandbox",
+                    self.target.copied_binary
+                )
+                return False
+
+            task_options = {}
+            package, activity = self.target.helper.get_apk_entry()
+            if package and activity:
+                task_options["apk_entry"] = "%s:%s" % (package, activity)
+
+            options.update({
+                "file_name": os.path.basename(self.target.target),
+                "file_type": self.target.helper.get_type(),
+                "pe_exports": ",".join(
+                    self.target.helper.get_exported_functions()
+                ),
+                "options": task_options
+            })
+
+        self.build_options(options=options)
 
         return True
 
@@ -172,23 +179,26 @@ class Regular(AnalysisManager):
         # Set guest status to starting and start analysis machine
         self.set_analysis_status(Analysis.STARTING)
 
-        target = self.task.target
-        if self.task.is_file:
-            target = os.path.basename(self.task.target)
+        target = self.target.target
+        if self.target.target and self.target.is_file:
+            target = os.path.basename(target)
 
         log.info(
-            "Starting analysis of %s '%s' (task #%d, options: '%s')",
-                 self.task.category.upper(), target, self.task.id,
-                 self.options["options"], extra={
+            "Starting analysis (task #%s, options: '%s') type '%s'."
+            " Target: %s '%s'", self.task.id, self.options["options"],
+            self.task.type, self.target.category, target,
+            extra={
                 "action": "task.init",
                 "status": "starting",
                 "task_id": self.task.id,
                 "target": target,
-                "category": self.task.category,
+                "category": self.target.category,
                 "package": self.task.package,
                 "options": self.options["options"],
                 "custom": self.task.custom,
-        })
+                "type": self.task.type
+            }
+        )
 
         ResultServer().add_task(self.task.db_task, self.machine)
 
@@ -394,18 +404,25 @@ class Regular(AnalysisManager):
             log.debug("Usage handler for the 'noagent' option")
             self.set_analysis_status(Analysis.RUNNING)
             self.wait_finish()
-        elif self.task.category == "baseline":
+        elif self.task.type == "baseline":
             log.debug("Sleeping until timeout for baseline")
             self.set_analysis_status(Analysis.RUNNING)
             time.sleep(self.options["timeout"])
         else:
             log.debug("Using guest manager")
             monitor = self.task.options.get("monitor", "latest")
+            log.info("USING OPTIONS: %s", self.options)
             self.guest_manager.start_analysis(self.options, monitor)
 
             if self.analysis.status == Analysis.STARTING:
                 self.set_analysis_status(Analysis.RUNNING)
                 self.guest_manager.wait_for_completion()
+
+    def set_target(self, targets):
+        if targets:
+            self.target = targets[0]
+        else:
+            self.target = Target()
 
     def on_status_starting(self, db):
         """Is executed by the scheduler on analysis status starting
