@@ -144,7 +144,7 @@ class Target(object):
         except OSError as e:
             log.error(
                 "Failed to create symlink in task folder #%s to file '%s'."
-                " Error: %s", task_id, self.target, e
+                " Error: %s", task_id, copy_path, e
             )
 
     def delete_original(self):
