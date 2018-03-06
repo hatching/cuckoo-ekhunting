@@ -405,7 +405,7 @@ class Task(Base):
         """
         return json_encode(self.to_dict())
 
-    def __init__(self, type, id=None):
+    def __init__(self, type=TYPE_REGULAR, id=None):
         self.type = type
         self.id = id
 
