@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Cuckoo Foundation.
+# Copyright (C) 2017-2018 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -12,10 +12,10 @@ import shutil
 import tempfile
 import zipfile
 
-from cuckoo.common.files import Files
-from cuckoo.common.objects import File, URL
-from cuckoo.core.database import Database, Task as DbTask
+from cuckoo.common.objects import File
+from cuckoo.core.database import Database, Task as DbTask, Target as DbTarget
 from cuckoo.core.task import Task
+from cuckoo.core.target import Target
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, cwd
 
@@ -46,21 +46,21 @@ class TestTask(object):
         self.files.append(target)
         return target
 
-    def add_task(self, **kwargs):
-        if "category" not in kwargs:
-            kwargs["category"] = "file"
+    def add_task(self, category="file", url=None, **kwargs):
+        target = Target()
+        if category == "file":
+            target.create_file(self.get_file())
+        elif category == "url":
+            target.create_url(url)
 
-        if not "target" in kwargs:
-            kwargs["target"] = self.get_file()
+        kwargs["targets"] = [target.db_target]
 
-        return [self.db.add(**kwargs), kwargs["target"]]
-
-    def test_defined_files(self):
-        assert Task.files == ["file", "archive"]
+        return [self.db.add(**kwargs), target.target]
 
     def test_defined_task_dirs(self):
-        assert Task.dirs == ["shots", "logs", "files",
-                             "extracted", "buffer", "memory"]
+        assert Task.dirs == [
+            "shots", "logs", "files", "extracted", "buffer", "memory"
+        ]
 
     def test_load_from_db(self):
         id = self.add_task()[0]
@@ -80,7 +80,6 @@ class TestTask(object):
         assert task.category == "file"
         assert task.path == cwd(analysis=id)
         assert task.db_task == db_task
-        assert task.is_file
 
     def test_set_task(self):
         id, sample = self.add_task()
@@ -93,7 +92,8 @@ class TestTask(object):
         assert task.path == cwd(analysis=id)
         assert task.db_task == db_task
         assert task.target == sample
-        assert task.is_file
+        assert len(task.targets) == 1
+        assert isinstance(task.targets[0], Target)
 
     def test_load_task_from_dict(self):
         task_dict = {
@@ -105,7 +105,6 @@ class TestTask(object):
         task = Task()
         task.load_task_dict(task_dict)
 
-        assert task.task_dict == task_dict
         assert task.id == 42
         assert task.category == "file"
         assert task.target == "/tmp/stuff/doge42.exe"
@@ -129,62 +128,6 @@ class TestTask(object):
         assert os.path.exists(task_path)
         for path in dir_paths:
             assert os.path.exists(path)
-
-    def test_bin_copy_and_symlink(self):
-        id, sample = self.add_task()
-        task = Task()
-        task.load_from_db(id)
-        task.create_dirs()
-
-        copied_binary = cwd("storage", "binaries", File(sample).get_sha256())
-        symlink = cwd("binary", analysis=id)
-        task.bin_copy_and_symlink()
-
-        assert os.path.exists(copied_binary)
-        assert os.path.islink(symlink)
-
-    def test_read_copied_binary(self):
-        id, sample = self.add_task()
-        task = Task()
-        task.load_from_db(id)
-        task.create_dirs()
-
-        copy_to = cwd("storage", "binaries", File(sample).get_sha256())
-        symlink = cwd("binary", analysis=id)
-
-        Files.copy(sample, copy_to)
-        Files.symlink_or_copy(copy_to, symlink)
-        task._read_symlink()
-
-        assert task.copied_binary == copy_to
-
-    def test_delete_orig_sample(self):
-        id, sample = self.add_task()
-        task = Task()
-        task.load_from_db(id)
-        task.create_dirs()
-
-        assert os.path.exists(sample)
-        task.delete_original_sample()
-        assert not os.path.exists(sample)
-
-    def test_delete_copied_sample(self):
-        id, sample = self.add_task()
-        task = Task()
-        task.load_from_db(id)
-        task.create_dirs()
-
-        copy_to = cwd("storage", "binaries", File(sample).get_sha256())
-        symlink = cwd("binary", analysis=id)
-
-        task.bin_copy_and_symlink()
-
-        assert os.path.exists(copy_to)
-        assert os.path.islink(symlink)
-        task.delete_copied_sample()
-
-        assert not os.path.exists(copy_to)
-        assert not os.path.exists(symlink)
 
     def test_dir_exists(self):
         id, sample = self.add_task()
@@ -242,7 +185,6 @@ class TestTask(object):
         task = Task()
         task.load_from_db(id)
         task.create_dirs()
-        task.bin_copy_and_symlink()
         copied_binary = cwd("storage", "binaries", File(sample).get_sha256())
 
         task.process()
@@ -267,13 +209,12 @@ class TestTask(object):
         task = Task()
         task.load_from_db(id)
         task.create_dirs()
-        task.bin_copy_and_symlink()
 
         assert os.path.exists(task.target)
-        assert os.path.exists(task.copied_binary)
+        assert os.path.exists(task.targets[0].copied_binary)
         task.process()
         assert not os.path.exists(sample)
-        assert not os.path.exists(task.copied_binary)
+        assert not os.path.exists(task.targets[0].copied_binary)
 
     def test_get_tags_list(self):
         task = Task()
@@ -296,7 +237,6 @@ class TestTask(object):
         task = Task()
         task.load_from_db(id)
         task.create_dirs()
-        task.bin_copy_and_symlink()
 
         sym_latest = cwd("storage", "analyses", "latest")
         task.set_latest()
@@ -325,12 +265,18 @@ class TestTask(object):
         assert task["machine"] == "machine1"
 
     def test_write_task_json(self):
-        id, sample = self.add_task()
         session = self.db.Session()
+        target = Target()
+        tid = target.create_file("tests/files/pdf0.pdf")
+        db_target = session.query(DbTarget).filter_by(id=tid).first()
+        db_target.target = "/tmp/doge.exe"
+        session.commit()
+        session.refresh(db_target)
+        id, sample = self.add_task()
         db_task = session.query(DbTask).filter_by(id=id).first()
         db_task.status = "reported"
         db_task.machine = "DogeOS1"
-        db_task.target = "/tmp/doge.exe"
+        db_task.targets = [db_target]
         db_task.start_on = datetime.datetime(2017, 5, 10, 18, 0)
         db_task.added_on = datetime.datetime(2017, 5, 10, 18, 0)
         db_task.clock = datetime.datetime(2017, 5, 10, 18, 0)
@@ -371,11 +317,9 @@ class TestTask(object):
         assert task.target == sample
 
     def test_requirement_str(self):
-        id, sample = self.add_task(**{
-            "tags": ["doge"],
-            "platform": "DogeOS",
-            "machine": "Doge1"
-        })
+        id, sample = self.add_task(
+            tags=["doge"], platform="DogeOS", machine="Doge1"
+        )
         task = Task()
         task.load_from_db(id)
 
@@ -393,13 +337,14 @@ class TestTask(object):
         newtask = self.db.view_task(newid)
         assert newid is not None
         assert oldtask.status == "recovered"
-        assert newtask.category == "file"
+        assert newtask.targets[0].category == "file"
+        assert newtask.targets[0].target == sample
         assert newtask.priority == 3
-        assert newtask.target == sample
 
     def test_reschedule_url(self):
-        id, sample = self.add_task(**{"category": "url",
-                                    "target": "http://example.com/42"})
+        id, sample = self.add_task(
+            url="http://example.com/42", category="url"
+        )
         task = Task()
         task.load_from_db(id)
 
@@ -409,9 +354,9 @@ class TestTask(object):
         newtask = self.db.view_task(newid)
         assert newid is not None
         assert oldtask.status == "recovered"
-        assert newtask.category == "url"
+        assert newtask.targets[0].category == "url"
         assert newtask.priority == 2
-        assert newtask.target == "http://example.com/42"
+        assert newtask.targets[0].target == "http://example.com/42"
 
     def test_reschedule_id(self):
         id, sample = self.add_task()
@@ -422,7 +367,7 @@ class TestTask(object):
         newtask = self.db.view_task(newid)
         assert newid is not None
         assert oldtask.status == "recovered"
-        assert newtask.category == "file"
+        assert newtask.targets[0].category == "file"
 
     def test_reschedule_fail(self):
         newid = submit_task.reschedule()
@@ -430,14 +375,6 @@ class TestTask(object):
 
     def test_reschedule_nonexistant(self):
         newid = submit_task.reschedule(task_id=42)
-        assert newid is None
-
-    def test_reschedule_unsupportedcategory(self):
-        id, sample = self.add_task(**{"category": "doge"})
-        task = Task()
-        task.load_from_db(id)
-        newid = task.reschedule()
-
         assert newid is None
 
     def test_add_service(self):
@@ -448,11 +385,12 @@ class TestTask(object):
 
         assert id is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "service"
+        assert db_task.type == "service"
         assert db_task.owner == "Doge"
         assert db_task.timeout == 60
         assert db_task.priority == 999
         assert db_task.tags[0].name == "officepc"
+        assert db_task.targets == []
 
     def test_add_baseline(self):
         task = Task()
@@ -462,16 +400,16 @@ class TestTask(object):
 
         assert id is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "baseline"
+        assert db_task.type == "baseline"
         assert db_task.owner == "Doge"
         assert db_task.timeout == 60
         assert db_task.priority == 999
         assert db_task.machine == "machine1"
         assert db_task.memory == False
-        assert db_task.target == "none"
+        assert db_task.targets == []
 
     def test_add_reboot(self):
-        id, sample = self.add_task(**{"owner": "MrDoge"})
+        id, sample = self.add_task(owner="MrDoge")
         sid = self.db.add_submit(None, None, None)
         task = Task()
         task.load_from_db(id)
@@ -482,14 +420,16 @@ class TestTask(object):
 
         assert newid is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "file"
+        assert db_task.targets[0].category == "file"
         assert db_task.package == "reboot"
         assert db_task.owner == "Doge"
         assert db_task.priority == 1
         assert db_task.custom == "%s" % id
         assert db_task.memory == False
-        assert db_task.target == sample
+        assert db_task.targets[0].target == sample
         assert db_task.submit_id == sid
+        assert len(task.targets) == 1
+        assert isinstance(task.targets[0], Target)
 
     def test_add_reboot_nonexistant(self):
         newid = submit_task.add_reboot(42)
@@ -500,34 +440,38 @@ class TestTask(object):
         task = Task()
         task.load_from_db(id)
         task.create_empty()
-        os.remove(task.copied_binary)
+        os.remove(task.targets[0].copied_binary)
         newid = task.add_reboot(id)
         assert newid is None
 
     def test_add_url(self):
-        task = Task()
-        id = task.add_url("http://example.com/42")
+        id = submit_task.add_url("http://example.com/42")
         db_task = self.db.view_task(id)
         task_path = cwd(analysis=id)
 
         assert id is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "url"
-        assert db_task.target == "http://example.com/42"
+        assert db_task.targets[0].category == "url"
+        assert db_task.targets[0].target == "http://example.com/42"
+        assert submit_task.targets[0].target == "http://example.com/42"
+        assert len(submit_task.targets) == 1
+        assert isinstance(submit_task.targets[0], Target)
 
     def test_add_archive(self):
-        task = Task()
         fakezip = self.get_file()
-        id = task.add_archive(fakezip, "file1.exe", "exe")
+        id = submit_task.add_archive(fakezip, "file1.exe", "exe")
         task_path = cwd(analysis=id)
         db_task = self.db.view_task(id)
 
         assert id is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "archive"
+        assert db_task.targets[0].category == "archive"
         assert db_task.options == {"filename": "file1.exe"}
-        assert db_task.target == fakezip
+        assert db_task.targets[0].target == fakezip
         assert db_task.package == "exe"
+        assert submit_task.targets[0].target == fakezip
+        assert len(submit_task.targets) == 1
+        assert isinstance(submit_task.targets[0], Target)
 
     def test_add_archive_nonexistant(self):
         id = submit_task.add_archive("/tmp/BfUbuYByg.zip", "file1.exe", "exe")
@@ -541,8 +485,11 @@ class TestTask(object):
 
         assert id is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "file"
-        assert db_task.target == sample
+        assert db_task.targets[0].category == "file"
+        assert db_task.targets[0].target == sample
+        assert submit_task.targets[0].target == sample
+        assert len(submit_task.targets) == 1
+        assert isinstance(submit_task.targets[0], Target)
 
     def test_add_path_nonexistant(self):
         id = submit_task.add_path("/tmp/YtcukGBYTTBYU.exe")
@@ -556,9 +503,11 @@ class TestTask(object):
     def test_add_file(self):
         task = Task()
         sample = self.get_file()
+        target = Target()
+        target.create_file(sample)
         starton = datetime.datetime.now()
         id = task.add(
-            File(sample), category="file", clock="5-17-2017 13:37:13",
+            [target.db_target], clock="5-17-2017 13:37:13",
             package="exe", owner="Doge", custom="stuff", machine="machine1",
             platform="DogeOS", tags="tag1", memory=True, enforce_timeout=True,
             submit_id=1500, start_on=starton
@@ -568,10 +517,11 @@ class TestTask(object):
 
         assert id is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "file"
-        assert db_task.target == sample
-        assert db_task.clock == datetime.datetime(year=2017, month=5, day=17,
-                                                  hour=13,minute=37,second=13)
+        assert db_task.targets[0].category == "file"
+        assert db_task.targets[0].target == sample
+        assert db_task.clock == datetime.datetime(
+            year=2017, month=5, day=17, hour=13,minute=37,second=13
+        )
         assert db_task.timeout == 0
         assert db_task.package == "exe"
         assert db_task.options == {}
@@ -589,23 +539,24 @@ class TestTask(object):
         assert task.id == id
         assert task.target == sample
         assert task.category == "file"
-        assert task.is_file
+        assert task.type == "regular"
 
     def test_add_url(self):
         task = Task()
-        id = task.add(URL("http://example.com/42"), category="url")
+        target = Target()
+        target.create_url("http://example.com/42")
+        id = task.add([target.db_target])
         task_path = cwd(analysis=id)
         db_task = self.db.view_task(id)
 
         assert id is not None
         assert os.path.exists(task_path)
-        assert db_task.category == "url"
-        assert db_task.target == "http://example.com/42"
+        assert db_task.targets[0].category == "url"
+        assert db_task.targets[0].target == "http://example.com/42"
         assert db_task.clock is not None
         assert task.id == id
         assert task.target == "http://example.com/42"
         assert task.category == "url"
-        assert not task.is_file
 
     def test_estimate_export_size(self):
         fake_task = cwd(analysis=1)
@@ -646,7 +597,7 @@ class TestTask(object):
             "owner", "machine", "package", "tags", "options", "platform",
             "memory", "enforce_timeout", "clock", "added_on", "start_on",
             "started_on", "completed_on", "status", "sample_id", "submit_id",
-            "processing", "route"
+            "processing", "route", "targets"
         ]
 
         try:
@@ -656,6 +607,3 @@ class TestTask(object):
             pytest.fail(
                 "One or more properties of Task raised an error: %s" % e
             )
-
-
-
