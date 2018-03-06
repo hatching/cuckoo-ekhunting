@@ -38,7 +38,7 @@ class TestFile(object):
         # File() will invoke cwd(), so any CWD is required.
         set_cwd(tempfile.mkdtemp())
 
-        self.path = tempfile.mkstemp()[1]
+        self.fd, self.path = tempfile.mkstemp()
         self.file = File(self.path)
 
     def test_get_name(self):
@@ -85,6 +85,24 @@ class TestFile(object):
     def test_get_all_keys(self):
         for key in ["name", "size", "crc32", "md5", "sha1", "sha256", "sha512", "ssdeep", "type"]:
             assert key in self.file.get_all()
+
+    def test_read(self):
+        os.write(self.fd, os.urandom(64))
+        os.close(self.fd)
+        read1 = open(self.file.file_path, "rb").read()
+        read2 = self.file.read()
+        assert read1 == read2
+
+    def test_get_filepointer_read(self):
+        os.write(self.fd, "doge42")
+        os.close(self.fd)
+        assert self.file.get_filepointer().read() == "doge42"
+
+    def test_get_filepointer_write(self):
+        fp = self.file.get_filepointer(mode="wb")
+        fp.write("doge")
+        fp.close()
+        assert open(self.file.file_path, "rb").read() == "doge"
 
 class TestURL(object):
     def setup(self):
