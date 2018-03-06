@@ -437,3 +437,26 @@ def test_is_whitelisted_domain():
     assert is_whitelisted_domain("java.com") is True
     assert is_whitelisted_domain("java2.com") is False
     assert is_whitelisted_domain("crl.microsoft.com") is True
+
+def test_json_hook():
+    case1 = {"$dt": "2017-05-10T18:00:00"}
+    case2 = {"$dt": "2017-05-10T18:00:00.0834"}
+
+    res1 = utils.json_hook(case1)
+    res2 = utils.json_hook(case2)
+    assert res1.year == 2017
+    assert res1.month == 5
+    assert res1.day == 10
+    assert res1.hour == 18
+    assert res1.minute == 0
+    assert res1.second == 0
+    assert res1.microsecond == 0
+    assert res2.year == 2017
+    assert res2.month == 5
+    assert res2.day == 10
+    assert res2.hour == 18
+    assert res2.minute == 0
+    assert res2.second == 0
+    assert res2.microsecond == 83400
+
+    # assert  == "2017-05-10 18:00:00.083400"

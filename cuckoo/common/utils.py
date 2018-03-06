@@ -298,7 +298,14 @@ def json_default(obj):
 def json_hook(obj):
     """JSON object hook, deserializing datetimes ($date)"""
     if "$dt" in obj:
-        return datetime.datetime.strptime(obj["$dt"], "%Y-%m-%dT%H:%M:%S.%f")
+        try:
+            return datetime.datetime.strptime(
+                obj["$dt"], "%Y-%m-%dT%H:%M:%S.%f"
+            )
+        except ValueError:
+            return datetime.datetime.strptime(
+                obj["$dt"], "%Y-%m-%dT%H:%M:%S"
+            )
     return obj
 
 def json_encode(obj, **kwargs):
