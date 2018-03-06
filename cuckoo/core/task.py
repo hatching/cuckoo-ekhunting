@@ -13,9 +13,9 @@ import zipfile
 from cuckoo.common.config import config
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.files import Folders, Files
-from cuckoo.common.objects import Dictionary, File, URL
+from cuckoo.common.objects import Dictionary
 from cuckoo.common.utils import get_directory_size, json_default, json_encode
-from cuckoo.core.database import Database, TASK_RECOVERED
+from cuckoo.core.database import Database, TASK_RECOVERED, Task as DbTask
 from cuckoo.core.plugins import RunProcessing, RunSignatures, RunReporting
 from cuckoo.core.target import Target
 from cuckoo.misc import cwd
@@ -51,11 +51,20 @@ class Task(object):
             self.task_dict["category"] = self.task_dict["targets"][0].category
 
     def load_task_dict(self, task_dict):
-        """Load all dict key values as attributes to the object"""
+        """Load all dict key values as attributes to the object.
+        Try to change target dictionaries to target objects"""
         # Cast to Cuckoo dictionary, so keys can be accessed as attributes
-        self.task_dict = Dictionary(task_dict)
-        self.path = cwd(analysis=task_dict["id"])
+        newtask = DbTask()
+        newtask = newtask.to_dict()
+        targets = []
+        for dict_target in task_dict.get("targets", []):
+            target = Target()
+            target.target_dict = dict_target
 
+        task_dict["targets"] = targets
+        newtask.update(task_dict)
+        self.task_dict = Dictionary(newtask)
+        self.path = cwd(analysis=task_dict["id"])
 
     def load_from_db(self, task_id):
         """Load task from id. Returns True of success, False otherwise"""
@@ -440,7 +449,7 @@ class Task(object):
         @param priority: overwrites the priority the task already has"""
         if not self.db_task and not task_id:
             log.error(
-                "Task is None and no task_id provided Cannot reschedule"
+                "Task is None and no task_id provided, cannot reschedule"
             )
             return None
         elif task_id:
