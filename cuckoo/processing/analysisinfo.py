@@ -60,8 +60,10 @@ class AnalysisInfo(Processing):
             owner=self.task["owner"],
             package=self.task["package"],
             platform=self.task["platform"],
+            machine=self.machine.get("name"),
             options=emit_options(self.task["options"]),
             route=self.task["route"],
+            tasktype=self.task["type"]
         )
 
 class MetaInfo(Processing):
