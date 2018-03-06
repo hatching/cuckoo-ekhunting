@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2017 Cuckoo Foundation.
+# Copyright (C) 2016-2018 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -270,6 +270,11 @@ class TestProcessingTasks(object):
         cuckoo_create()
         Database().connect()
 
+    def teartown(self):
+        cwd_path = cwd()
+        if os.path.isdir(cwd_path):
+            shutil.rmtree(cwd())
+
     @mock.patch("cuckoo.main.load_signatures")
     @mock.patch("cuckoo.main.process_task_range")
     def test_process_once(self, p, q):
@@ -449,6 +454,21 @@ class TestProcessingTasks(object):
         assert os.path.exists(cwd("reports", "report.json", analysis=1))
         obj = json.load(open(cwd("reports", "report.json", analysis=1), "rb"))
         assert "contact back" in obj["debug"]["errors"][0]
+
+    def test_reprocess_taskjson(self):
+        db.connect()
+        mkdir(cwd(analysis=1))
+        init_logging(logging.INFO)
+        init_console_logging(logging.INFO)
+        shutil.copyfile(
+            os.path.join("tests", "files", "task_dump.json"),
+            cwd("task.json", analysis=1)
+        )
+        process_task_range("1")
+        assert os.path.exists(cwd("task.json", analysis=1))
+        assert os.path.exists(cwd("reports", "report.json", analysis=1))
+        obj = json.load(open(cwd("reports", "report.json", analysis=1), "rb"))
+        assert obj["info"]["added"] == 1494439200.0
 
 def test_process_log_taskid():
     set_cwd(tempfile.mkdtemp())
