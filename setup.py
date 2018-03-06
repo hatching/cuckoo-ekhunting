@@ -191,6 +191,7 @@ do_setup(
         "elasticsearch==5.3.0",
         "flask==0.12.2",
         "flask-sqlalchemy==2.1",
+        "gevent>=1.2, <1.3",
         "httpreplay>=0.2.2, <0.3",
         "jinja2==2.9.6",
         "jsbeautifier==1.6.2",
@@ -222,7 +223,6 @@ do_setup(
             "scapy==2.3.2",
         ],
         "distributed": [
-            "gevent==1.1.1",
             "psycopg2==2.6.2",
         ],
         "postgresql": [
