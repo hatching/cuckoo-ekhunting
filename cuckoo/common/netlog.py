@@ -54,8 +54,8 @@ def default_converter_64bit(v):
         return v.decode("latin-1")
     return v
 
-class BsonParser(ProtocolHandler):
-    """Receives and interprets .bson logs from the monitor.
+class BsonParser(object):
+    """Interprets .bson logs from the monitor.
 
     The monitor provides us with "info" messages that explain how the function
     arguments will come through later on. This class remembers these info
@@ -76,9 +76,8 @@ class BsonParser(ProtocolHandler):
         "x": pointer_converter_32bit,
     }
 
-    def init(self):
-        self.fd = self.handler
-
+    def __init__(self, fd):
+        self.fd = fd
         self.infomap = {}
         self.flags_value = {}
         self.flags_bitmask = {}
