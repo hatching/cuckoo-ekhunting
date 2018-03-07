@@ -34,12 +34,12 @@ class FakeMachine(object):
         self.resultserver_port = 4242
         self.manager = "virtualbox"
         self.locked = True
+        self.reserved_by = None
 
 class FakeTask(object):
     def __init__(self, id):
         self.id = id
         self.category = "file"
-        self.sample_id = 2
         self.status = "pending"
         self.platform = "windows"
         self.tags = ""

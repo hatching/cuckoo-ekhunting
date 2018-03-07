@@ -4,7 +4,6 @@
 
 import mock
 import os
-import pytest
 import shutil
 import tempfile
 
@@ -14,6 +13,7 @@ from cuckoo.core.database import Database
 from cuckoo.core.guest import GuestManager
 from cuckoo.core.plugins import RunAuxiliary
 from cuckoo.core.task import Task
+from cuckoo.core.target import Target
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, cwd
 
@@ -56,7 +56,6 @@ class TestRegular(object):
                 shutil.rmtree(path)
 
     def get_manager(self, task=None):
-        sample = None
         if task is None:
             task = Task()
             fd, fpath = tempfile.mkstemp()
@@ -65,13 +64,12 @@ class TestRegular(object):
             newname = os.path.join(os.path.dirname(fpath), "testanalysis.exe")
             os.rename(fpath, newname)
             task.add_path(newname)
-        if task.category == "file" or task.category == "archive":
-            sample = self.db.view_sample(task.sample_id)
 
         manager = Regular(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
-        manager.set_task(task, sample)
+        manager.set_task(task)
+        manager.set_target(task.targets)
         return manager
 
     def test_set_task(self):
@@ -85,46 +83,60 @@ class TestRegular(object):
         assert manager.analysis is not None
         assert manager.name == "task_%s_Regular" % task.id
 
+    def test_set_target(self):
+        self.create_cwd()
+        task = Task()
+        task.add_path(__file__)
+        manager = self.get_manager()
+        manager.set_target(task.targets)
+        assert manager.target == task.targets[0]
+
+    def test_set_target_empty(self):
+        self.create_cwd()
+        task = Task()
+        task.add_path(__file__)
+        task.task_dict["targets"] = []
+        manager = self.get_manager()
+        manager.set_target(task.targets)
+        assert isinstance(manager.target, Target)
+
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
     def test_init(self, mb):
         self.create_cwd()
         manager = self.get_manager()
         result = manager.init(self.db)
-        assert os.path.exists(manager.task.copied_binary)
-
         mb.assert_called_once_with(options={
+            "category": "file",
+            "target": manager.target.target,
             "file_type": "data",
             "file_name": "testanalysis.exe",
-            "target": manager.task.copied_binary,
             "pe_exports": "",
             "options": {}
         })
 
         assert result
-        assert manager.f is not None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(manager.task.path, "task.json"))
 
     @mock.patch("cuckoo.common.abstracts.AnalysisManager.build_options")
-    @mock.patch("cuckoo.analysis.regular.File.get_apk_entry")
+    @mock.patch("cuckoo.core.target.File.get_apk_entry")
     def test_init_apk_options(self, mae, mb):
         self.create_cwd()
         manager = self.get_manager()
-        mae.return_value= ("package", "activity")
+        mae.return_value = ("package", "activity")
         result = manager.init(self.db)
-        assert os.path.exists(manager.task.copied_binary)
 
         mb.assert_called_once_with(options={
+            "category": "file",
+            "target": manager.target.target,
             "file_type": "data",
             "file_name": "testanalysis.exe",
-            "target": manager.task.copied_binary,
             "pe_exports": "",
             "options": {"apk_entry": "package:activity"}
         })
 
         assert result
-        assert manager.f is not None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(manager.task.path, "task.json"))
@@ -139,7 +151,6 @@ class TestRegular(object):
         result = manager.init(self.db)
         mb.assert_called_once()
         assert result
-        assert manager.f is None
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
         assert os.path.isfile(os.path.join(task.path, "task.json"))
@@ -157,12 +168,10 @@ class TestRegular(object):
 
         # Remove so init fails to find the original target
         os.remove(tmpfile)
-        copy_path = cwd("storage", "binaries", tmpfile_obj.get_sha256())
 
         result = manager.init(self.db)
         assert result
-        assert manager.f is not None
-        assert manager.options["target"] == copy_path
+        assert manager.options["target"] == tmpfile
         assert manager.options["file_name"] == tmpfile_obj.get_name()
         assert isinstance(manager.guest_manager, GuestManager)
         assert isinstance(manager.aux, RunAuxiliary)
@@ -188,7 +197,7 @@ class TestRegular(object):
     def test_init_copied_bin_none(self):
         self.create_cwd()
         manager = self.get_manager()
-        manager.task.copied_binary = None
+        manager.target.copied_binary = None
         result = manager.init(self.db)
 
         assert not result
@@ -559,3 +568,7 @@ class TestRegular(object):
         assert db_task.status != "reported"
         assert db_task.status != "failed_processing"
         assert os.path.isfile(task_json_path)
+
+    def test_support_list(self):
+        for tasktype in ("regular", "baseline", "server"):
+            assert tasktype in Regular.supports
