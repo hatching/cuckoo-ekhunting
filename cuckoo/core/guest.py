@@ -195,7 +195,7 @@ class OldGuestManager(object):
                 )
 
             # If the target of the analysis is a file, upload it to the guest.
-            if self.target.category in ("file", "archive"):
+            if self.target.is_file:
                 file_data = self.target.helper.read()
                 data = xmlrpclib.Binary(file_data)
 
@@ -488,7 +488,7 @@ class GuestManager(object):
         self.aux.callback("prepare_guest")
 
         # If the target is a file, upload it to the guest.
-        if self.target.category in ("file", "archive"):
+        if self.target.is_file:
             data = {
                 "filepath": os.path.join(
                     self.determine_temp_path(), options["file_name"]

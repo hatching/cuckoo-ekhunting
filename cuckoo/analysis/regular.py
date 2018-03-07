@@ -4,7 +4,6 @@
 
 import logging
 import os
-import threading
 import time
 
 from cuckoo.common.abstracts import AnalysisManager
@@ -411,7 +410,6 @@ class Regular(AnalysisManager):
         else:
             log.debug("Using guest manager")
             monitor = self.task.options.get("monitor", "latest")
-            log.info("USING OPTIONS: %s", self.options)
             self.guest_manager.start_analysis(self.options, monitor)
 
             if self.analysis.status == Analysis.STARTING:
