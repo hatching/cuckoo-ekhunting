@@ -183,6 +183,8 @@ class Target(object):
             )
 
     def copy_exists(self):
+        if not self.copied_binary:
+            return False
         return os.path.isfile(self.copied_binary)
 
     def __getitem__(self, item):
