@@ -49,6 +49,9 @@ class Task(object):
         if self.task_dict["targets"]:
             self.task_dict["target"] = self.task_dict["targets"][0].target
             self.task_dict["category"] = self.task_dict["targets"][0].category
+        else:
+            self.task_dict["target"] = "none"
+            self.task_dict["category"] = None
 
     def load_task_dict(self, task_dict):
         """Load all dict key values as attributes to the object.
