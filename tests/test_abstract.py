@@ -141,34 +141,39 @@ class TestAnalysisManager(object):
     def test_set_task(self):
         task = Task()
         task.add_path(__file__)
-        sample = self.db.view_sample(task.sample_id)
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
 
-        a.set_task(task, sample)
+        a.set_task(task)
 
         assert a.task == task
-        assert a.sample == sample
         assert isinstance(a.analysis, Analysis)
         assert a.name == "task_%s_AnalysisManager" % task.id
+
+    def test_set_target(self):
+        task = Task()
+        task.add_path(__file__)
+        a = abstracts.AnalysisManager(
+            FakeMachine(), mock.MagicMock(), mock.MagicMock()
+        )
+        with pytest.raises(NotImplementedError):
+            a.set_target(task.targets)
 
     def test_build_options(self):
         task = Task()
         task.add_path(__file__, options={"free": "yes"})
-        sample = self.db.view_sample(task.sample_id)
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
-        a.set_task(task, sample)
+        a.set_task(task)
 
         expected = {
-            "category": "file",
             "clock": task.clock,
             "enforce_timeout": False,
             "id": task.id,
             "package": "",
-            "target": __file__,
+            "target": None,
             "terminate_processes": False,
             "ip": "192.168.56.1",
             "port": 4242,
@@ -181,7 +186,8 @@ class TestAnalysisManager(object):
         assert a.options == expected
         a.build_options({
             "file_name": "doge.py",
-            "options": {"doges": "many"}
+            "options": {"doges": "many"},
+            "category": "file"
         })
         assert a.options["options"] == "doges=many,free=yes"
         assert a.options["file_name"] == "doge.py"
