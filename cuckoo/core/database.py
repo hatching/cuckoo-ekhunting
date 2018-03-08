@@ -785,7 +785,6 @@ class Database(object):
         """Fetches a task waiting to be processed and locks it for running.
         @param machine: Fetch task for specific machine
         @param service: Fetch service machine tasks
-        @param lock: Lock task when fetching it
         @param exclude: List of task ids to exclude while fetching a task
         @param use_start_on: Only fetch tasks that have reached the time at
         which they should start
