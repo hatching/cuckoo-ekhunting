@@ -81,16 +81,16 @@ class TestAPI(object):
         assert self.create_task() == 1
         r = json.loads(self.app.get("/tasks/view/1").data)
         task = r["task"]
-        assert task["category"] == "file"
-        assert task["sample"]["md5"] == "f2d886558b2866065c3da842bfe13ce6"
-        assert open(task["target"], "rb").read() == "eval('alert(1)')"
+        assert task["targets"][0]["category"] == "file"
+        assert task["targets"][0]["md5"] == "f2d886558b2866065c3da842bfe13ce6"
+        assert open(task["targets"][0]["target"], "rb").read() == "eval('alert(1)')"
 
     def test_create_url_task(self):
         assert self.create_url() == 1
         r = json.loads(self.app.get("/tasks/view/1").data)
         task = r["task"]
-        assert task["category"] == "url"
-        assert task["target"] == "http://machete.pwn"
+        assert task["targets"][0]["category"] == "url"
+        assert task["targets"][0]["target"] == "http://machete.pwn"
 
     def test_create_submit_multi(self):
         obj = json.loads(self.app.post("/tasks/create/submit", data={
@@ -104,24 +104,24 @@ class TestAPI(object):
         assert obj["task_ids"] == [1, 2, 3]
 
         t1 = db.view_task(1)
-        assert t1.category == "file"
-        assert t1.target.endswith("pdf0.pdf")
+        assert t1.targets[0].category == "file"
+        assert t1.targets[0].target.endswith("pdf0.pdf")
         assert t1.options == {
             "procmemdump": "yes",
         }
-        assert os.path.getsize(t1.target) == 680
+        assert os.path.getsize(t1.targets[0].target) == 680
 
         t2 = db.view_task(2)
-        assert t2.category == "archive"
-        assert t2.target.endswith("pdf0.zip")
+        assert t2.targets[0].category == "archive"
+        assert t2.targets[0].target.endswith("pdf0.zip")
         assert t2.options == {
             "filename": "files/pdf0.pdf",
             "procmemdump": "yes",
         }
 
         t3 = db.view_task(3)
-        assert t3.category == "archive"
-        assert t3.target.endswith("pdf0.zip")
+        assert t3.targets[0].category == "archive"
+        assert t3.targets[0].target.endswith("pdf0.zip")
         assert t3.options == {
             "filename": "files/pdf0.pdf",
             "procmemdump": "yes",
@@ -155,16 +155,16 @@ class TestAPI(object):
         assert obj["task_ids"] == [1, 2, 3]
 
         t1 = db.view_task(1)
-        assert t1.category == "url"
-        assert t1.target == "http://google.com"
+        assert t1.targets[0].category == "url"
+        assert t1.targets[0].target == "http://google.com"
 
         t2 = db.view_task(2)
-        assert t2.category == "url"
-        assert t2.target == "http://cuckoosandbox.org"
+        assert t2.targets[0].category == "url"
+        assert t2.targets[0].target == "http://cuckoosandbox.org"
 
         t3 = db.view_task(3)
-        assert t3.category == "url"
-        assert t3.target == "https://1.2.3.4:9001/wow"
+        assert t3.targets[0].category == "url"
+        assert t3.targets[0].target == "https://1.2.3.4:9001/wow"
 
     def test_create_submit_none(self):
         r = self.app.post("/tasks/create/submit")
@@ -212,11 +212,11 @@ class TestAPI(object):
 
         # Fetch by sample id.
         r = self.app.get(
-            "/files/view/id/%s" % t["task"]["sample_id"]
+            "/files/view/id/%s" % t["task"]["targets"][0]["id"]
         )
         assert r.status_code == 200
         sample = json.loads(r.data)
-        assert sample["sample"]["id"] == t["task"]["sample_id"]
+        assert sample["sample"]["id"] == t["task"]["targets"][0]["id"]
 
         # Fetch by md5.
         r = self.app.get("/files/view/md5/f2d886558b2866065c3da842bfe13ce6")
@@ -311,9 +311,9 @@ class TestAPI(object):
             "file": werkzeug.FileStorage(io.BytesIO("foobar"), filepath),
         })
         t = db.view_task(json.loads(r.data)["task_id"])
-        assert open(t.target, "rb").read() == "foobar"
-        assert t.target != filepath
-        assert t.target.endswith("foobar.txt")
+        assert open(t.targets[0].target, "rb").read() == "foobar"
+        assert t.targets[0].target != filepath
+        assert t.targets[0].target.endswith("foobar.txt")
 
     def test_create_submit_abs(self):
         filepath = os.path.join(temppath(), "foobar.bat")
@@ -323,9 +323,9 @@ class TestAPI(object):
         task_ids = json.loads(r.data)["task_ids"]
         assert len(task_ids) == 1
         t = db.view_task(task_ids[0])
-        assert open(t.target, "rb").read() == "foobar"
-        assert t.target != filepath
-        assert t.target.endswith("foobar.bat")
+        assert open(t.targets[0].target, "rb").read() == "foobar"
+        assert t.targets[0].target != filepath
+        assert t.targets[0].target.endswith("foobar.bat")
 
     def create_task(self, filename="a.js", content="eval('alert(1)')"):
         r = self.app.post("/tasks/create/file", data={
