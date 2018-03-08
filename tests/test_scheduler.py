@@ -39,11 +39,11 @@ class FakeMachine(object):
 class FakeTask(object):
     def __init__(self, id):
         self.id = id
-        self.category = "file"
         self.status = "pending"
         self.platform = "windows"
         self.tags = ""
         self.machine = ""
+        self.type = "regular"
 
 class TestScheduler(object):
 
@@ -247,11 +247,58 @@ class TestScheduler(object):
         analysis_manager.init.assert_called_once()
         analysis_manager.start.assert_called_once()
 
+    def test_handle_pending_reserved_machine_notask(self):
+        # Test reserved machine for which the task is not ready to run
+        s = Scheduler()
+        s.db = mock.MagicMock()
+        mock_machine1 = mock.MagicMock()
+        mock_machine1.reserved_by = 12
+        s.db.get_available_machines.return_value = [mock_machine1]
+        s.machinery = mock.MagicMock()
+        s.machine_lock = mock.MagicMock()
+        s.db.fetch.side_effect = [None]
+
+        s.handle_pending()
+
+        s.machine_lock.acquire.assert_called_once_with(False)
+        s.db.fetch.assert_called_with(task_id=12)
+        s.machinery.acquire.assert_not_called()
+        mock_machine1.is_analysis.assert_not_called()
+        assert s.total_analysis_count == 0
+
+    def test_handle_pending_reserved_machine(self):
+        # Test reserved machine with task ready to run
+        s = Scheduler()
+        s.db = mock.MagicMock()
+        mock_machine1 = mock.MagicMock()
+        mock_machine1.reserved_by = 12
+        mock_machine1.name = "resmachine"
+        s.db.get_available_machines.return_value = [mock_machine1]
+        s.machinery = mock.MagicMock()
+        task = FakeTask(12)
+        s.db.fetch.side_effect = [task]
+        s.machinery.acquire.return_value = mock_machine1
+        s.machine_lock = mock.MagicMock()
+        analysis_manager = mock.MagicMock()
+        s.get_analysis_manager = mock.MagicMock(return_value=analysis_manager)
+
+        s.handle_pending()
+
+        s.machine_lock.acquire.assert_called_once_with(False)
+        s.machinery.acquire.assert_called_with(machine_id="resmachine")
+        mock_machine1.is_analysis.assert_not_called()
+        s.get_analysis_manager.assert_called_once_with(task, mock_machine1)
+        s.db.set_status.assert_called_once_with(12, "running")
+        assert s.total_analysis_count == 1
+        analysis_manager.init.assert_called_once()
+        analysis_manager.start.assert_called_once()
+
     def test_handle_pending_task(self):
         # Test finding and starting a task with machine
         s = Scheduler()
         s.db = mock.MagicMock()
         mock_machine1 = mock.MagicMock()
+        mock_machine1.reserved_by = None
         s.db.get_available_machines.return_value = [mock_machine1]
         s.machinery = mock.MagicMock()
         task = FakeTask(1)
@@ -282,6 +329,7 @@ class TestScheduler(object):
         s = Scheduler()
         s.db = mock.MagicMock()
         mock_machine1 = mock.MagicMock()
+        mock_machine1.reserved_by = None
         s.db.get_available_machines.return_value = [mock_machine1]
         s.machinery = mock.MagicMock()
         task2 = FakeTask(2)
@@ -314,6 +362,7 @@ class TestScheduler(object):
         mock_machine1 = mock.MagicMock()
         s.db.get_available_machines.return_value = [mock_machine1]
         s.machinery = mock.MagicMock()
+        mock_machine1.reserved_by = None
         s.db.fetch.side_effect = [None, None]
         s.machine_lock = mock.MagicMock()
         analysis_manager = mock.MagicMock()
@@ -359,17 +408,42 @@ class TestScheduler(object):
         s.machine_lock.release.assert_called_once()
         analysis_manager.start.assert_not_called()
 
-    def test_get_analysis_manager(self):
+    def test_get_analysis_manager_regular(self):
         s = Scheduler()
         task = Task()
         task.add_path(__file__)
         manager = s.get_analysis_manager(task.db_task, FakeMachine())
 
         assert isinstance(manager, Regular)
+        assert manager.target.target == __file__
+        assert manager.task.id == task.id
+        assert manager.machine.name == "machine1"
 
-    def test_get_analysis_manager_unsupportedcategory(self):
+    def test_get_analysis_manager_service(self):
         s = Scheduler()
-        id = self.db.add("http://example.com/42", category="DOGE")
+        task = Task()
+        task.add_service(60, "doge", [])
+        manager = s.get_analysis_manager(task.db_task, FakeMachine())
+
+        assert isinstance(manager, Regular)
+        assert manager.target is not None
+        assert manager.task.id == task.id
+        assert manager.machine.name == "machine1"
+
+    def test_get_analysis_manager_baseline(self):
+        s = Scheduler()
+        task = Task()
+        task.add_baseline()
+        manager = s.get_analysis_manager(task.db_task, FakeMachine())
+
+        assert isinstance(manager, Regular)
+        assert manager.target is not None
+        assert manager.task.id == task.id
+        assert manager.machine.name == "machine1"
+
+    def test_get_analysis_manager_unsupportedtype(self):
+        s = Scheduler()
+        id = self.db.add([], task_type="experiment")
         db_task = self.db.view_task(id)
         manager = s.get_analysis_manager(db_task, FakeMachine())
 
