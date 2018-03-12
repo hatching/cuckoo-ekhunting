@@ -77,6 +77,7 @@ class TestProcessing(object):
         d.task = Dictionary({
             "id": 1,
         })
+        d.set_machine({})
         # Note that the according exception doesn't show up provided we didn't
         # configure the DatabaseHandler logging handler with our temporary
         # database here.
@@ -832,6 +833,7 @@ class TestProcessingMachineInfo(object):
             "label": "cuckoo2",
             "locked_changed_on": None,
             "platform": "windows",
+            "reserved_by": None,
             "snapshot": None,
             "options": []
         }
