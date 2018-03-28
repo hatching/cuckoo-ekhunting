@@ -935,7 +935,6 @@ class TestWebInterfaceFeedback(object):
 
         q.return_value.add_traceback.assert_called_once()
         q.return_value.include_report_web.assert_called_once()
-        q.return_value.include_analysis.assert_called_once()
         s.warning.assert_called_once()
 
     def test_submit_reboot(self, client):
@@ -1001,8 +1000,8 @@ class TestWebInterfaceFeedback(object):
         assert task.id == 1
         assert task.route == "none"
         assert task.package == "pdf"
-        assert os.path.basename(task.target) == "CVE-2011-0611.pdf_"
-        assert task.category == "file"
+        assert os.path.basename(task.targets[0].target) == "CVE-2011-0611.pdf_"
+        assert task.targets[0].category == "file"
         assert task.priority == 374289732472983
         assert task.custom == ""
 
