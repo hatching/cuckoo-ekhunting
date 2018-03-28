@@ -444,7 +444,7 @@ class AnalysisApi(object):
                 company=body.get("company"),
                 email=body.get("email"),
                 message=body.get("message"),
-                json_report=body.get("include_analysis", False),
+                include_files=body.get("include_analysis", False),
                 memdump=body.get("include_memdump", False)
             )
         except CuckooFeedbackError as e:
