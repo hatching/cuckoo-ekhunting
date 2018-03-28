@@ -25,6 +25,8 @@ from cuckoo.core.startup import init_console_logging, init_yara
 from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, cwd, mkdir
+from cuckoo.processing.analysisinfo import AnalysisInfo
+from cuckoo.processing.analysisinfo import MetaInfo
 from cuckoo.processing.behavior import (
     ProcessTree, ExtractScripts, BehaviorAnalysis
 )
@@ -100,6 +102,58 @@ class TestProcessing(object):
         results = d.run()
         assert len(results["action"]) == 3
         assert len(results["errors"]) == 4
+
+    def test_analysisinfo(self):
+        set_cwd(tempfile.mkdtemp())
+        cuckoo_create()
+        db.connect(dsn="sqlite:///:memory:")
+        a = AnalysisInfo()
+        t = Task()
+        id = t.add_path(
+            "tests/files/pdf0.pdf", machine="cuckoo1",
+            options="free=yes,human.move_mouse=0", package="pdf",
+            custom="doges42", platform="DogeOS"
+        )
+        t.set_status("reported")
+        a.set_task(t.task_dict)
+        a.set_machine({
+            "name": "cuckoo1",
+            "label": "something else"
+        })
+        res = a.run()
+
+        assert res["id"] == id
+        assert res["category"] == "file"
+        assert res["route"] is None
+        assert res["package"] == "pdf"
+        assert res["custom"] == "doges42"
+        assert res["machine"] == "cuckoo1"
+        assert res["platform"] == "DogeOS"
+        assert res["tasktype"] == "regular"
+        assert res["options"] == "free=yes,human.move_mouse=0"
+        assert res["monitor"] is not None
+        assert res["git"]["head"] is not None
+        assert res["git"]["fetch_head"] is not None
+
+    def test_metainfo(self):
+        m = MetaInfo()
+        m.set_task({})
+        faketask = tempfile.mkdtemp()
+        for dir in ["memory", "buffer", "files"]:
+            path = os.path.join(faketask, dir)
+            os.mkdir(path)
+            tempfile.mkstemp(dir=path)
+
+        with open(os.path.join(faketask, "dump.pcap"), "wb") as fp:
+            fp.write("tosti")
+
+        m.set_path(faketask)
+        res = m.run()
+        assert len(res["output"]) == 4
+        assert res["output"]["pcap"]["basename"] == "dump.pcap"
+        assert res["output"]["pcap"]["sha256"] == "944264a52320a52a6be146247e43460ed00833e4ad7d76d05cd09b649ac5a5e8"
+        assert len(res["output"]["dropped"]) == 1
+        assert len(res["output"]["buffers"]) == 1
 
     def test_droidmon_url(self):
         d = Droidmon()
@@ -835,7 +889,8 @@ class TestProcessingMachineInfo(object):
             "platform": "windows",
             "reserved_by": None,
             "snapshot": None,
-            "options": []
+            "options": [],
+            "reserved_by": None
         }
 
 class TestBehavior(object):
