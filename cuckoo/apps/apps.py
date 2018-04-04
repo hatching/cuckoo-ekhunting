@@ -580,6 +580,9 @@ def migrate_cwd():
         task = Task(db_task)
         if not task.dir_exists():
             task.create_empty()
+            for target in task.targets:
+                if target.is_file and not os.path.exists(target.copied_binary):
+                    target.copy()
         else:
             # Always call this so that missing (newly added) directories
             # are created
