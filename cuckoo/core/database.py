@@ -32,7 +32,7 @@ Base = declarative_base()
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = "15740ce250e6"
+SCHEMA_VERSION = "e126de888ebd"
 TASK_PENDING = "pending"
 TASK_RUNNING = "running"
 TASK_COMPLETED = "completed"
@@ -77,7 +77,7 @@ tasks_tags = Table(
 tasks_targets = Table(
     "tasks_targets", Base.metadata,
     Column("task_id", Integer(), ForeignKey("tasks.id")),
-    Column("targets_id", Integer(), ForeignKey("targets.id"))
+    Column("target_id", Integer(), ForeignKey("targets.id"))
 )
 
 class JsonType(TypeDecorator):
@@ -243,7 +243,7 @@ class Target(Base):
     target = Column(Text(), nullable=False)
     last_task = Column(Integer(), nullable=True)
     __table_args__ = Index(
-        "hash_index", "md5", "crc32", "sha1", "sha256", "sha512", unique=True
+        "target_index", "md5", "crc32", "sha1", "sha256", "sha512", unique=True
     ),
 
     def __repr__(self):
