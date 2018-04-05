@@ -645,7 +645,6 @@ class DatabaseEngine(object):
         assert db_target["ssdeep"] == target.get_ssdeep()
         assert db_target["category"] == "file"
         assert db_target["target"] == sample_path
-        assert db_target["last_task"] is None
 
     def test_task_multiple_targets(self):
         db_targets = []

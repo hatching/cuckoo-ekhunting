@@ -266,7 +266,6 @@ class TestTask(object):
         assert self.t["ssdeep"] == fileobj.get_ssdeep()
         assert self.t["file_size"] == fileobj.get_size()
         assert self.t["file_type"] == fileobj.get_type()
-        assert self.t["last_task"] is None
 
         with pytest.raises(KeyError):
             self.t["n0N3xisting"]
@@ -295,8 +294,7 @@ class TestTask(object):
             "sha512": fileobj.get_sha512(),
             "ssdeep": fileobj.get_ssdeep(),
             "file_size": fileobj.get_size(),
-            "file_type": fileobj.get_type(),
-            "last_task": 1337
+            "file_type": fileobj.get_type()
         }
 
         assert self.t.id == 42
@@ -310,7 +308,6 @@ class TestTask(object):
         assert self.t.ssdeep == fileobj.get_ssdeep()
         assert self.t.file_size == fileobj.get_size()
         assert self.t.file_type == fileobj.get_type()
-        assert self.t.last_task == 1337
 
         with pytest.raises(AttributeError):
             self.t.nonexistingattribute42doges
