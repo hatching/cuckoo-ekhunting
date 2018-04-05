@@ -77,7 +77,8 @@ tasks_tags = Table(
 tasks_targets = Table(
     "tasks_targets", Base.metadata,
     Column("task_id", Integer(), ForeignKey("tasks.id")),
-    Column("target_id", Integer(), ForeignKey("targets.id"))
+    Column("target_id", Integer(), ForeignKey("targets.id")),
+    Index("ix_tasks_targets", "task_id", "target_id", unique=False)
 )
 
 class JsonType(TypeDecorator):
@@ -224,7 +225,7 @@ class Experiment(Base):
     machine = Column(String(255), nullable=True)
     runs = Column(Integer(), nullable=False, server_default="1")
     ran = Column(Integer(), nullable=False, server_default="0")
-    last_completed = Column(Integer(), nullable=True)
+    last_completed = Column(Integer(), ForeignKey("tasks.id"), nullable=True)
 
 class Target(Base):
     """Submitted target details"""
@@ -241,9 +242,10 @@ class Target(Base):
     ssdeep = Column(String(255), nullable=True)
     category = Column(String(255), nullable=False)
     target = Column(Text(), nullable=False)
-    last_task = Column(Integer(), nullable=True)
+    group_id = Column(Integer(), ForeignKey("targetgroups.id"), nullable=True)
     __table_args__ = Index(
-        "target_index", "md5", "crc32", "sha1", "sha256", "sha512", unique=True
+        "target_index", "md5", "crc32", "sha1", "sha256", "sha512", "group_id",
+        unique=True
     ),
 
     def __repr__(self):
@@ -278,6 +280,15 @@ class Target(Base):
         self.ssdeep = ssdeep
         self.file_size = file_size
         self.file_type = file_type
+
+class TargetGroup(Base):
+    """Groups for targets"""
+    __tablename__ = "targetgroups"
+
+    id = Column(Integer(), primary_key=True)
+    name = Column(String(255), nullable=False, unique=True)
+    description = Column(Text(), nullable=False)
+    last_task = Column(Integer(), ForeignKey("tasks.id"), nullable=True)
 
 class Error(Base):
     """Analysis errors."""
