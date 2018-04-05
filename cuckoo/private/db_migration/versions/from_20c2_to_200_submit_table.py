@@ -18,6 +18,12 @@ from alembic import op
 import sqlalchemy as sa
 
 def upgrade():
+    metadata = sa.schema.MetaData()
+    metadata.reflect(bind=op.get_bind())
+    for t in reversed(metadata.sorted_tables):
+        if t.name == "submit":
+            op.drop_table(t.name)
+
     op.create_table(
         "submit",
         sa.Column("id", sa.Integer(), nullable=False),
