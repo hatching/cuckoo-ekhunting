@@ -232,10 +232,6 @@ class Target(object):
         return self.target_dict.get("ssdeep")
 
     @property
-    def last_task(self):
-        return self.target_dict.get("last_task")
-
-    @property
     def file_size(self):
         return self.target_dict.get("file_size")
 
