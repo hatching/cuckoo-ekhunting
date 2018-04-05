@@ -7,6 +7,7 @@
 - Uses existing sample_id and url info to fill the targets table
 - Removes columns sample_id, target, and category
 - Removes the samples table
+- Create targetgroups table
 
 Revision ID: e126de888ebd
 Revises: 15740ce250e6
@@ -38,7 +39,7 @@ def upgrade():
     # if Cuckoo is started before the migration
     metadata = sa.schema.MetaData()
     metadata.reflect(bind=conn)
-    drop_on_exist = ["tasks_targets", "targets", "experiments"]
+    drop_on_exist = ["tasks_targets", "targets", "experiments", "targetgroups"]
     for t in reversed(metadata.sorted_tables):
         if t.name in drop_on_exist:
             op.drop_table(t.name)
@@ -47,6 +48,15 @@ def upgrade():
     op.drop_index("hash_index", "samples")
 
     # Create tables the new tables and add the new columns
+    op.create_table(
+        "targetgroups",
+        sa.Column("id", sa.Integer()),
+        sa.Column("name", sa.String(255), nullable=False, unique=True),
+        sa.Column("description", sa.Text(), nullable=False),
+        sa.Column("last_task", sa.Integer(), nullable=True),
+        sa.PrimaryKeyConstraint("id")
+    )
+
     op.create_table(
         "targets",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -60,12 +70,15 @@ def upgrade():
         sa.Column("ssdeep", sa.String(length=255), nullable=True),
         sa.Column("category", sa.String(length=255), nullable=False),
         sa.Column("target", sa.Text(), nullable=False),
-        sa.Column("last_task", sa.Integer(), nullable=True),
+        sa.Column(
+            "group_id", sa.Integer(), sa.ForeignKey("targetgroups.id"),
+            nullable=True
+        ),
         sa.PrimaryKeyConstraint("id")
     )
     op.create_index(
         "target_index", "targets", [
-            "md5", "crc32", "sha1", "sha256", "sha512"
+            "md5", "crc32", "sha1", "sha256", "sha512", "group_id"
         ],
         unique=True
     )
@@ -87,6 +100,11 @@ def upgrade():
         sa.Column("target_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["target_id"], ["targets.id"], ),
         sa.ForeignKeyConstraint(["task_id"], ["tasks.id"], )
+    )
+
+    op.create_index(
+        "ix_tasks_targets", "tasks_targets", ["task_id", "target_id"],
+        unique=False
     )
 
     op.add_column(
@@ -330,7 +348,7 @@ def target_from_sample(target, category, sample=None, url=None):
             "ssdeep": sample[8],
             "category": "file",
             "target": target,
-            "last_task": None
+            "group_id": None
         }
     elif url and category == "url":
         t = {
@@ -344,7 +362,7 @@ def target_from_sample(target, category, sample=None, url=None):
             "ssdeep": url.get_ssdeep(),
             "category": "url",
             "target": target,
-            "last_task": None
+            "group_id": None
         }
 
     return t
@@ -431,4 +449,3 @@ class Target(Base):
     ssdeep = sa.Column(sa.String(255), nullable=True)
     category = sa.Column(sa.String(255), nullable=False)
     target = sa.Column(sa.Text(), nullable=False)
-    last_task = sa.Column(sa.Integer(), nullable=True)
