@@ -338,7 +338,7 @@ class RunSignatures(object):
             if self.should_enable_signature(signature):
                 self.signatures.append(signature(self))
 
-        # Signatures to call per API name.
+        # Cache of signatures to call per API name.
         self.api_sigs = {}
 
         # Prebuild a list of signatures that *may* be interested
@@ -448,8 +448,6 @@ class RunSignatures(object):
                 signature.matched = True
                 for sig in self.signatures:
                     self.call_signature(sig, sig.on_signature, signature)
-        except NotImplementedError:
-            return False
         except:
             task_id = self.results.get("info", {}).get("id")
             log.exception(
@@ -459,34 +457,24 @@ class RunSignatures(object):
             )
         return True
 
-    def init_api_sigs(self, apiname, category):
-        """Initialize a list of signatures for which we should trigger its
-        on_call method for this particular API name and category."""
-        self.api_sigs[apiname] = []
-
-        for sig in self.signatures:
-            if sig.filter_apinames and apiname not in sig.filter_apinames:
-                continue
-
-            if sig.filter_categories and category not in sig.filter_categories:
-                continue
-
-            self.api_sigs[apiname].append(sig)
-
     def yield_calls(self, proc):
         """Yield calls of interest to each interested signature."""
         for idx, call in enumerate(proc.get("calls", [])):
-
-            # Initialize a list of signatures to call for this API call.
-            if call["api"] not in self.api_sigs:
-                self.init_api_sigs(call["api"], call.get("category"))
-
-            # See the following SO answer on why we're using reversed() here.
-            # http://stackoverflow.com/a/10665800
-            for sig in reversed(self.api_sigs[call["api"]]):
+            api = call.get("api")
+            sigs = self.api_sigs.get(api)
+            if sigs is None:
+                # Build interested signatures
+                cat = call.get("category")
+                sigs = self.call_always.union(
+                    self.call_for_api.get(api, set()),
+                    self.call_for_cat.get(cat, set())
+                )
+                self.api_sigs[api] = sigs
+            name = "on_call_" + api
+            for sig in sigs:
                 sig.cid, sig.call = idx, call
-                if self.call_signature(sig, sig.on_call, call, proc) is False:
-                    self.api_sigs[call["api"]].remove(sig)
+                func = getattr(sig, name, sig.on_call)
+                self.call_signature(sig, func, call, proc)
 
     def process_yara_matches(self):
         """Yields any Yara matches to each signature."""
