@@ -39,7 +39,10 @@ def upgrade():
     # if Cuckoo is started before the migration
     metadata = sa.schema.MetaData()
     metadata.reflect(bind=conn)
-    drop_on_exist = ["tasks_targets", "targets", "experiments", "targetgroups"]
+    drop_on_exist = [
+        "tasks_targets", "targets", "experiments", "targets_targetgroups",
+        "targetgroups"
+    ]
     for t in reversed(metadata.sorted_tables):
         if t.name in drop_on_exist:
             op.drop_table(t.name)
@@ -54,6 +57,9 @@ def upgrade():
         sa.Column("name", sa.String(255), nullable=False, unique=True),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("last_task", sa.Integer(), nullable=True),
+        sa.Column(
+            "priority", sa.Integer(), nullable=False, server_default="1"
+        ),
         sa.PrimaryKeyConstraint("id")
     )
 
@@ -70,18 +76,13 @@ def upgrade():
         sa.Column("ssdeep", sa.String(length=255), nullable=True),
         sa.Column("category", sa.String(length=255), nullable=False),
         sa.Column("target", sa.Text(), nullable=False),
-        sa.Column(
-            "group_id", sa.Integer(), sa.ForeignKey("targetgroups.id"),
-            nullable=True
-        ),
         sa.PrimaryKeyConstraint("id")
     )
     op.create_index(
-        "target_index", "targets", [
-            "md5", "crc32", "sha1", "sha256", "sha512", "group_id"
-        ],
+        "target_index", "targets", ["crc32", "sha1", "sha256", "sha512"],
         unique=True
     )
+    op.create_index("ix_target_md5", "targets", ["md5"], unique=True)
 
     op.create_table(
         "experiments",
@@ -98,13 +99,32 @@ def upgrade():
         "tasks_targets",
         sa.Column("task_id", sa.Integer(), nullable=True),
         sa.Column("target_id", sa.Integer(), nullable=True),
+        sa.Column("targetgroup_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["target_id"], ["targets.id"], ),
-        sa.ForeignKeyConstraint(["task_id"], ["tasks.id"], )
+        sa.ForeignKeyConstraint(["task_id"], ["tasks.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["targetgroup_id"], ["targetgroups.id"], )
+    )
+
+    op.create_table(
+        "targets_targetgroups",
+        sa.Column("target_id", sa.Integer(), nullable=True),
+        sa.Column("targetgroup_id", sa.Integer(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["target_id"], ["targets.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["targetgroup_id"], ["targetgroups.id"], ondelete="CASCADE"
+        )
     )
 
     op.create_index(
         "ix_tasks_targets", "tasks_targets", ["task_id", "target_id"],
         unique=False
+    )
+
+    op.create_index(
+        "ix_targets_groups", "targets_targetgroups",
+        ["target_id", "targetgroup_id"], unique=False
     )
 
     op.add_column(
@@ -347,8 +367,7 @@ def target_from_sample(target, category, sample=None, url=None):
             "sha512": sample[7],
             "ssdeep": sample[8],
             "category": "file",
-            "target": target,
-            "group_id": None
+            "target": target
         }
     elif url and category == "url":
         t = {
@@ -361,8 +380,7 @@ def target_from_sample(target, category, sample=None, url=None):
             "sha512": url.get_sha512(),
             "ssdeep": url.get_ssdeep(),
             "category": "url",
-            "target": target,
-            "group_id": None
+            "target": target
         }
 
     return t
