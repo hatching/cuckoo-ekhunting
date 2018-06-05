@@ -237,7 +237,7 @@ class Scheduler(object):
 
             # If the machine has been reserved for a specific task, this
             # task should be processed first, as the machine will only be
-            # released it has finished (Example: Experiment task).
+            # released it has finished (Example: longterm task).
             if available_machine.reserved_by:
                 task = self.db.fetch(task_id=available_machine.reserved_by)
                 if task:

@@ -3,7 +3,7 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 """Introduced targets table and changed references to targets.
-- Creates the new target, tasks_targets and experiments tables
+- Creates the new target, tasks_targets and longterm tables
 - Uses existing sample_id and url info to fill the targets table
 - Removes columns sample_id, target, and category
 - Removes the samples table
@@ -40,7 +40,7 @@ def upgrade():
     metadata = sa.schema.MetaData()
     metadata.reflect(bind=conn)
     drop_on_exist = [
-        "tasks_targets", "targets", "experiments", "targets_targetgroups",
+        "tasks_targets", "targets", "longterms", "targets_targetgroups",
         "targetgroups"
     ]
     for t in reversed(metadata.sorted_tables):
@@ -85,7 +85,7 @@ def upgrade():
     op.create_index("ix_target_md5", "targets", ["md5"], unique=True)
 
     op.create_table(
-        "experiments",
+        "longterms",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("added_on", sa.DateTime(), nullable=False),
         sa.Column("machine", sa.String(length=255), nullable=True),
@@ -131,13 +131,13 @@ def upgrade():
         "machines", sa.Column("reserved_by", sa.Integer(), nullable=True)
     )
     op.add_column(
-        "tasks", sa.Column("experiment_id", sa.Integer(), nullable=True)
+        "tasks", sa.Column("longterm_id", sa.Integer(), nullable=True)
     )
 
     # Postgres requires enums to exist when creating a column with them
     if dbdriver == "psycopg2":
         task_type = dialects.postgresql.ENUM(
-            "regular", "baseline", "service", "experiment", name="task_type"
+            "regular", "baseline", "service", "longterm", name="task_type"
         )
         task_type.create(conn)
 
@@ -145,7 +145,7 @@ def upgrade():
         "tasks",
         sa.Column(
             "type", sa.Enum(
-                "regular", "baseline", "service", "experiment",
+                "regular", "baseline", "service", "longterm",
                 name="task_type"
             ), server_default="regular", nullable=False
         )
@@ -153,7 +153,7 @@ def upgrade():
 
     if dbdriver != "pysqlite":
         op.create_foreign_key(
-            None, "tasks", "experiments", ["experiment_id"], ["id"]
+            None, "tasks", "longterms", ["longterm_id"], ["id"]
         )
 
     # Change existing tasks to the correct task type
@@ -279,7 +279,7 @@ def upgrade():
             sa.Column("id", sa.Integer(), primary_key=True),
             sa.Column(
                 "type", sa.Enum(
-                    "regular", "baseline", "service", "experiment",
+                    "regular", "baseline", "service", "longterm",
                     name="task_type"
                 ), server_default="regular", nullable=False
             ),
@@ -330,7 +330,7 @@ def upgrade():
                 index=True
             ),
             sa.Column(
-                "experiment_id", sa.Integer(), sa.ForeignKey("experiments.id"),
+                "longterm_id", sa.Integer(), sa.ForeignKey("longterms.id"),
                 nullable=True
             )
         )
@@ -398,7 +398,7 @@ task_columns = (
     "id", "type", "timeout", "priority", "custom", "owner", "machine",
     "package", "options", "platform", "memory", "enforce_timeout", "clock",
     "added_on", "start_on", "started_on", "completed_on", "status",
-    "processing", "route", "submit_id", "experiment_id"
+    "processing", "route", "submit_id", "longterm_id"
 )
 
 tasks_table = sa.Table(
@@ -406,7 +406,7 @@ tasks_table = sa.Table(
     sa.Column("id", sa.Integer(), primary_key=True),
     sa.Column(
         "type", sa.Enum(
-            "regular", "baseline", "service", "experiment", name="task_type"
+            "regular", "baseline", "service", "longterm", name="task_type"
         ), server_default="regular", nullable=False
     ),
     sa.Column("timeout", sa.Integer(), server_default="0", nullable=False),
@@ -447,7 +447,7 @@ tasks_table = sa.Table(
         index=True
     ),
     sa.Column(
-        "experiment_id", sa.Integer(), sa.ForeignKey("experiments.id"),
+        "longterm_id", sa.Integer(), sa.ForeignKey("longterms.id"),
         nullable=True
     )
 )

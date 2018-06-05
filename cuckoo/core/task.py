@@ -209,7 +209,7 @@ class Task(object):
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
-        @param task_type: The type of task: regular, experiment, other type
+        @param task_type: The type of task: regular, longterm, other type
         @return: task id or None.
         """
         # Convert empty strings and None values to a valid int
@@ -274,7 +274,7 @@ class Task(object):
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
-        @param task_type: The type of task: regular, experiment, other type
+        @param task_type: The type of task: regular, longterm, other type
         @return: task id or None
         """
         if not file_path:

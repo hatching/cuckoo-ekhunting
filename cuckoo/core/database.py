@@ -44,7 +44,7 @@ TASK_FAILED_REPORTING = "failed_reporting"
 
 # Task types
 TYPE_REGULAR = "regular"
-TYPE_EXPERIMENT = "experiment"
+TYPE_LTA = "longterm"
 TYPE_BASELINE = "baseline"
 TYPE_SERVICE = "service"
 
@@ -55,7 +55,7 @@ status_type = Enum(
 )
 
 task_type = Enum(
-    TYPE_REGULAR, TYPE_BASELINE, TYPE_SERVICE, TYPE_EXPERIMENT,
+    TYPE_REGULAR, TYPE_BASELINE, TYPE_SERVICE, TYPE_LTA,
     name="task_type"
 )
 
@@ -235,16 +235,16 @@ class Submit(Base):
         self.submit_type = submit_type
         self.data = data
 
-class Experiment(Base):
+class Longterm(Base):
     """Longterm analysis details"""
-    __tablename__ = "experiments"
+    __tablename__ = "longterms"
 
     id = Column(Integer(), primary_key=True)
     added_on = Column(DateTime, nullable=False, default=datetime.datetime.now)
     machine = Column(String(255), nullable=True)
-    runs = Column(Integer(), nullable=False, server_default="1")
-    ran = Column(Integer(), nullable=False, server_default="0")
+    name = Column(String(255), nullable=True)
     last_completed = Column(Integer(), ForeignKey("tasks.id"), nullable=True)
+    tasks = relationship("Tasks", lazy="subquery")
 
 class Target(Base):
     """Submitted target details"""
@@ -408,8 +408,8 @@ class Task(Base):
     submit_id = Column(
         Integer(), ForeignKey("submit.id"), nullable=True, index=True
     )
-    experiment_id = Column(
-        Integer(), ForeignKey("experiments.id"), nullable=True
+    longterm_id = Column(
+        Integer(), ForeignKey("longterms.id"), nullable=True
     )
     tags = relationship(
         "Tag", secondary=tasks_tags, single_parent=True, backref="task",
@@ -511,7 +511,7 @@ class Database(object):
         "submit_id": Task.submit_id,
         "processing": Task.processing,
         "route": Task.route,
-        "experiment_id": Task.experiment_id
+        "longterm_id": Task.longterm_id
     }
 
     def __init__(self, schema_check=True, echo=False):
@@ -1155,7 +1155,7 @@ class Database(object):
         @param memory: toggle full memory dump.
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
-        @param task_type: The type of task: regular, experiment, other type
+        @param task_type: The type of task: regular, lta, other type
         @return: task id or None.
         """
         session = self.Session()
@@ -1781,3 +1781,20 @@ class Database(object):
             return False
         finally:
             session.close()
+
+    def view_longterm(self, longterm_id):
+        """Retrieve longterm analysis info by id"""
+
+        session = self.Session()
+        try:
+            lta = session.query(Longterm).get(longterm_id)
+
+            if lta:
+                session.expunge(lta)
+            return lta
+        except SQLAlchemyError as e:
+            log.error("Error retrieving longterm analysis: %s", e)
+        finally:
+            session.close()
+
+        return None

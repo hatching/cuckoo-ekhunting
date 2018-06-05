@@ -443,7 +443,7 @@ class TestScheduler(object):
 
     def test_get_analysis_manager_unsupportedtype(self):
         s = Scheduler()
-        id = self.db.add([], task_type="experiment")
+        id = self.db.add([], task_type="longterm")
         db_task = self.db.view_task(id)
         manager = s.get_analysis_manager(db_task, FakeMachine())
 
