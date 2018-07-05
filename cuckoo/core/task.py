@@ -194,9 +194,9 @@ class Task(object):
     def add(self, targets=[], timeout=0, package="", options="", priority=1,
             custom="", owner="", machine="", platform="", tags=None,
             memory=False, enforce_timeout=False, clock=None, task_type=None,
-            submit_id=None, start_on=None):
+            submit_id=None, start_on=None, longterm_id=None):
         """Create new task
-        @param obj: object to add (File or URL).
+        @param targets: object to add (File or URL).
         @param timeout: selected timeout.
         @param package: the analysis package to use
         @param options: analysis options.
@@ -210,6 +210,7 @@ class Task(object):
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
         @param task_type: The type of task: regular, longterm, other type
+        @param longterm_id: Longterm analysis ID to connect this task to
         @return: task id or None.
         """
         # Convert empty strings and None values to a valid int
@@ -226,6 +227,12 @@ class Task(object):
             except ValueError:
                 log.error("'start on' format should be: 'YYYY-M-D H:M'")
                 return None
+
+        # If no clock time was provided, but a specific starting time/date
+        # was, also use this starting time for the system clock instead of
+        # the default current time (now).
+        if not clock and start_on:
+            clock = start_on
 
         if clock:
             if isinstance(clock, basestring):
@@ -244,7 +251,7 @@ class Task(object):
             priority=priority, custom=custom, owner=owner, machine=machine,
             platform=platform, tags=self.get_tags_list(tags), memory=memory,
             enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
-            submit_id=submit_id,  start_on=start_on
+            submit_id=submit_id,  start_on=start_on, longterm_id=longterm_id
         )
 
         if not task:
@@ -362,6 +369,7 @@ class Task(object):
         target = Target()
         if not target.create_url(url):
             log.error("New task creation failed, could not create target")
+            return
 
         return self.add(
             targets=[target.db_target], timeout=timeout, package=package,
@@ -473,6 +481,119 @@ class Task(object):
             tags=self.tags, memory=self.memory,
             enforce_timeout=self.enforce_timeout, clock=self.clock,
             task_type=self.type,
+        )
+
+    def add_longterm(self, target, startdate, days, starttime, stoptime,
+                     name=None, package=None, options="", priority=1,
+                     custom=None, owner=None, machine=None, platform=None,
+                     tags=None, memory=False, clock=None):
+
+        if not days:
+            log.error("Invalid amount of days to run provided")
+            return None
+
+        try:
+            days = int(days)
+        except ValueError:
+            log.error("Invalid amount of days to run provided")
+            return None
+
+        if days < 1:
+            log.error("The amount of days cannot be lower than 1")
+            return None
+
+        # Verify times are the correct format
+        try:
+            startdate = datetime.datetime.strptime(startdate, "%Y-%m-%d")
+        except ValueError:
+            log.error("Invalid start date format. Use 'YYYY-MM-DD'")
+            return None
+
+        try:
+            starttime = datetime.datetime.strptime(starttime, "%H:%M")
+            stoptime = datetime.datetime.strptime(stoptime, "%H:%M")
+        except ValueError:
+            log.error("Invalid start/stop time format. Use '%H:%M'")
+            return None
+
+        if stoptime <= starttime:
+            log.error("Stop time cannot be earlier than starting time")
+            return None
+
+        lta_id = db.add_longterm(name=name, machine=machine)
+        if not lta_id:
+            log.error("Failed to create new longterm analysis")
+            return None
+
+        # Create 'days' amount of tasks
+        timeout = (stoptime - starttime).seconds
+        targets = [target.db_target]
+        starton = datetime.datetime.combine(startdate.date(), starttime.time())
+        for d in range(days):
+            self.add(
+                targets=targets, timeout=timeout, package=package,
+                options=options, priority=priority, custom=custom, owner=owner,
+                machine=machine, platform=platform, tags=tags, memory=memory,
+                enforce_timeout=True, clock=clock, task_type="longterm",
+                longterm_id=lta_id, start_on=starton
+            )
+
+            # Increment the starting datetime by one day, so the next task
+            # is scheduled for the next day.
+            starton = starton + datetime.timedelta(days=1)
+
+            # Only the first task should have the chosen package. All following
+            # tasks should look try to monitor behavior created by files left
+            # behind of the first task. This is taken care of by the longterm
+            # analysis package
+            if package != "longterm":
+                package = "longterm"
+                targets = []
+
+        return lta_id
+
+    def add_url_longterm(self, url, startdate, days, starttime, stoptime,
+                     name=None, package=None, options="", priority=1,
+                     custom=None, owner=None, machine=None, platform=None,
+                     tags=None, memory=False, clock=None):
+
+        if not url:
+            log.error("No URL given, cannot create task")
+            return None
+
+        target = Target()
+        if not target.create_url(url):
+            log.error("New task creation failed, could not create target")
+            return None
+
+        return self.add_longterm(
+            target=target, startdate=startdate, days=days,
+            starttime=starttime, stoptime=stoptime, name=name, package=package,
+            options=options, priority=priority, custom=custom, owner=owner,
+            machine=machine, platform=platform, tags=tags, memory=memory,
+            clock=clock
+        )
+
+    def add_path_longterm(self, file_path, startdate, days, starttime, stoptime,
+                     name=None, package=None, options="", priority=1,
+                     custom=None, owner=None, machine=None, platform=None,
+                     tags=None, memory=False, clock=None):
+
+        if not file_path:
+            log.error("No file path given to analyze, cannot create task")
+            return None
+
+        target = Target()
+        if not target.create_file(file_path):
+            log.error("New task creation failed, could not create target")
+            return None
+
+        return self.add_longterm(
+            target=target, startdate=startdate, days=days,
+            starttime=starttime, stoptime=stoptime, name=name, package=package,
+            options=options, priority=priority, custom=custom, owner=owner,
+            machine=machine, platform=platform, tags=tags, memory=memory,
+            clock=clock
         )
 
     @staticmethod
@@ -771,6 +892,10 @@ class Task(object):
     @property
     def submit_id(self):
         return self.task_dict.get("submit_id")
+
+    @property
+    def longterm_id(self):
+        return self.task_dict.get("longterm_id")
 
     @property
     def processing(self):
