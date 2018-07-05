@@ -4,25 +4,16 @@
 
 import logging
 import os
-import time
-from threading import Thread, ThreadError
 
 from cuckoo.analysis.regular import Regular
 from cuckoo.common.config import config
-from cuckoo.common.constants import faq
 from cuckoo.common.exceptions import (
-    CuckooMachineSnapshotError, CuckooMachineError, CuckooGuestError,
-    CuckooGuestCriticalTimeout
+    CuckooMachineSnapshotError, CuckooMachineError, CuckooGuestCriticalTimeout
 )
 from cuckoo.common.objects import Analysis
-from cuckoo.core.database import (
-    TASK_COMPLETED, TASK_REPORTED, TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING
-)
-from cuckoo.core.guest import GuestManager
+from cuckoo.core.database import TASK_FAILED_ANALYSIS, TASK_PENDING
 from cuckoo.core.log import task_log_start, task_log_stop, logger
-from cuckoo.core.plugins import RunAuxiliary
 from cuckoo.core.resultserver import ResultServer
-from cuckoo.core.target import Target
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +26,7 @@ class Longterm(Regular):
         if not success:
             return False
 
-        self.longterm = db.view_lta(self.task.longterm_id)
+        self.longterm = db.view_longterm(self.task.longterm_id)
         if not self.longterm:
             log.warning(
                 "No longterm analysis found matching id '%s'",
@@ -43,67 +34,56 @@ class Longterm(Regular):
             )
             return False
 
+        # The last_completed is updated at the end of a LTA task. If it is
+        # not set, no tasks were completed yet.
         self.options["lta.first"] = self.longterm.last_completed is None
+
+        # Machine was not given on LTA creation, set the current machine as
+        # the analysis machine that should be used for all tasks that are part
+        # of this LTA
+        if self.longterm.machine is None:
+            db.set_longterm_machine(self.machine.label, self.longterm.id)
+            self.longterm.machine = self.machine.label
+            db.machine_reserve(self.machine.label, self.task.id)
+
         return True
 
     def run(self):
         task_log_start(self.task.id)
-        startup_success = False
+        analysis_success = False
+
         try:
-            startup_success = self.prepare_and_start()
+            analysis_success = self.prepare_and_start()
+            log.info("At %s: ANALYSIS SUCCESS: %s", analysis_success, "prepare and start")
         except Exception as e:
             log.exception(
                 "Failure during the starting of task #%s. Error: %s",
                 self.task.id, e,
             )
 
-        # Start guest manager and wait for machine to start.
-        try:
-            self.guest_manager.start_analysis(
-                self.options, self.options.get("monitor", "latest")
-            )
-        except CuckooGuestCriticalTimeout as e:
-            startup_success = False
-            log.error("Error starting guest manager: %s", e)
+        log.info("At %s: ANALYSIS SUCCESS: %s", analysis_success, "after start analysis")
 
         # The guest manager could have changed the status to failed if
         # something went wrong with starting the machine.
         if self.analysis.status == Analysis.STARTING:
             self.set_analysis_status(Analysis.RUNNING)
         else:
-            startup_success = False
+            analysis_success = False
+            log.info("BLAAAAAAAAAAAAAAAAAAt")
+            log.info("STATUS IS: %s", self.analysis.status)
 
-        # If analysis manager processing is enabled, the guest manager wait
-        # is started/moved to another thread so we can process results while
-        # the analysis runs.
-        wait_th = None
-        if not config("cuckoo:cuckoo:process_results"):
-            try:
-                self.guest_manager.wait_for_completion()
-            except Exception as e:
-                log.exception(
-                    "Guest manager failure while waiting for analysis to"
-                    " complete. Error: %s", e
-                )
+        log.info("At %s: ANALYSIS SUCCESS: %s", analysis_success, "after setting status to running")
 
-        else:
-            try:
-                wait_th = Thread(target=self.guest_manager.wait_for_completion)
-                wait_th.start()
-            except ThreadError as e:
-                log.exception(
-                    "Failed to start guest manager wait in a new thread. "
-                    "Error: %s", e
-                )
+        # If the status is not running, the wait will return immediately
+        try:
+            self.guest_manager.wait_for_completion()
+        except Exception as e:
+            log.exception(
+                "Guest manager failure while waiting for analysis to"
+                " complete. Error: %s", e
+            )
+            analysis_success = False
 
-        # Seperate guest manager wait thread is used, start processing
-        # while analysis runs and guest manager thread is alive
-        if wait_th:
-            self.interval_process(wait_th)
-
-        # TODO Processing in the analysis manager should keep happening while
-        # the machine is stopping/was stopped to make sure the latest behavior,
-        # including memdumps are processed.
         try:
             self.stop_and_wait()
         except Exception as e:
@@ -111,28 +91,12 @@ class Longterm(Regular):
                 "Failure during the stopping of task #%s. Error: %s",
                 self.task.id, e
             )
+        log.info("At %s: ANALYSIS SUCCESS: %s", analysis_success, "After stop")
 
-        if not startup_success:
+        if not analysis_success:
             self.set_analysis_status(Analysis.FAILED, wait=True)
         else:
             self.set_analysis_status(Analysis.STOPPED, wait=True)
-
-    def interval_process(self, th):
-        do = True
-        while do:
-            # TODO Get time from from config
-
-            # Only sleep if thread is running. If thread is not running, it
-            # means that it either ended or failed to start. One round of
-            # processing results should always happen.
-            if th.isAlive():
-                time.sleep(60)
-
-            # TODO Only process if new data is available
-            # TODO Summarize behavioral data
-            self.task.process()
-            if self.analysis.STATUS != Analysis.RUNNING or not th.isAlive():
-                do = False
 
     def prepare_and_start(self):
         self.set_analysis_status(self.analysis.STARTING)
@@ -219,6 +183,26 @@ class Longterm(Regular):
 
         # Request scheduler action for status 'starting'
         self.request_scheduler_action(Analysis.STARTING)
+
+        # Start guest manager and wait for machine to start.
+        try:
+            self.guest_manager.start_analysis(
+                self.options, self.options.get("monitor", "latest")
+            )
+        except CuckooGuestCriticalTimeout as e:
+            log.error("Error starting guest manager: %s", e)
+            return False
+
+        # The guest manager could have changed the status to failed if
+        # something went wrong with starting the machine.
+        if self.analysis.status != Analysis.STARTING:
+            log.error(
+                "Analysis status was changed to unexpected status '%s'. "
+                "This likely means something went wrong while starting the "
+                "guest.", self.analysis.status
+            )
+            return False
+
         return True
 
     def stop_and_wait(self):
@@ -250,7 +234,7 @@ class Longterm(Regular):
 
         # Stop the analysis machine.
         try:
-            self.machinery.safe_stop(self.machine.label)
+            self.machinery.stop_safe(self.machine.label)
         except CuckooMachineError as e:
             log.warning(
                 "Unable to stop machine %s: %s", self.machine.label, e,
@@ -262,3 +246,40 @@ class Longterm(Regular):
 
         # Drop the network routing rules if any.
         self.route.unroute_network()
+
+    def finalize(self, db):
+        self.task.set_latest()
+        self.release_machine_lock()
+
+        if self.analysis.status != Analysis.STOPPED:
+            log.error(
+                "Analysis status is '%s' after exit. Setting task #%s status"
+                " to %s", self.analysis.status, self.task.id,
+                TASK_FAILED_ANALYSIS
+            )
+            self.task.write_task_json(status=TASK_FAILED_ANALYSIS)
+            self.task.set_status(TASK_FAILED_ANALYSIS)
+
+        db.set_latest_longterm(self.task.id, self.task.longterm_id)
+
+        # Release the machine reservation if there are no pending tasks left
+        # for this longterm analysis. If there are, reserve the machine for
+        # the next task of this longterm analysis.
+        pending_lta = db.list_tasks(
+            longterm_id=self.task.longterm_id, status=TASK_PENDING,
+            order_by="id"
+        )
+        if not pending_lta:
+            log.debug(
+                "Last task of longterm analysis completed. Clearing"
+                " reservation of machine %s", self.longterm.machine
+            )
+            db.clear_reservation(self.longterm.machine)
+        else:
+            log.debug(
+                "Changing machine %s reservation to next task #%s",
+                self.longterm.machine, pending_lta[0].id
+            )
+            db.machine_reserve(self.longterm.machine, pending_lta[0].id)
+
+        task_log_stop(self.task.id)

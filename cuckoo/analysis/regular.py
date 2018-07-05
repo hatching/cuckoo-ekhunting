@@ -469,7 +469,7 @@ class Regular(AnalysisManager):
         # succeeded, since the manager thread already exited. Updated status
         # to failed if the results were not processed.
         if self.analysis.status != Analysis.STOPPED:
-            log.debug(
+            log.warning(
                 "Analysis status is '%s' after exit.", self.analysis.status
             )
             if not config("cuckoo:cuckoo:process_results"):
