@@ -243,8 +243,34 @@ class Longterm(Base):
     added_on = Column(DateTime, nullable=False, default=datetime.datetime.now)
     machine = Column(String(255), nullable=True)
     name = Column(String(255), nullable=True)
-    last_completed = Column(Integer(), ForeignKey("tasks.id"), nullable=True)
-    tasks = relationship("Tasks", lazy="subquery")
+    last_completed = Column(Integer(), nullable=True)
+    tasks = relationship("Task", backref="longterms", lazy="subquery")
+
+    def __init__(self, name=None, machine=None):
+        self.name = name
+        self.machine = machine
+
+    def to_dict(self):
+        """Converts object to dict.
+        @return: dict
+        """
+        d = {}
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+            if isinstance(value, datetime.datetime):
+                d[column.name] = value.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                d[column.name] = value
+
+        # Tags are a relation so no column to iterate.
+        d["tasks"] = [task.to_dict() for task in self.tasks]
+        return d
+
+    def to_json(self):
+        """Converts object to JSON.
+        @return: JSON data
+        """
+        return json.dumps(self.to_dict())
 
 class Target(Base):
     """Submitted target details"""
@@ -781,16 +807,16 @@ class Database(object):
             session.close()
 
     @classlock
-    def machine_reserve(self, name, task_id):
+    def machine_reserve(self, label, task_id):
         """Set a machine as reserved for a specific task id
-        @param name: name of the machine to reserve
+        @param label: label of the machine to reserve
         @param task_id: id of the task to reserve the machine for"""
         session = self.Session()
         try:
-            machine = session.query(Machine).filter_by(name=name).first()
+            machine = session.query(Machine).filter_by(name=label).first()
             if not machine:
                 raise CuckooDatabaseError(
-                    "Tried to reserve non-existent machine %s" % name
+                    "Tried to reserve non-existent machine %s" % label
                 )
 
             machine.reserved_by = task_id
@@ -1140,7 +1166,8 @@ class Database(object):
     def add(self, targets=[], timeout=0, package="", options="", priority=1,
             custom="", owner="", machine="", platform="", tags=None,
             memory=False, enforce_timeout=False, clock=None,
-            task_type="regular", submit_id=None, start_on=None):
+            task_type="regular", submit_id=None, start_on=None,
+            longterm_id=None):
         """Add a task to database.
         @param targets: list of target db objects
         @param timeout: selected timeout.
@@ -1156,6 +1183,7 @@ class Database(object):
         @param enforce_timeout: toggle full timeout execution.
         @param clock: virtual machine clock time
         @param task_type: The type of task: regular, lta, other type
+        @param longterm_id: Longterm analysis ID to connect this task to
         @return: task id or None.
         """
         session = self.Session()
@@ -1174,6 +1202,7 @@ class Database(object):
         task.clock = clock
         task.submit_id = submit_id
         task.start_on = start_on
+        task.longterm_id = longterm_id
 
         if tags:
             for tag in tags:
@@ -1798,3 +1827,56 @@ class Database(object):
             session.close()
 
         return None
+
+    def add_longterm(self, name=None, machine=None):
+        """Creata a new longterm analysis. It consists of multiple tasks
+        that should be attached the the longterm_id returned by this
+        method"""
+
+        session = self.Session()
+        lta = Longterm(name=name, machine=machine)
+        try:
+            session.add(lta)
+            session.commit()
+            longterm_id = lta.id
+        except SQLAlchemyError as e:
+            log.error("Error creating new longterm analysis")
+            session.rollback()
+            return None
+        finally:
+            session.close()
+
+        return longterm_id
+
+    def set_latest_longterm(self, task_id, longterm_id):
+        """Updates the last completed task field for a longterm analysis
+        @param task_id: id of a task that is part of the given longterm
+        analysis
+        @param longterm_id: id of a longterm analysis"""
+        session = self.Session()
+
+        try:
+            session.query(Longterm).filter_by(id=longterm_id).update({
+                "last_completed": task_id
+            })
+            session.commit()
+        except SQLAlchemyError as e:
+            log.error("Error while updating latest task for longterm: %s", e)
+        finally:
+            session.close()
+
+    def set_longterm_machine(self, label, longterm_id):
+        """Set machine for given longterm analysis
+        @param label: machine label
+        @param longterm_id: id of a longterm analysis"""
+        session = self.Session()
+
+        try:
+            session.query(Longterm).filter_by(id=longterm_id).update({
+                "machine": label
+            })
+            session.commit()
+        except SQLAlchemyError as e:
+            log.error("Error while updating machine for longterm: %s", e)
+        finally:
+            session.close()
