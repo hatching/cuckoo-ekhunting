@@ -332,6 +332,14 @@ class Config(object):
             "reboot": {
                 "enabled": Boolean(True),
             },
+            "redsocks": {
+                "enabled": Boolean(False),
+                "redsocks": Path(
+                    "/usr/sbin/redsocks",
+                    exists=True, writable=False, readable=True
+                ),
+                "delete_config": Boolean(False),
+            }
         },
         "avd": {
             "avd": {
@@ -812,6 +820,9 @@ class Config(object):
                 "enabled": Boolean(False),
                 "dnsport": Int(5353),
                 "proxyport": Int(9040),
+            },
+            "socks5": {
+                "dnsport": Int(53),
             },
             "vpn": {
                 "enabled": Boolean(False),
