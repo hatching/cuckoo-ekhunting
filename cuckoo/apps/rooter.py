@@ -263,8 +263,8 @@ def inetsim_disable(ipaddr, inetsim_ip, machinery_iface, resultserver_port,
 
     run(s.iptables, "-D", "OUTPUT", "-s", ipaddr, "-j", "DROP")
 
-def tor_toggle(action, vm_ip, resultserver_ip, dns_port, proxy_port):
-    """Toggle Tor iptables routing rules."""
+def proxy_toggle(action, vm_ip, resultserver_ip, dns_port, proxy_port):
+    """Toggle proxy (TOR, for example) iptables routing rules."""
     dns_forward(action, vm_ip, resultserver_ip, dns_port)
 
     run(
@@ -282,13 +282,13 @@ def tor_toggle(action, vm_ip, resultserver_ip, dns_port, proxy_port):
     )
     run(s.iptables, action, "OUTPUT", "-s", vm_ip, "-j", "DROP")
 
-def tor_enable(vm_ip, resultserver_ip, dns_port, proxy_port):
-    """Enable hijacking of all traffic and send it to TOR."""
-    tor_toggle("-A", vm_ip, resultserver_ip, dns_port, proxy_port)
+def proxy_enable(vm_ip, resultserver_ip, dns_port, proxy_port):
+    """Enable hijacking of all traffic and send it through a proxy."""
+    proxy_toggle("-A", vm_ip, resultserver_ip, dns_port, proxy_port)
 
-def tor_disable(vm_ip, resultserver_ip, dns_port, proxy_port):
-    """Enable hijacking of all traffic and send it to TOR."""
-    tor_toggle("-D", vm_ip, resultserver_ip, dns_port, proxy_port)
+def proxy_disable(vm_ip, resultserver_ip, dns_port, proxy_port):
+    """Disable hijacking of all traffic and stop sending it through a proxy"""
+    proxy_toggle("-D", vm_ip, resultserver_ip, dns_port, proxy_port)
 
 def drop_toggle(action, vm_ip, resultserver_ip, resultserver_port, agent_port):
     """Toggle iptables to allow internal Cuckoo traffic."""
@@ -344,8 +344,8 @@ handlers = {
     "srcroute_disable": srcroute_disable,
     "inetsim_enable": inetsim_enable,
     "inetsim_disable": inetsim_disable,
-    "tor_enable": tor_enable,
-    "tor_disable": tor_disable,
+    "proxy_enable": proxy_enable,
+    "proxy_disable": proxy_disable,
     "drop_enable": drop_enable,
     "drop_disable": drop_disable,
 }
