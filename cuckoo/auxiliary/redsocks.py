@@ -58,6 +58,8 @@ class Redsocks(Auxiliary):
                 )
             raise CuckooDisableModule
 
+        log.debug("Using socks5 proxy in country: %s", socks5.country)
+
         local_ip = config("cuckoo:resultserver:ip")
         local_port = self.get_tcp_port(local_ip)
         logfile = cwd("redsocks.log", analysis=self.task.id)
@@ -81,10 +83,11 @@ class Redsocks(Auxiliary):
 
         self.task.options["socks5.host"] = socks5.host
         self.task.options["socks5.port"] = socks5.port
+        self.task.options["socks5.localport"] = local_port
 
         log.info(
-            "Started redsocks with PID: %s (config=%s)",
-            self.process.pid, self.conf_path
+            "Started redsocks with PID: %s (local_port=%s, config=%s)",
+            self.process.pid, local_port, self.conf_path
         )
 
     def stop(self):
@@ -104,18 +107,15 @@ class Redsocks(Auxiliary):
             self.process.terminate()
         except OSError as e:
             log.error("Error terminating redsocks process: %s", e)
+            try:
+                self.process.kill()
+            except Exception as e:
+                log.exception(
+                    "Unable to stop redsocks process with PID: %s."
+                    " Error: %s", self.process.pid, e
+                )
         finally:
-            if not self.process.poll():
-                try:
-                    self.process.kill()
-                except Exception as e:
-                    log.exception(
-                        "Unable to stop redsocks process with PID: %s."
-                        " Error: %s", self.process.pid, e
-                    )
-            else:
-                # Remove the config file, as it might contain a password.
-                # Maybe this should be configurable
+            if config("auxiliary:redsocks:delete_config"):
                 os.remove(self.conf_path)
 
     def gen_config(self, logfile, local_ip, local_port, socks5_host,
@@ -126,8 +126,8 @@ class Redsocks(Auxiliary):
         conf_base = {
             "log_debug": "on",
             "log_info": "on",
-            "log": logfile,
-            "deamon": "on",
+            "log": "\"file:%s\"" % logfile,
+            "daemon": "off",
             "redirector": "iptables"
         }
 
@@ -150,10 +150,10 @@ class Redsocks(Auxiliary):
 
         conf = ""
         for name, section in conf_sections.iteritems():
-            conf += "%s {" % name
+            conf += "%s {\n" % name
             for field, value in section.iteritems():
-                conf += "%s = %s;" % (field, value)
-            conf += "}"
+                conf += "%s = %s;\n" % (field, value)
+            conf += "}\n"
 
         return Files.temp_named_put(conf, "redsocks-task-%s" % self.task.id)
 
@@ -161,7 +161,7 @@ class Redsocks(Auxiliary):
         """Bind to the resultserver IP to retrieve an available TCP port"""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((bind_ip, 0))
-        tcp_port = s.getsockname[1]
+        tcp_port = s.getsockname()[1]
         s.close()
 
         return tcp_port
