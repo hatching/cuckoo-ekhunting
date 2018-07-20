@@ -3,13 +3,18 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import mock
+import os
 import pytest
 import subprocess
+import socket
 import tempfile
 
 from cuckoo.auxiliary.sniffer import Sniffer
+from cuckoo.auxiliary.redsocks import Redsocks
 from cuckoo.common.abstracts import Auxiliary
-from cuckoo.common.exceptions import CuckooOperationalError
+from cuckoo.common.exceptions import (
+    CuckooOperationalError, CuckooDisableModule
+)
 from cuckoo.misc import set_cwd, cwd, getuser, is_windows
 
 def test_init():
@@ -55,12 +60,24 @@ class task(object):
     id = 42
     options = {}
 
+    def __init__(self, options={}):
+        self.options = options
+
 class machine(object):
     interface = "interface"
     options = {}
     ip = "1.2.3.4"
     resultserver_ip = "1.1.1.1"
     resultserver_port = 1234
+
+class fake_socks5(object):
+    def __init__(self, host, port, username=None, password=None,
+                 country="Dogeland"):
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
+        self.country = country
 
 def test_sniffer():
     set_cwd(tempfile.mkdtemp())
@@ -166,3 +183,173 @@ def test_sniffer():
     with mock.patch("subprocess.Popen") as p:
         p.side_effect = ValueError("this is awkward")
         assert s.start() is False
+
+
+class TestRedSocks(object):
+
+    def setup(self):
+        self.r = Redsocks()
+
+    def test_none_route(self):
+        self.r.set_task(task({"route": "none"}))
+        self.r.set_options({})
+        assert not self.r.start()
+
+    def test_no_route(self):
+        self.r.set_task(task())
+        self.r.set_options({})
+        assert not self.r.start()
+
+    @mock.patch("cuckoo.auxiliary.redsocks.is_linux")
+    def test_unsupported_platform(self, mi):
+        mi.return_value = False
+        self.r.set_task(task({"route": "socks5"}))
+        self.r.set_options({})
+
+        with pytest.raises(CuckooDisableModule):
+            self.r.start()
+
+    @mock.patch("cuckoo.auxiliary.redsocks.socks5_manager")
+    @mock.patch("cuckoo.auxiliary.redsocks.is_linux")
+    def test_no_socks_country(self, mi, ms):
+        ms.acquire.return_value = None
+        self.r.set_task(task({
+            "route": "socks5",
+            "socks5.country": "germany"
+        }))
+        self.r.set_options({})
+
+        with pytest.raises(CuckooDisableModule):
+            self.r.start()
+        ms.acquire.assert_called_once_with(country="germany")
+
+    @mock.patch("cuckoo.auxiliary.redsocks.socks5_manager")
+    @mock.patch("cuckoo.auxiliary.redsocks.is_linux")
+    def test_no_socks(self, mi, ms):
+        ms.acquire.return_value = None
+        self.r.set_task(task({
+            "route": "socks5"
+        }))
+        self.r.set_options({})
+
+        with pytest.raises(CuckooDisableModule):
+            self.r.start()
+        ms.acquire.assert_called_once_with(country=None)
+
+    @mock.patch("cuckoo.auxiliary.redsocks.subprocess.Popen")
+    @mock.patch("cuckoo.auxiliary.redsocks.cwd")
+    @mock.patch("cuckoo.auxiliary.redsocks.config")
+    @mock.patch("cuckoo.auxiliary.redsocks.socks5_manager")
+    @mock.patch("cuckoo.auxiliary.redsocks.is_linux")
+    def test_start(self, mi, ms, mc, mw, mp):
+        ms.acquire.return_value = fake_socks5("example.com", 4242)
+        mc.return_value = "192.168.56.1"
+        mw.return_value = "/tmp/redsocks.log"
+        process = mock.MagicMock()
+        process.pid = 1337
+        mp.return_value = process
+        self.r.gen_config = mock.MagicMock(return_value="/tmp/config.conf")
+        self.r.get_tcp_port = mock.MagicMock(return_value=45000)
+        self.r.set_task(task({
+            "route": "socks5"
+        }))
+        self.r.set_options({"redsocks":"/usr/sbin/redsocks"})
+
+        self.r.start()
+
+        self.r.gen_config.assert_called_once_with(
+            "/tmp/redsocks.log", "192.168.56.1", 45000, "example.com",
+            4242, None, None
+        )
+        mp.assert_called_once_with(
+            ["/usr/sbin/redsocks", "-c", "/tmp/config.conf"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
+        )
+        assert self.r.process is process
+        assert self.r.task.options["socks5.host"] == "example.com"
+        assert self.r.task.options["socks5.port"] == 4242
+        assert self.r.task.options["socks5.localport"] == 45000
+
+    @mock.patch("cuckoo.auxiliary.redsocks.subprocess.Popen")
+    @mock.patch("cuckoo.auxiliary.redsocks.cwd")
+    @mock.patch("cuckoo.auxiliary.redsocks.config")
+    @mock.patch("cuckoo.auxiliary.redsocks.socks5_manager")
+    @mock.patch("cuckoo.auxiliary.redsocks.is_linux")
+    def test_start_fail(self, mi, ms, mc, mw, mp):
+        ms.acquire.return_value = fake_socks5("example.com", 4242)
+        mc.return_value = "192.168.56.1"
+        mw.return_value = "/tmp/redsocks.log"
+        process = mock.MagicMock()
+        process.pid = 1337
+        mp.return_value = process
+        mp.side_effect = OSError
+        self.r.gen_config = mock.MagicMock(return_value="/tmp/config.conf")
+        self.r.get_tcp_port = mock.MagicMock(return_value=45000)
+        self.r.set_task(task({
+            "route": "socks5"
+        }))
+        self.r.set_options({"redsocks":"/usr/sbin/redsocks"})
+
+        with pytest.raises(OSError):
+            self.r.start()
+        assert self.r.task.options.get("socks5.localport") is None
+
+    def test_stop_process_none(self):
+        self.r.process = None
+        assert not self.r.stop()
+
+    def test_stop_crashed(self):
+        self.r.process = mock.MagicMock()
+        self.r.process.poll.return_value = 1234
+        self.r.process.communicate.return_value = ("", "SuperError")
+
+        with pytest.raises(CuckooOperationalError):
+            self.r.stop()
+
+    @mock.patch("os.remove")
+    def test_stop_error(self, mr):
+        self.r.process = mock.MagicMock()
+        self.r.process.poll.return_value = False
+        self.r.process.terminate.side_effect = OSError
+
+        self.r.stop()
+        self.r.process.kill.assert_called_once()
+
+    @mock.patch("cuckoo.auxiliary.redsocks.config")
+    @mock.patch("os.remove")
+    def test_stop(self, mo, mc):
+        self.r.process = mock.MagicMock()
+        self.r.process.poll.return_value = False
+        mc.return_value = True
+        self.r.conf_path = "/tmp/aaaa/someconfig.conf"
+
+        self.r.stop()
+        mo.assert_called_once_with("/tmp/aaaa/someconfig.conf")
+
+    def test_gen_config(self):
+        self.r.set_task(task())
+        path = self.r.gen_config(
+            "/tmp/redsocks.log", "192.168.56.1", 4242, "example.com", 1337
+        )
+
+        correct = open(
+            os.path.join("tests", "files", "redsocks.conf"), "r"
+        ).read()
+        generated = open(path, "r").read()
+
+        assert correct == generated
+
+    def test_get_tcp_port(self):
+        port = self.r.get_tcp_port("127.0.0.1")
+        assert port > 0
+        assert port < 65535
+
+        # Try to bind on the returned port to see if it is actually free
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.bind(("127.0.0.1", port))
+            s.close()
+        except Exception as e:
+            pytest.fail(
+                "get_tcp_port returned unsable port. See exception: %s" % e
+            )

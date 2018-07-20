@@ -590,6 +590,7 @@ class TestWebInterface(object):
                 "vpns": [
                     "france", "italy",
                 ],
+                "socks5s": [],
             },
             "options": {
                 "enforce-timeout": False,
@@ -616,6 +617,7 @@ class TestWebInterface(object):
             "inetsim": False,
             "tor": False,
             "vpns": [],
+            "socks5s": [],
         }
 
     def test_submit_defaults_novpn(self):
@@ -641,6 +643,7 @@ class TestWebInterface(object):
         assert obj["routing"]["vpns"] == []
         assert obj["routing"]["inetsim"] is False
         assert obj["routing"]["tor"] is False
+        assert obj["routing"]["socks5s"] == []
 
     def test_submit_api_filetree(self, client):
         SubmitManager().pre("strings", ["google.com"])
