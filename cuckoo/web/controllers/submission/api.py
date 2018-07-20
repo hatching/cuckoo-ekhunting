@@ -8,11 +8,13 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from socks5man.manager import Manager
 
 from cuckoo.common.config import config
 from cuckoo.core.submit import SubmitManager
 from cuckoo.web.utils import api_post, JsonSerialize, json_error_response
 
+socks5_manager = Manager()
 submit_manager = SubmitManager()
 
 def defaults():
@@ -22,6 +24,13 @@ def defaults():
         vpns = config("routing:vpn:vpns")
     else:
         vpns = []
+
+    if config("auxiliary:redsocks:enabled"):
+        countries = list(set(
+            s.country for s in socks5_manager.list_socks5(operational=True)
+        ))
+    else:
+        countries = []
 
     return {
         "machine": config("%s:%s:machines" % (machinery, machinery)),
@@ -35,6 +44,7 @@ def defaults():
             "inetsim": config("routing:inetsim:enabled"),
             "tor": config("routing:tor:enabled"),
             "vpns": vpns,
+            "socks5s": countries,
         },
         "options": {
             "enable-injection": True,
