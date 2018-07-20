@@ -711,7 +711,16 @@ def _205_206(c):
     return c
 
 def _206_210(c):
+
     c["auxiliary"]["replay"]["certificate"] = "bin/cert.p12"
+    c["routing"]["socks5"] = {
+        "dnsport": 53
+    }
+    c["auxiliary"]["redsocks"] = {
+        "enabled": True,
+        "redsocks": "/usr/sbin/redsocks",
+        "delete_config": False,
+    }
     return c
 
 migrations = {
