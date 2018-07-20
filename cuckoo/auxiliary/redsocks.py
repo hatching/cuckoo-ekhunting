@@ -15,7 +15,7 @@ from cuckoo.common.exceptions import (
     CuckooDisableModule, CuckooOperationalError
 )
 from cuckoo.common.files import Files
-from cuckoo.misc import cwd
+from cuckoo.misc import cwd, is_linux
 
 log = logging.getLogger(__name__)
 socks5_manager = Manager()
@@ -39,8 +39,15 @@ class Redsocks(Auxiliary):
         with a config for this proxy."""
         self.process = None
         self.conf_path = None
+
         if self.task.options.get("route", "") != "socks5":
-            return
+            return False
+
+        if not is_linux():
+            log.warning(
+                "The Redsocks module is currently only supported on Linux"
+            )
+            raise CuckooDisableModule
 
         country = self.task.options.get("socks5.country")
         socks5 = socks5_manager.acquire(country=country)
@@ -93,7 +100,7 @@ class Redsocks(Auxiliary):
     def stop(self):
         """Stop the redsocks process"""
         if not self.process:
-            return
+            return False
 
         if self.process.poll():
             stdout, stderr = self.process.communicate()
