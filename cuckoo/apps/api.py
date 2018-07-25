@@ -640,7 +640,7 @@ def add_group():
 
     group = db.find_group(name)
     if group:
-        return json_error(400, "Specified group name already exists")
+        return json_error(409, "Specified group name already exists")
 
     group_id = db.add_group(name, description)
     if not group_id:
@@ -652,13 +652,16 @@ def add_group():
 def group_add_url():
     urls = request.form.get("urls", "")
     name = request.form.get("group_name", "")
-    group_id = request.form.get("group_id", 0)
+    group_id = request.form.get("group_id")
     seperator = request.form.get("seperator", "\n")
 
     if not group_id and not name:
         return json_error(400, "No valid group name or id specified")
 
-    if group_id and group_id.isdigit():
+    if group_id:
+        if not group_id.isdigit():
+            return json_error(400, "group_id must be an integer")
+
         group_id = int(group_id)
 
     group = db.find_group(name=name, group_id=group_id)
@@ -672,7 +675,7 @@ def group_add_url():
     if db.mass_group_add(urls, group.id):
         return jsonify(
             message="success",
-            info="Added %s URLs to group %s" % (len(urls), group.id)
+            info="Added new URLs to group %s" % group.id
         )
 
     return json_error(500, "Error adding URLs to group")
@@ -717,11 +720,19 @@ def view_group_urls(group_id=None, name=None):
 
     return jsonify(name=group.name, group_id=group.id, urls=urls)
 
-@app.route("/group/delete/<int:group_id>")
-@app.route("/group/delete/<name>")
-def delete_group(group_id=None, name=None):
+@app.route("/group/delete", methods=["POST"])
+def delete_group():
+    name = request.form.get("group_name", "")
+    group_id = request.form.get("group_id")
+
     if not group_id and not name:
-        return json_error(400, "No group_id or name specified to delete")
+        return json_error(400, "No valid group name or id specified")
+
+    if group_id:
+        if not group_id.isdigit():
+            return json_error(400, "group_id must be an integer")
+
+        group_id = int(group_id)
 
     group = db.find_group(group_id=group_id, name=name)
     if not group:
@@ -736,13 +747,16 @@ def delete_group(group_id=None, name=None):
 def group_delete_url():
     urls = request.form.get("urls", "")
     name = request.form.get("group_name", "")
-    group_id = request.form.get("group_id", 0)
+    group_id = request.form.get("group_id")
     seperator = request.form.get("seperator", ",")
 
     if not group_id and not name:
         return json_error(400, "No valid group name or id specified")
 
-    if group_id and group_id.isdigit():
+    if group_id:
+        if not group_id.isdigit():
+            return json_error(400, "group_id must be an integer")
+
         group_id = int(group_id)
 
     group = db.find_group(name=name, group_id=group_id)
