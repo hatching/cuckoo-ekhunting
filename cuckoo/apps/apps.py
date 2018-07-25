@@ -33,7 +33,9 @@ from cuckoo.core.log import task_log_start, task_log_stop, logger
 from cuckoo.core.startup import init_console_logging
 from cuckoo.core.task import Task
 from cuckoo.core.target import Target
+from cuckoo.massurl import web as massurl_web
 from cuckoo.misc import cwd, mkdir
+
 
 log = logging.getLogger(__name__)
 submit_task = Task()
@@ -592,3 +594,10 @@ def migrate_cwd():
         "Automated migration of your CWD was successful! Continuing "
         "execution of Cuckoo as expected."
     )
+
+def massurl_dashboard(host, port):
+    """Start the mass URL dashboard"""
+    try:
+        massurl_web.run_server(port=port, host=host)
+    except KeyboardInterrupt:
+        log.info("CTRL+C detected!")

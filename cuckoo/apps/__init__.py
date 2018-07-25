@@ -5,7 +5,7 @@
 from .apps import (
     fetch_community, submit_tasks, process_tasks, process_task,
     process_task_range, cuckoo_clean, cuckoo_machine, migrate_database,
-    migrate_cwd
+    migrate_cwd, massurl_dashboard
 )
 
 from .api import cuckoo_api

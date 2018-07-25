@@ -16,7 +16,7 @@ from cuckoo.apps import (
     fetch_community, submit_tasks, process_tasks, process_task_range,
     cuckoo_rooter, cuckoo_api, cuckoo_distributed, cuckoo_distributed_instance,
     cuckoo_clean, cuckoo_dnsserve, cuckoo_machine, import_cuckoo,
-    migrate_database, migrate_cwd
+    migrate_database, migrate_cwd, massurl_dashboard
 )
 from cuckoo.common.config import read_kv_conf
 from cuckoo.common.exceptions import CuckooCriticalError
@@ -509,8 +509,9 @@ def dnsserve(ctx, host, port, nxdomain, hardcode, sudo):
 @click.option("-p", "--port", default=8000, help="Port to bind the Web Interface server on")
 @click.option("--uwsgi", is_flag=True, help="Dump uWSGI configuration")
 @click.option("--nginx", is_flag=True, help="Dump nginx configuration")
+@click.option("--massurl", is_flag=True, help="Start the mass URL and event dashboard")
 @click.pass_context
-def web(ctx, args, host, port, uwsgi, nginx):
+def web(ctx, args, host, port, uwsgi, nginx, massurl):
     """Operate the Cuckoo Web Interface.
 
     Use "--help" to get this help message and "help" to find Django's
@@ -552,6 +553,12 @@ def web(ctx, args, host, port, uwsgi, nginx):
         print "        include     uwsgi_params;"
         print "    }"
         print "}"
+        return
+
+    if massurl:
+        init_console_logging(level=ctx.parent.level)
+        Database().connect()
+        massurl_dashboard(host=host, port=port)
         return
 
     # Switch to cuckoo/web and add the current path to sys.path as the Web
