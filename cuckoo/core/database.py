@@ -235,6 +235,37 @@ class Submit(Base):
         self.submit_type = submit_type
         self.data = data
 
+class Alert(Base):
+    """Dashboard alert history"""
+    __tablename__ = "alerts"
+
+    id = Column(Integer(), primary_key=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    level = Column(Integer(), nullable=False, default=1)
+    title = Column(String(255), nullable=False)
+    content = Column(Text(), nullable=False)
+    target = Column(Text(), nullable=True)
+    targetgroup_name = Column(String(255), nullable=True)
+    task_id = Column(Integer(), nullable=True)
+
+    def __init__(self, level, title, content):
+        self.level = level
+        self.title = title
+        self.content = content
+
+    def to_dict(self):
+        """Turn alert into dict"""
+        d = {}
+
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+            if isinstance(value, datetime.datetime):
+                d[column.name] = value.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                d[column.name] = value
+
+        return d
+
 class Longterm(Base):
     """Longterm analysis details"""
     __tablename__ = "longterms"
@@ -1880,3 +1911,41 @@ class Database(object):
             log.error("Error while updating machine for longterm: %s", e)
         finally:
             session.close()
+
+    def add_alert(self, level, title, content, target=None,
+                  targetgroup_name=None, task_id=None):
+
+        session = self.Session()
+        alert = Alert(level, title, content)
+        alert.target = target
+        alert.targetgroup_name = targetgroup_name
+        alert.task_id = task_id
+
+        try:
+            session.add(alert)
+            session.commit()
+        except SQLAlchemyError as e:
+            log.error("Failed to add new alert. Error: %s", e)
+            session.rollback()
+        finally:
+            session.close()
+
+    def list_alerts(self, level=None, target_group=None, limit=100, offset=0):
+        session = self.Session()
+        alerts = []
+        try:
+            search = session.query(Alert)
+
+            if level:
+                search = search.filter_by(level=level)
+            if target_group:
+                search = search.filter_by(target_group=target_group)
+
+            alerts = search.limit(limit).offset(offset).all()
+        except SQLAlchemyError as e:
+            log.error("Failed to retrieve list of alerts: %s", e)
+            return None
+        finally:
+            session.close()
+
+        return alerts
