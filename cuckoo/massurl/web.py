@@ -17,10 +17,15 @@ from geventwebsocket.handler import WebSocketHandler
 
 from cuckoo.core.database import Database
 from cuckoo.common.utils import parse_bool
+from cuckoo.misc import cwd
 
 db = Database()
 alert_queue = Queue()
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=cwd("..", "massurl", "templates", private=True),
+    static_folder=cwd("..", "massurl", "static", private=True)
+)
 lock = BoundedSemaphore(1)
 log = logging.getLogger(__name__)
 sockets = set()
