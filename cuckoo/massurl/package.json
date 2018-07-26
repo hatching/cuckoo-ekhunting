@@ -9,8 +9,6 @@
     "build": "babel-node index.js --build",
     "scripts": "babel-node index.js --scripts",
     "styles": "babel-node index.js --styles",
-    "html": "babel-node index.js --html",
-    "serve": "babel-node index.js --serve",
     "compile": "rimraf tooling/build && babel tooling --out-dir tooling/build",
     "test": "node tests"
   },

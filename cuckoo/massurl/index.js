@@ -8,8 +8,6 @@ let singleRun = (
   _cmd.scripts
   || _cmd.styles
   || _cmd.build
-  || _cmd.html
-  || _cmd.serve
 ) == true;
 
 let wasRequired = !(require.main === module);
@@ -46,22 +44,6 @@ const CONFIG_DEFAULT = {
     "wcmp": {
       "notify": false
     }
-  },
-  "html": {
-    "path": "src/html",
-    "file": "*.html",
-    "output": "build/",
-    "partials": "src/html/partials",
-    "dataDir": null,
-    "wcmp": {
-      "notify": false
-    }
-  },
-  "server": {
-    "enabled": true,
-    "port": 3000,
-    "root": "dist/*.html",
-    "static": "dist/"
   }
 }
 
@@ -109,21 +91,10 @@ if(wasRequired) {
         // console.log(e);
       });
     }
-    if(_cmd.html) {
-      tooling.compileHTML(CONFIG.html).catch(function(e) {
-        // console.log(e);
-      });
-    }
-    if(_cmd.serve) {
-      const serve = tooling.Server(CONFIG.server).then(app => {
-        tooling.util.talk(`App served at port ${CONFIG.server.port}`);
-      }).catch(e => console.log(e));
-    }
     if(_cmd.build) {
       Promise.all([
         tooling.compileScripts(CONFIG.babel),
-        tooling.compileStyles(CONFIG.sass),
-        tooling.compileHTML(CONFIG.html)
+        tooling.compileStyles(CONFIG.sass)
       ]).catch(err => console.log(err));
     }
 

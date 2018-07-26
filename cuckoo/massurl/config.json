@@ -37,18 +37,5 @@
     "wcmp": {
       "notify": true
     }
-  },
-  "html": {
-    "path": "src/html",
-    "output": "templates/",
-    "file": "*.mustache",
-    "partials": "src/html/partials",
-    "dataDir": "src/html/data",
-    "wcmp": {
-      "notify": true
-    }
-  },
-  "server": {
-    "enabled": false
   }
 }
