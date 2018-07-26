@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link href="/css/styles.css" rel="stylesheet" type="text/css" />
+    <title>Hey, it's WCMP.</title>
+  </head>
+  <body allowfullscreen>
+    <main class="viewport" id="url-grouping">
+      <div class="foreground app">
+        <header class="app__header">
+          <div class="logo">
+            <a href="#" id="swap-bg" tabindex="-1">
+              <img src="images/cuckoo-white.png" width="100" alt="Cuckoo Sandbox" />
+            </a>
+          </div>
+          <h1 class="title">URL Analysis</h1>
+          <nav class="nav">
+            <ul>
+              <li>
+                <a href="/">Events</a>
+              </li>
+              <li>
+                <a class="active" href="/url-groups">URL Groups</a>
+              </li>
+            </ul>
+          </nav>
+          <div class="right">
+            <ul class="controls">
+              <li>
+                <div class="system-indicator" data-online="true">
+                  <span class="system-indicator--inner"></span>
+                </div>
+              </li>
+              <li>
+                <button id="toggle-audio" class="control-audio">
+                  <i class="fal fa-volume-mute"></i>
+                </button>
+                <button id="toggle-fullscreen" class="control-fullscreen">
+                  <i class="fal fa-expand-alt"></i>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </header>
+        <section class="app__body">
+          <nav class="tabs">
+            <ul>
+              <li>
+                <a class="active" href="/url-groups">Groups</a>
+              </li>
+              <li>
+                <a href="/url-group-content">Group content</a>
+              </li>
+            </ul>
+          </nav>
+          <form>
+            <table class="table" id="url-groups">
+              <thead>
+                <tr>
+                  <th class="centerize" width="10">ID</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th width="100">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="input-row">
+                  <td class="centerize">
+                    <i class="fas fa-plus"></i>
+                  </td>
+                  <td>
+                    <input type="text" placeholder="Type name..." id="group-name" required pattern="[A-Za-z]" />
+                  </td>
+                  <td>
+                    <input type="text" placeholder="Type description..." id="group-description" required pattern="[A-Za-z]" />
+                  </td>
+                  <td class="centerize">
+                    <button class="button icon-button" type="submit">
+                      <i class="far fa-check"></i>
+                    </button>
+                    <button class="button icon-button" type="submit">
+                      <i class="far fa-sync-alt"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="centerize">4</td>
+                  <td>.ee-domains</td>
+                  <td>A nice group name for .ee domains</td>
+                  <td class="centerize">
+                    <button class="button icon-button">
+                      <i class="far fa-marker"></i>
+                    </button>
+                    <button class="button icon-button">
+                      <i class="far fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="centerize">3</td>
+                  <td>friendly</td>
+                  <td>viewport-filling content writing</td>
+                  <td class="centerize">
+                    <button class="button icon-button">
+                      <i class="far fa-marker"></i>
+                    </button>
+                    <button class="button icon-button">
+                      <i class="far fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="centerize">2</td>
+                  <td>cyber-urls</td>
+                  <td>is this already the last record?</td>
+                  <td class="centerize">
+                    <button class="button icon-button">
+                      <i class="far fa-marker"></i>
+                    </button>
+                    <button class="button icon-button">
+                      <i class="far fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="centerize">1</td>
+                  <td>a-group</td>
+                  <td>just some group to demonstrate a couple of things</td>
+                  <td class="centerize">
+                    <button class="button icon-button">
+                      <i class="far fa-marker"></i>
+                    </button>
+                    <button class="button icon-button">
+                      <i class="far fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="centerize">0</td>
+                  <td>another-group</td>
+                  <td>yay more groups more content</td>
+                  <td class="centerize">
+                    <button class="button icon-button">
+                      <i class="far fa-marker"></i>
+                    </button>
+                    <button class="button icon-button">
+                      <i class="far fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <td colspan="4"></td>
+              </tfoot>
+            </table>
+          </form>
+        </section>
+      </div>
+      <div class="background pattern-small-steps" id="app-background"></div>
+    </main>
+    <script src="/scripts/main.js"></script>
+  </body>
+</html>

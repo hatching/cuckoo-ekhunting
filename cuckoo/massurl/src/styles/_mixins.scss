@@ -1,0 +1,43 @@
+/*
+  usage:
+
+  ---
+  a.link {
+    @include underline(red, 1px, 5px, true)
+  }
+
+  ---
+  above renders a red 'underline' with a 1px width, offsetted 5px from the bottom of
+  its parent.
+  param $color: the color of the stroke
+  param $thickness: width of the stroke
+  param $offset: distance from text to stroke
+  param $round-cap: toggle round-capped line
+ */
+@mixin underline($color: #000, $thickness: 1px, $offset: 3px, $round-cap: false) {
+  position: relative;
+  text-decoration: none;
+  &:after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -#{$offset};
+    width: 100%;
+    @if not $round-cap {
+      border-bottom: $thickness solid $color;
+    } @else {
+      height: $thickness;
+      background-color: $color;
+      border-radius: $offset*2;
+    }
+  }
+}
+
+// shortcut to make a list have a flex-context
+%flex-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+}

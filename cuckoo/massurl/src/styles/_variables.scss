@@ -1,0 +1,76 @@
+// pre-render overrides
+$roboto-font-path: "../fonts/roboto";
+$fa-font-path: "../fonts/fontawesome";
+
+// app-wide font scope, cascades down the list until a suitable
+// font has been found.
+$app-font-stack: (
+  // custom fonts:
+  Roboto,
+  // system fonts:
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  Oxygen-Sans,
+  Ubuntu,
+  Cantarell,
+  "Helvetica Neue",
+  sans-serif
+);
+
+/*
+  SVG as Base64 for non-image rendering purposes and performance
+ */
+$pattern-steps: "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iNDBweCI
+gaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgNDAgMjAiIHZlcnNpb249IjEuMSIgeG1sbnM9Im
+h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vc
+mcvMTk5OS94bGluayI+CiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDUxLjEgKDU3NTAxKSAt
+IGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4KICAgIDx0aXRsZT5QYXR
+0ZXJuPC90aXRsZT4KICAgIDxkZXNjPkNyZWF0ZWQgd2l0aCBTa2V0Y2guPC9kZXNjPgogICAgPG
+RlZnM+PC9kZWZzPgogICAgPGcgaWQ9IlBhdHRlcm4iIHN0cm9rZT0ibm9uZSIgc3Ryb2tlLXdpZ
+HRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxnIGlkPSJw
+YXR0ZXJuIiBmaWxsPSIjREREREREIj4KICAgICAgICAgICAgPHBhdGggZD0iTTE4LjIwMzc4LDg
+gTDMwLDIuNTQ2NDQ1NjcgTDMwLDAgTDMyLDAgTDMyLDQgTDMxLjc5NjIyLDQgTDIwLDkuNDUzNT
+U0MzMgTDIwLDE4IEwxOCwxOCBMMTgsOCBMMTguMjAzNzgsOCBaIE0yLDAgTDQsMCBMNCwxMCBMM
+iwxMCBMMiwwIFogTTYsMiBMOCwyIEw4LDEyIEw2LDEyIEw2LDIgWiBNMTAsNCBMMTIsNCBMMTIs
+MTQgTDEwLDE0IEwxMCw0IFogTTE0LDYgTDE2LDYgTDE2LDE2IEwxNCwxNiBMMTQsNiBaIE0yMiw
+xMCBMMjQsMTAgTDI0LDIwIEwyMiwyMCBMMjIsMTAgWiBNMjYsMTIgTDI4LDEyIEwyOCwyMCBMMj
+YsMjAgTDI2LDEyIFogTTMwLDE0IEwzMiwxNCBMMzIsMjAgTDMwLDIwIEwzMCwxNCBaIE0zNCwxN
+iBMMzYsMTYgTDM2LDIwIEwzNCwyMCBMMzQsMTYgWiBNMzgsMTggTDQwLDE4IEw0MCwyMCBMMzgs
+MjAgTDM4LDE4IFogTTI2LDAgTDI4LDAgTDI4LDIgTDI2LDIgTDI2LDAgWiBNMzQsMCBMMzYsMCB
+MMzYsNiBMMzQsNiBMMzQsMCBaIE0zOCwwIEw0MCwwIEw0MCw4IEwzOCw4IEwzOCwwIFoiIGlkPS
+JDb21iaW5lZC1TaGFwZSI+PC9wYXRoPgogICAgICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+";
+
+/*
+  usage: background-image: pattern($pattern-var)
+ */
+@function pattern($pattern-var) {
+  @return url("data:image/svg+xml;base64,#{$pattern-var}");
+}
+
+/*
+  Colors
+ */
+
+// base colors
+$danger-base: #DD5034;
+$warning-base: #E5D518;
+$info-base: #4287EB;
+$default-base: #4A6FA5;
+$grey-base: #ccc;
+
+// general table styles
+$table-border-color: rgba(#000, .5);
+$table-border-vertical: rgba(#000, .3);
+$table-border-horizontal: rgba(#000, .2);
+$table-body-background: #fff;
+
+// table row order separation colors
+$table-default-odd: #FFF;
+$table-default-even: #F1FBFF;
+$table-danger-odd: #E9E1DF;
+$table-danger-even: #F7EEEC;
+$table-warning-odd: #FCF9D6;
+$table-warning-even: #FFFEEF;
+$table-info-odd: #DBE9EE;
+$table-info-even: #EFF6F8;

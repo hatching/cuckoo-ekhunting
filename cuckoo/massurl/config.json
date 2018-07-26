@@ -1,0 +1,54 @@
+{
+  "babel": {
+    "path": "src/scripts",
+    "file": "index.es6",
+    "output": "static/scripts/main.js",
+    "browserify": {
+      "debug": true
+    },
+    "babel": {
+      "plugins": [
+        "transform-custom-element-classes",
+        "transform-es2015-classes"
+      ],
+      "presets": ["env"],
+      "extensions": [".es6"],
+      "sourceMaps": true,
+      "compact": true
+    },
+    "wcmp": {
+      "notify": true
+    }
+  },
+  "sass": {
+    "path": "src/styles",
+    "file": "main.scss",
+    "output": "static/css/styles.css",
+    "sass": {
+      "sourceMap": true,
+      "sourceMapContents": true,
+      "style": "compact",
+      "includePaths": [
+        "node_modules/normalize-scss/sass",
+        "node_modules/roboto-fontface/css/roboto/sass",
+        "node_modules/bourbon/core"
+      ]
+    },
+    "wcmp": {
+      "notify": true
+    }
+  },
+  "html": {
+    "path": "src/html",
+    "output": "templates/",
+    "file": "*.mustache",
+    "partials": "src/html/partials",
+    "dataDir": "src/html/data",
+    "wcmp": {
+      "notify": true
+    }
+  },
+  "server": {
+    "enabled": false
+  }
+}

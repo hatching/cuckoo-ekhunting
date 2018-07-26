@@ -1,0 +1,6 @@
+{
+  "watch": [
+    "index.js",
+    "tooling/"
+  ]
+}

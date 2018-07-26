@@ -1,0 +1,31 @@
+// node_modules imports
+@import "normalize/import-now";
+@import "roboto-fontface";
+@import "bourbon";
+
+@import "./variables";
+@import "./mixins";
+
+@import "./ext/fontawesome/fontawesome";
+@import "./ext/fontawesome/brands";
+@import "./ext/fontawesome/solid";
+@import "./ext/fontawesome/regular";
+@import "./ext/fontawesome/light";
+
+// internal core setup
+body {
+  font-family: $app-font-stack;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: auto;
+}
+
+// internal imports
+@import "./components/viewport";
+@import "./components/background";
+@import "./components/app";
+@import "./components/alert";
+@import "./components/table";
+@import "./components/button";
+@import "./components/tabs";
+@import "./components/system-indicator";

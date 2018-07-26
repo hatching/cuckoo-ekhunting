@@ -1,0 +1,150 @@
+- id: 0
+  level: 3
+  title: Possible exploit kit
+  content: Lorem ipsum dolor sit amet
+  timestamp: 2018-07-24 08:53:13
+  analysis_url: http://jecuckoo.sandb.ox/report/1
+  notify: true
+  target_group:
+    name: .ee domains
+    id: 123
+- id: 1
+  level: 2
+  title: Injection of software
+  content: Lorem ipsum dolor sit amet
+  timestamp: 2018-07-08 02:25:45
+  analysis_url: http://jecuckoosandb.ox/report/2
+  notify: false
+  target_group:
+    name: .ee domains
+    id: 123
+- id: 2
+  level: 1
+  title: Program says hi
+  content: Lorem ipsum dolor sit amet
+  timestamp: 2018-07-01 06:58:19
+  analysis_url: http://jecuckoosandb.ox/report/3
+  notify: false
+  target_group:
+    name: friendly software
+    id: 69
+- id: 3
+  level: 2
+  title: Injection of software
+  content: Lorem ipsum dolor sit amet
+  timestamp: 2018-06-21 15:47:59
+  analysis_url: http://jecuckoosandb.ox/report/4
+  notify: false
+  target_group:
+    name: .ee domains
+    id: 123
+- id: 4
+  level: 1
+  title: Computer says hello
+  content: Lorem ipsum dolor sit amet
+  timestamp: 2018-06-20 00:05:00
+  analysis_url: http://jecuckoosandb.ox/report/5
+  notify: false
+  target_group:
+    name: friendly software
+    id: 69
+- id: 5
+  level: 3
+  title: Rawr I am a dinosaur
+  content: Lorem ipsum dolor sit amet
+  timestamp: 2018-05-23 06:31:57
+  analysis_url: http://jecuckoosandb.ox/report/6
+  notify: true
+  target_group:
+    name: .ru domains
+    id: 124
+- id: 6
+  level: 2
+  title: Emoji collapsed
+  content: Lorem ipsum dolor sit amet
+  timestamp: 2018-05-11 08:02:07
+  analysis_url: http://jecuckoosandb.ox/report/6
+  notify: false
+  target_group:
+    name: .ru domains
+    id: 124
+- id: 7
+  level: 1
+  title: Coffee went cold
+  content: That also means: no cookies today!
+  timestamp: 2018-05-01 06:40:38
+  analysis_url: http://jecuckoosandb.ox/report/6
+  notify: false
+  target_group:
+    name: .ru domains
+    id: 124
+- id: 8
+  level: 1
+  title: A wild pikachu appeared
+  content: Grab your balls, catch the big electro mouse!
+  timestamp: 2018-04-29 06:44:27
+  analysis_url: http://jecuckoosandb.ox/catch/pikachu
+  notify: false,
+  target_group:
+    name: .kanto domains
+    id: 125
+- id: 9
+  level: 3
+  title: Out of stroopwafels
+  content: You should import some from the beautifull flatlands people dare to call 'Holland'.
+  timestamp: 2018-04-18 01:14:14
+  analysis_url: http://jecuckoosandb.ox/error/stroopwafel
+  notify: true,
+  target_group:
+    name: department of cookies
+    id: 42
+- id: 10
+  level: 3
+  title: Stroopwafels are depleting
+  content: If you don't do nothing, the waffle rate in yoru stroopwafels will be strooped up
+  timestamp: 2018-04-29 06:44:27
+  analysis_url: http://jecuckoosandb.ox/error/stroopwafel
+  notify: false,
+  target_group:
+    name: department of cookies
+    id: 42
+- id: 11
+  level: 2
+  title: Final warning before error
+  content: Melissa from HR started eating a lot of stroopwaffles while sitting against the wall crying and calling with her boyfriend
+  timestamp: 2018-04-13 20:30:33
+  analysis_url: http://jecuckoosandb.ox/error/stroopwafel
+  notify: false,
+  target_group:
+    name: department of cookies
+    id: 42
+- id: 12
+  level: 2
+  title: Casual stroopwaffle OD'ing signaled
+  content: Crumbles start to pile up around everyones desks, be prepared for a true stroop-storm.
+  timestamp: 2018-04-13 20:30:33
+  analysis_url: http://jecuckoosandb.ox/error/stroopwafel
+  notify: false,
+  target_group:
+    name: department of cookies
+    id: 42
+- id: 13
+  level: 1
+  title: Awkward amount of stroopwafel-talk detected
+  content: You can clearly tell someone is running out of inspiration for these mocking alerts
+  timestamp: 2018-04-08 22:40:35
+  analysis_url: http://jecuckoosandb.ox/error/stroopwafel
+  notify: false,
+  target_group:
+    name: department of cookies
+    id: 42
+- id: 14
+  level: 1
+  title: Out of inspiration
+  content: 15 alerts, there you have it.
+  timestamp: 2018-01-05 15:14:37
+  analysis_url: http://jecuckoosandb.ox/error/out-of-inspiration
+  notify: false,
+  target_group:
+    name: department of cookies
+    id: 42

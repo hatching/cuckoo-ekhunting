@@ -1,0 +1,46 @@
+.button {
+  font-family: $app-font-stack;
+  -webkit-appearance: none;
+  display: inline-block;
+  padding: 7px 10px;
+  text-decoration: none;
+  background-color: $default-base;
+  border-radius: 4px;
+  font-weight: 500;
+  color: tint($default-base, 95%);
+  border-style: solid;
+  border-width: 0 0 2px 0;
+  border-color: shade($default-base, 30%);
+  font-size: 16px;
+
+  i {
+    color: #fff;
+    margin-right: 5px;
+    font-size: 1.1em;
+    vertical-align: baseline;
+  }
+
+  &:hover {
+    cursor: pointer;
+    background-color: shade($default-base, 5%);
+  }
+
+  &:active {
+    position: relative;
+    top: 1px;
+    background-color: shade($default-base, 10%);
+    border-bottom-width: 1px;
+  }
+
+  &:focus { outline: none; }
+
+  &.icon-button {
+    padding-bottom: 4px;
+    i {
+      text-align: center;
+      min-width: 25px;
+      margin-right: 0;
+    }
+  }
+
+}

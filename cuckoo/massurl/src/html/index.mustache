@@ -1,0 +1,116 @@
+{{>header}}
+  <main class="viewport" id="event-monitor">
+    <div class="foreground app">
+      <header class="app__header">
+        <div class="logo">
+          <a href="#" id="swap-bg" tabindex="-1">
+            <img src="images/cuckoo-white.png" width="100" alt="Cuckoo Sandbox" />
+          </a>
+        </div>
+        <h1 class="title">URL Analysis</h1>
+        <nav class="nav">
+          <ul>
+            <li><a class="active" href="/">Events</a></li>
+            <li><a href="/url-groups">URL Groups</a></li>
+          </ul>
+        </nav>
+        <div class="right">
+          <ul class="controls">
+            <li>
+              <div class="system-indicator" data-online="true">
+                <span class="system-indicator--inner"></span>
+              </div>
+            </li>
+            <li>
+              <button id="toggle-audio" class="control-audio"><i class="fal fa-volume-mute"></i></button>
+              <button id="toggle-fullscreen" class="control-fullscreen"><i class="fal fa-expand-alt"></i></button>
+            </li>
+          </ul>
+        </div>
+      </header>
+      <section class="app__body">
+        <div id="top-level-alert" class="container">
+          <div class="alert-outer">
+            <div class="alert alert-info">
+              <div class="alert-icon">
+                <figure>
+                  <i class="fal fa-lightbulb"></i>
+                </figure>
+              </div>
+              <div class="alert-content">
+                <h2>Possible exploit kit detected</h2>
+                <p>Page/URL hxxp://example.ee/login/ loads iframe with X.</p>
+              </div>
+              <div class="alert-time">
+                <p>24 minutes ago</p>
+              </div>
+            </div>
+            <div class="alert-loader">
+              <div class="alert-loader-inner"></div>
+            </div>
+          </div>
+
+        </div>
+        <div id="alert-table" class="container">
+          <table class="table">
+            <thead>
+              <tr>
+                <th width="7" class="drop-padding"></th>
+                <th width="30" class="sortable"><a class="center" href="#"><i class="fal fa-sort-amount-down"></i></a></th>
+                <th class="sortable" width="120">Time <a href="#"><i class="fal fa-sort-amount-down"></i></a></th>
+                <th class="sortable">Group <a href="#"><i class="fal fa-sort-amount-down"></i></a></th>
+                <th>Title</th>
+                <th>Content</th>
+                <th width="25"></th>
+              </tr>
+            </thead>
+            <tbody class="alternate-n2">
+
+              {{#alerts}}
+                <tr data-row-style="{{#alert-level}}{{level}}{{/alert-level}}">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    {{#alert-icon}}{{level}}{{/alert-icon}}
+                  </td>
+                  <td class="no-wrap">
+                    {{#pretty-date}}
+                      {{timestamp}}
+                    {{/pretty-date}}
+                  </td>
+                  <td class="no-wrap">{{target_group.name}}</td>
+                  <td>{{title}}</td>
+                  <td class="text-wrap">{{content}}</td>
+                  <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li><i class="far fa-barcode-alt"></i> {{target_group.name}}</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        {{#pretty-date}}
+                          {{timestamp}}
+                        {{/pretty-date}}
+                      </li>
+                    </ul>
+                    <h3>{{title}}</h3>
+                    <p>{{content}}</p>
+                    <a href="{{analysis_url}}" class="button"><i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+              {{/alerts}}
+
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="7"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+      </section>
+    </div>
+    <div class="background pattern-small-steps" id="app-background"></div>
+  </main>
+{{>footer}}

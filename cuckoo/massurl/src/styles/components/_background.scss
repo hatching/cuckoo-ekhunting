@@ -1,0 +1,66 @@
+/*
+  Defines a 100%x100% container (fluid to its parent) that will
+  enable a background color, with an optional pattern using :before
+  and :after rules.
+ */
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+
+  &:before,
+  &:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 300ms ease-in-out;
+  }
+
+  // blue fill
+  &:before {
+    z-index: 2;
+    background-image: linear-gradient(225deg, rgba(114,148,199,0.90) 0%, rgba(74,111,165,0.98) 100%);
+    opacity: 1;
+  }
+
+  // red fill
+  &:after {
+    z-index: 1;
+    background-image: linear-gradient(225deg, rgba(220,102,79,0.90) 0%, rgba(191,68,43,0.98) 100%);
+    opacity: 0;
+  }
+
+  // implements a steps pattern (base64)
+  &.pattern-small-steps {
+    background-image: pattern($pattern-steps);
+    background-repeat: repeat;
+    transition: background-position 300ms linear;
+
+    &.fill-red {
+      background-position: 10px -10px;
+    }
+  }
+
+  &.fill-red {
+    &:before { opacity: 0; }
+    &:after { opacity: 1; }
+  }
+
+}
+
+/*
+  The foreground is like a layer specified to stay on the foreground. The background
+  should not scroll, and remain a fixed-like position. That means the foreground should
+  have the ability to scroll the app.
+ */
+.foreground {
+  position: relative;
+  height: 100%;
+  z-index: 2;
+}

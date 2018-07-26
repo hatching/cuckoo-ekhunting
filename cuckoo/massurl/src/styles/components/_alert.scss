@@ -1,0 +1,114 @@
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30px;
+
+  background: rgba(255,255,255,0.95);
+  background-image: linear-gradient(-225deg, rgba(255,255,255,0.50) 0%, rgba(216,216,216,0.50) 100%);
+  border-radius: 25px;
+
+  &-outer {
+    position: relative;
+    border: 5px solid rgba(255,255,255,0.20);
+    border-radius: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0px 4px 8px rgba(0,0,0,.15);
+    overflow: hidden;
+
+    .alert-loader {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 5px;
+      margin: 0px auto;
+      background-color: rgba(0,0,0,.1);
+
+      .alert-loader-inner {
+        position: relative;
+        background-color: $default-base;
+        width: 33%;
+        height: 5px;
+      }
+    }
+  }
+
+  .alert-content {
+    flex-basis: 100%;
+    padding-left: 30px;
+
+    h2 {
+      font-size: 30px;
+      color: $default-base;
+      text-shadow: 0px 1px 0px #fff;
+      margin: 0 0 8px;
+    }
+
+    p {
+      margin: 8px 0 0;
+      font-style: italic;
+      font-weight: 500;
+      color: #353F54;
+      font-size: 18px;
+    }
+
+  }
+
+  .alert-time {
+    white-space: nowrap;
+    p {
+      font-weight: 500;
+      color: #353F54;
+    }
+  }
+
+  &-icon {
+    figure {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background-color: #DBE9EE;
+      border: 2px solid rgba(#166088, .2);
+      i {
+        font-size: 64px;
+        color: $default-base;
+      }
+    }
+
+  }
+
+  &.alert-danger {
+    .alert-icon figure {
+      background-color: #E9E1DF;
+      border-color: #DDC4BE;
+      i { color: $danger-base; }
+    }
+    .alert-content h2 { color: $danger-base; }
+    & + .alert-loader .alert-loader-inner { background-color: $danger-base; }
+  }
+
+  &.alert-warning {
+    .alert-icon figure {
+      background-color: #FCF9D6;
+      border-color: #DCD8A6;
+      i { color: $warning-base; }
+    }
+    .alert-content h2 { color: shade($warning-base, 20%); }
+    & + .alert-loader .alert-loader-inner { background-color: $warning-base; }
+  }
+
+  &.alert-info {
+    .alert-icon figure {
+      background-color: #EBEBEB;
+      border-color: rgba(#606060, .2);
+      i { color: $info-base; }
+    }
+    .alert-content h2 { color: $info-base; }
+    & + .alert-loader .alert-loader-inner { background-color: $info-base; }
+  }
+
+}

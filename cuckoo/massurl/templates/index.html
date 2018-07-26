@@ -1,10 +1,573 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Replace this</title>
-</head>
-<body>
-    <p>Replace me with a real dashboard index file, please.</p>
-</body>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link href="/css/styles.css" rel="stylesheet" type="text/css" />
+    <title>Hey, it's WCMP.</title>
+  </head>
+  <body allowfullscreen>
+    <main class="viewport" id="event-monitor">
+      <div class="foreground app">
+        <header class="app__header">
+          <div class="logo">
+            <a href="#" id="swap-bg" tabindex="-1">
+              <img src="images/cuckoo-white.png" width="100" alt="Cuckoo Sandbox" />
+            </a>
+          </div>
+          <h1 class="title">URL Analysis</h1>
+          <nav class="nav">
+            <ul>
+              <li>
+                <a class="active" href="/">Events</a>
+              </li>
+              <li>
+                <a href="/url-groups">URL Groups</a>
+              </li>
+            </ul>
+          </nav>
+          <div class="right">
+            <ul class="controls">
+              <li>
+                <div class="system-indicator" data-online="true">
+                  <span class="system-indicator--inner"></span>
+                </div>
+              </li>
+              <li>
+                <button id="toggle-audio" class="control-audio">
+                  <i class="fal fa-volume-mute"></i>
+                </button>
+                <button id="toggle-fullscreen" class="control-fullscreen">
+                  <i class="fal fa-expand-alt"></i>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </header>
+        <section class="app__body">
+          <div id="top-level-alert" class="container">
+            <div class="alert-outer">
+              <div class="alert alert-info">
+                <div class="alert-icon">
+                  <figure>
+                    <i class="fal fa-lightbulb"></i>
+                  </figure>
+                </div>
+                <div class="alert-content">
+                  <h2>Possible exploit kit detected</h2>
+                  <p>Page/URL hxxp://example.ee/login/ loads iframe with X.</p>
+                </div>
+                <div class="alert-time">
+                  <p>24 minutes ago</p>
+                </div>
+              </div>
+              <div class="alert-loader">
+                <div class="alert-loader-inner"></div>
+              </div>
+            </div>
+          </div>
+          <div id="alert-table" class="container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th width="7" class="drop-padding"></th>
+                  <th width="30" class="sortable">
+                    <a class="center" href="#">
+                      <i class="fal fa-sort-amount-down"></i>
+                    </a>
+                  </th>
+                  <th class="sortable" width="120">Time
+                    <a href="#">
+                      <i class="fal fa-sort-amount-down"></i>
+                    </a>
+                  </th>
+                  <th class="sortable">Group
+                    <a href="#">
+                      <i class="fal fa-sort-amount-down"></i>
+                    </a>
+                  </th>
+                  <th>Title</th>
+                  <th>Content</th>
+                  <th width="25"></th>
+                </tr>
+              </thead>
+              <tbody class="alternate-n2">
+                <tr data-row-style="danger">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-skull'></i>
+                  </td>
+                  <td class="no-wrap">
+                    07/24/2018 10:53:13 </td>
+                  <td class="no-wrap">.ee domains</td>
+                  <td>Possible exploit kit</td>
+                  <td class="text-wrap">Lorem ipsum dolor sit amet</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> .ee domains</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        07/24/2018 10:53:13 </li>
+                    </ul>
+                    <h3>Possible exploit kit</h3>
+                    <p>Lorem ipsum dolor sit amet</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoo.sandb.ox&#x2F;report&#x2F;1" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="warning">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-exclamation-circle'></i>
+                  </td>
+                  <td class="no-wrap">
+                    07/08/2018 04:25:45 </td>
+                  <td class="no-wrap">.ee domains</td>
+                  <td>Injection of software</td>
+                  <td class="text-wrap">Lorem ipsum dolor sit amet</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> .ee domains</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        07/08/2018 04:25:45 </li>
+                    </ul>
+                    <h3>Injection of software</h3>
+                    <p>Lorem ipsum dolor sit amet</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;report&#x2F;2" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="info">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-lightbulb'></i>
+                  </td>
+                  <td class="no-wrap">
+                    07/01/2018 08:58:19 </td>
+                  <td class="no-wrap">friendly software</td>
+                  <td>Program says hi</td>
+                  <td class="text-wrap">Lorem ipsum dolor sit amet</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> friendly software</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        07/01/2018 08:58:19 </li>
+                    </ul>
+                    <h3>Program says hi</h3>
+                    <p>Lorem ipsum dolor sit amet</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;report&#x2F;3" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="warning">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-exclamation-circle'></i>
+                  </td>
+                  <td class="no-wrap">
+                    06/21/2018 17:47:59 </td>
+                  <td class="no-wrap">.ee domains</td>
+                  <td>Injection of software</td>
+                  <td class="text-wrap">Lorem ipsum dolor sit amet</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> .ee domains</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        06/21/2018 17:47:59 </li>
+                    </ul>
+                    <h3>Injection of software</h3>
+                    <p>Lorem ipsum dolor sit amet</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;report&#x2F;4" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="info">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-lightbulb'></i>
+                  </td>
+                  <td class="no-wrap">
+                    06/20/2018 02:05:00 </td>
+                  <td class="no-wrap">friendly software</td>
+                  <td>Computer says hello</td>
+                  <td class="text-wrap">Lorem ipsum dolor sit amet</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> friendly software</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        06/20/2018 02:05:00 </li>
+                    </ul>
+                    <h3>Computer says hello</h3>
+                    <p>Lorem ipsum dolor sit amet</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;report&#x2F;5" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="danger">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-skull'></i>
+                  </td>
+                  <td class="no-wrap">
+                    05/23/2018 08:31:57 </td>
+                  <td class="no-wrap">.ru domains</td>
+                  <td>Rawr I am a dinosaur</td>
+                  <td class="text-wrap">Lorem ipsum dolor sit amet</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> .ru domains</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        05/23/2018 08:31:57 </li>
+                    </ul>
+                    <h3>Rawr I am a dinosaur</h3>
+                    <p>Lorem ipsum dolor sit amet</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;report&#x2F;6" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="warning">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-exclamation-circle'></i>
+                  </td>
+                  <td class="no-wrap">
+                    05/11/2018 10:02:07 </td>
+                  <td class="no-wrap">.ru domains</td>
+                  <td>Emoji collapsed</td>
+                  <td class="text-wrap">Lorem ipsum dolor sit amet</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> .ru domains</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        05/11/2018 10:02:07 </li>
+                    </ul>
+                    <h3>Emoji collapsed</h3>
+                    <p>Lorem ipsum dolor sit amet</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;report&#x2F;6" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="info">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-lightbulb'></i>
+                  </td>
+                  <td class="no-wrap">
+                    05/01/2018 08:40:38 </td>
+                  <td class="no-wrap">.ru domains</td>
+                  <td>Coffee went cold</td>
+                  <td class="text-wrap">That also means: no cookies today!</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> .ru domains</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        05/01/2018 08:40:38 </li>
+                    </ul>
+                    <h3>Coffee went cold</h3>
+                    <p>That also means: no cookies today!</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;report&#x2F;6" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="info">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-lightbulb'></i>
+                  </td>
+                  <td class="no-wrap">
+                    04/29/2018 08:44:27 </td>
+                  <td class="no-wrap">.kanto domains</td>
+                  <td>A wild pikachu appeared</td>
+                  <td class="text-wrap">Grab your balls, catch the big electro mouse!</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> .kanto domains</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        04/29/2018 08:44:27 </li>
+                    </ul>
+                    <h3>A wild pikachu appeared</h3>
+                    <p>Grab your balls, catch the big electro mouse!</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;catch&#x2F;pikachu" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="danger">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-skull'></i>
+                  </td>
+                  <td class="no-wrap">
+                    04/18/2018 03:14:14 </td>
+                  <td class="no-wrap">department of cookies</td>
+                  <td>Out of stroopwafels</td>
+                  <td class="text-wrap">You should import some from the beautifull flatlands people dare to call &#39;Holland&#39;.</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> department of cookies</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        04/18/2018 03:14:14 </li>
+                    </ul>
+                    <h3>Out of stroopwafels</h3>
+                    <p>You should import some from the beautifull flatlands people dare to call &#39;Holland&#39;.</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;error&#x2F;stroopwafel" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="danger">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-skull'></i>
+                  </td>
+                  <td class="no-wrap">
+                    04/29/2018 08:44:27 </td>
+                  <td class="no-wrap">department of cookies</td>
+                  <td>Stroopwafels are depleting</td>
+                  <td class="text-wrap">If you don&#39;t do nothing, the waffle rate in yoru stroopwafels will be strooped up</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> department of cookies</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        04/29/2018 08:44:27 </li>
+                    </ul>
+                    <h3>Stroopwafels are depleting</h3>
+                    <p>If you don&#39;t do nothing, the waffle rate in yoru stroopwafels will be strooped up</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;error&#x2F;stroopwafel" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="warning">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-exclamation-circle'></i>
+                  </td>
+                  <td class="no-wrap">
+                    04/13/2018 22:30:33 </td>
+                  <td class="no-wrap">department of cookies</td>
+                  <td>Final warning before error</td>
+                  <td class="text-wrap">Melissa from HR started eating a lot of stroopwaffles while sitting against the wall crying and calling with her boyfriend</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> department of cookies</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        04/13/2018 22:30:33 </li>
+                    </ul>
+                    <h3>Final warning before error</h3>
+                    <p>Melissa from HR started eating a lot of stroopwaffles while sitting against the wall crying and calling with her boyfriend</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;error&#x2F;stroopwafel" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="warning">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-exclamation-circle'></i>
+                  </td>
+                  <td class="no-wrap">
+                    04/13/2018 22:30:33 </td>
+                  <td class="no-wrap">department of cookies</td>
+                  <td>Casual stroopwaffle OD&#39;ing signaled</td>
+                  <td class="text-wrap">Crumbles start to pile up around everyones desks, be prepared for a true stroop-storm.</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> department of cookies</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        04/13/2018 22:30:33 </li>
+                    </ul>
+                    <h3>Casual stroopwaffle OD&#39;ing signaled</h3>
+                    <p>Crumbles start to pile up around everyones desks, be prepared for a true stroop-storm.</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;error&#x2F;stroopwafel" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="info">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-lightbulb'></i>
+                  </td>
+                  <td class="no-wrap">
+                    04/09/2018 00:40:35 </td>
+                  <td class="no-wrap">department of cookies</td>
+                  <td>Awkward amount of stroopwafel-talk detected</td>
+                  <td class="text-wrap">You can clearly tell someone is running out of inspiration for these mocking alerts</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> department of cookies</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        04/09/2018 00:40:35 </li>
+                    </ul>
+                    <h3>Awkward amount of stroopwafel-talk detected</h3>
+                    <p>You can clearly tell someone is running out of inspiration for these mocking alerts</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;error&#x2F;stroopwafel" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+                <tr data-row-style="info">
+                  <td class="drop-padding fill-base"></td>
+                  <td class="centerize icon-cell">
+                    <i class='fal fa-lightbulb'></i>
+                  </td>
+                  <td class="no-wrap">
+                    01/05/2018 16:14:37 </td>
+                  <td class="no-wrap">department of cookies</td>
+                  <td>Out of inspiration</td>
+                  <td class="text-wrap">15 alerts, there you have it.</td>
+                  <td class="icon-cell">
+                    <a href="#" data-expand-row>
+                      <i class="fal"></i>
+                    </a>
+                  </td>
+                </tr>
+                <tr class="info-expansion">
+                  <td colspan="7">
+                    <ul class="meta-summary">
+                      <li>
+                        <i class="far fa-barcode-alt"></i> department of cookies</li>
+                      <li>
+                        <i class="far fa-clock"></i>
+                        01/05/2018 16:14:37 </li>
+                    </ul>
+                    <h3>Out of inspiration</h3>
+                    <p>15 alerts, there you have it.</p>
+                    <a href="http:&#x2F;&#x2F;jecuckoosandb.ox&#x2F;error&#x2F;out-of-inspiration" class="button">
+                      <i class="far fa-file-alt"></i> View report</a>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="7"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+      </div>
+      <div class="background pattern-small-steps" id="app-background"></div>
+    </main>
+    <script src="/scripts/main.js"></script>
+  </body>
 </html>

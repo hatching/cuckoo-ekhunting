@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link href="/css/styles.css" rel="stylesheet" type="text/css" />
+    <title>Hey, it's WCMP.</title>
+  </head>
+  <body allowfullscreen>
+    <main class="viewport" id="url-grouping">
+      <div class="foreground app">
+        <header class="app__header">
+          <div class="logo">
+            <a href="#" id="swap-bg" tabindex="-1">
+              <img src="images/cuckoo-white.png" width="100" alt="Cuckoo Sandbox" />
+            </a>
+          </div>
+          <h1 class="title">URL Analysis</h1>
+          <nav class="nav">
+            <ul>
+              <li>
+                <a href="/">Events</a>
+              </li>
+              <li>
+                <a class="active" href="/url-groups">URL Groups</a>
+              </li>
+            </ul>
+          </nav>
+          <div class="right">
+            <ul class="controls">
+              <li>
+                <div class="system-indicator" data-online="true">
+                  <span class="system-indicator--inner"></span>
+                </div>
+              </li>
+              <li>
+                <button id="toggle-audio" class="control-audio">
+                  <i class="fal fa-volume-mute"></i>
+                </button>
+                <button id="toggle-fullscreen" class="control-fullscreen">
+                  <i class="fal fa-expand-alt"></i>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </header>
+        <section class="app__body">
+          <nav class="tabs">
+            <ul>
+              <li>
+                <a href="/url-groups">Groups</a>
+              </li>
+              <li>
+                <a class="active" href="/url-group-content">Group content</a>
+              </li>
+            </ul>
+          </nav>
+        </section>
+      </div>
+      <div class="background pattern-small-steps" id="app-background"></div>
+    </main>
+    <script src="/scripts/main.js"></script>
+  </body>
+</html>
