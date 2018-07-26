@@ -321,5 +321,9 @@ def run_server(port=8080, host="localhost"):
     server = WSGIServer(
         (host, int(port)), application=xapp, handler_class=WebSocketHandler
     )
+
+    # start debug mode for server
+    server.debug = True
+
     logging.getLogger("geventwebsocket.handler").setLevel(logging.DEBUG)
     server.serve_forever()

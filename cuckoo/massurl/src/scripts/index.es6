@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import Templates from './templates';
 import Fullscreen from './fullscreen';
 
 // shifts background based on current state (on/off/toggle)
@@ -79,6 +80,11 @@ function hotkey(key) {
   }
 }
 
+// shortcut for adding url group
+function addURLGroup(id, name, description) {
+
+}
+
 $(function() {
 
   // global app inits
@@ -95,7 +101,7 @@ $(function() {
 
   // specific inits for url-grouping
   if($("#url-grouping").length) {
-
+    
   }
 
 });
