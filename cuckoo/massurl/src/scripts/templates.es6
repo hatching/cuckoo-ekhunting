@@ -22,13 +22,26 @@ const Templates = {
       <td class="no-wrap">{{pretty-date timestamp}}</td>
       <td>{{title}}</td>
       <td class="text-wrap">{{content}}</td>
-      <td class="no-wrap">{{targetgroup_name}}</td>
+      <td class="no-wrap">
+        {{#if targetgroup_name}}
+          {{targetgroup_name}}
+        {{else}}
+          <em class="secundary">Unspecified</em>
+        {{/if}}
+      </td>
       <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>
     </tr>
     <tr class="info-expansion">
       <td colspan="7">
         <ul class="meta-summary">
-          <li><i class="far fa-barcode-alt"></i> {{targetgroup_name}}</li>
+          <li>
+            <i class="far fa-barcode-alt"></i>
+            {{#if targetgroup_name}}
+              {{targetgroup_name}}
+            {{else}}
+              <em class="secundary">Unspecified</em>
+            {{/if}}
+          </li>
           <li>
             <i class="far fa-clock"></i>
             {{pretty-date timestamp}}
