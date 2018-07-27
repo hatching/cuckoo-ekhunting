@@ -1,6 +1,6 @@
 import $ from 'jquery';
-import Templates from './templates';
 import Fullscreen from './fullscreen';
+import { initAlerts } from './alerts';
 
 // shifts background based on current state (on/off/toggle)
 // swapBackground(null) => toggles
@@ -94,14 +94,19 @@ $(function() {
 
   // specific inits for event-monitor
   if($("#event-monitor").length) {
-    $("#swap-bg").on('click', alertMode);
-    $("html").on("keydown", e => hotkey(e.keyCode));
-    $("#alert-table").find('tbody > tr').not('.info-expansion').on('click', expandInfoRow);
+    initAlerts().then(data => {
+      
+      $("#alert-table").find('tbody').html(data.jq());
+      $("#alert-table").find('tbody > tr').not('.info-expansion').on('click', expandInfoRow);
+
+      $("#swap-bg").on('click', alertMode);
+      $("html").on("keydown", e => hotkey(e.keyCode));
+    }).catch(e => console.log(e));
   }
 
   // specific inits for url-grouping
   if($("#url-grouping").length) {
-    
+
   }
 
 });
