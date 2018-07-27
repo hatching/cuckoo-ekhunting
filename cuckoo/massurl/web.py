@@ -39,6 +39,14 @@ def json_error(status_code, message, *args):
 def index():
     return render_template("index.html")
 
+@app.route("/url-groups")
+def url_groups():
+    return render_template("url-groups.html")
+
+@app.route("/url-groups/manage")
+def url_groups_manage():
+    return render_template("url-group-content.html")
+
 @app.route("/alerts/list")
 def list_alerts():
     target_group = request.args.get("target_group")
