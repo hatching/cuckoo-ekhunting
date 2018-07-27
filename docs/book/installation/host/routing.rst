@@ -108,6 +108,9 @@ Following is the list of available routing options.
 | :ref:`routing_vpn`      | Routes all traffic through one of perhaps        |
 |                         | multiple pre-defined VPN endpoints.              |
 +-------------------------+--------------------------------------------------+
+| :ref:`routing_socks5`   | Routes all TCP traffic over a SOCKS5 proxy. DNS  |
+|                         | is intercepted and resolved locally.             |
++-------------------------+--------------------------------------------------+
 
 Using Per-Analysis Network Routing
 ==================================
@@ -276,7 +279,7 @@ correctly.
 VPN Routing
 ^^^^^^^^^^^
 
-Last but not least, it is possible to route analyses through a number of VPNs.
+Cuckoo also allows for the routing of analyses through a number of VPNs.
 By defining a couple of VPNs, perhaps ending up in different countries, it may
 be possible to see if potentially malicious samples behave differently
 depending on the country of origin of its IP address.
@@ -321,3 +324,133 @@ Configuration for a single VPN looks roughly as follows::
 
 .. note:: It is required to register each VPN network interface with iproute2
     as described in the :ref:`routing_iproute2` section.
+
+.. _routing_socks5:
+
+SOCKS5 Routing
+^^^^^^^^^^^^^^
+
+SOCKS5 routing redirects all the guest TCP traffic over a SOCKS5 proxy. DNS is intercepted locally and
+should be handled by a local DNS server. For each SOCKS5 proxy, Cuckoo will lookup what country its IP belongs to. Using this
+information, it is possible to choose an "exit point" country for your traffic.
+
+When multiple SOCKS5 proxies are available, Cuckoo will always use the proxy that has not been used the longest time.
+
+To enable and use SOCKS5 routing, a few things are required:
+
+- Installing `Redsocks`_, a tool used by Cuckoo Sandbox to redirect all TCP traffic to
+  a selected SOCKS5 proxy.
+- Enabling the Redsocks Auxiliary module
+- A locally running DNS server to which the intercepted DNS can be redirected.
+- Operational SOCKS5 proxies, which have been added to `Socks5man`_.
+- Have Socks5man verify the proxies to be operational.
+
+Follow the steps below to set up SOCKS5 routing.
+
+
+**Installing Redsocks**
+
+Redsocks has packages in multiple Linux distributions. This guide is based on a Ubuntu host.
+
+``$ apt install redsocks``
+
+Verify the binary is available: ``$ which redsocks``. The path of the binary is required in the auxiliary config.
+
+**Enable the Redsocks auxiliary module**
+
+Open ``auxiliary.conf``, enable the module, and ensure the path to the binary is correct::
+
+    [redsocks]
+    # This module should be enabled if socks5 routing is used. It is required for
+    # it to be operational. This module starts redsocks if the route for an
+    # analysis should be over a socks5 proxy.
+    enabled = yes
+
+    # The path to the redsocks installation.
+    redsocks = /usr/sbin/redsocks
+
+**Set up a local DNS server**
+
+We recommend using `Dnsmasq`_. The DNS server should be bound to the same ip/interface as your result server is.
+Example config for Dnsmasq::
+
+	port=53
+	domain-needed
+	no-resolv
+	no-hosts
+	bind-interfaces
+	interface=vboxnet0
+	cache-size=0
+	server=1.1.1.1
+	server=8.8.8.8
+	server=8.8.4.4
+
+When the DNS server is configured, add the port to the ``routing.conf`` under the ``[socks5]`` section::
+
+    [socks5]
+    # The port of your local DNS server that is used to resolve all DNS queries.
+    # The server should be bound on the same IP as the resultserver.
+    dnsport = 53
+
+**Adding SOCKS5 proxies to Socks5man**
+
+Cuckoo uses Socks5man to fetch operational proxies. Before Cuckoo can use any proxy,
+it should be added to Socks5man. Socks5man is installed by default by the Cuckoo package.
+
+You can add individual SOCKS5 servers or bulk add them from a CSV file.
+
+Adding individual servers:
+
+``$ socks5man add example.com 1080``
+
+If it is authenticated, use the ``--username`` and ``--password`` parameters.
+
+Bulk adding servers from a CSV file:
+
+Example.csv::
+
+    host,port
+    example.com, 18080
+    example.net, 4442
+
+``$ socks5man bulk-add example.csv``
+	
+
+**Verifying the operationality of the SOCKS5 servers**
+
+Before Cuckoo can fetch SOCKS5 servers from Socks5man, they need to be tested.
+
+The following command will verify all SOCKS5 servers at a regular interval. This interval can
+be changed at ``/<userhome>/.socks5man/conf/socks5man.conf``
+
+``$ socks5man verify --repeated``
+
+Output::
+
+	2018-07-26 15:27:12,351 [socks5man.tools] INFO: Testing socks5 server: 'example.com:1080'
+	2018-07-26 15:27:13,300 [socks5man.tools] INFO: Operationality check: OK
+	
+To ensure Cuckoo will only fetch operational SOCKS5 server, we recommend verification is added as a service.
+
+Systemd service file example::
+
+	[Unit]
+	Description=socks5man verify
+
+	[Service]
+	User=cuckoo
+	ExecStart=<socks5man install path>/socks5man verify --repeated
+	Restart=always
+	RestartSec=30
+
+	[Install]
+	WantedBy=network-online.target
+
+
+**Usage**
+
+SOCKS5 routing is now ready to be used. Tell a task to use it by adding ``routing=socks5`` to the options when submitting it. Add ``socks5.country=<country>`` if a SOCKS5 server in a specific country should be used for a task.
+
+.. _`Redsocks`: https://github.com/darkk/redsocks
+.. _`Socks5man`: https://socks5man.readthedocs.io/en/latest/
+.. _`Dnsmasq`: https://help.ubuntu.com/community/Dnsmasq
