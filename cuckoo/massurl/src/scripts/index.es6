@@ -1,6 +1,7 @@
 import $ from 'jquery';
 import Fullscreen from './fullscreen';
 import { initAlerts } from './alerts';
+import { initUrlGroups } from './url-groups';
 
 // shifts background based on current state (on/off/toggle)
 // swapBackground(null) => toggles
@@ -80,11 +81,6 @@ function hotkey(key) {
   }
 }
 
-// shortcut for adding url group
-function addURLGroup(id, name, description) {
-
-}
-
 $(function() {
 
   // global app inits
@@ -95,7 +91,7 @@ $(function() {
   // specific inits for event-monitor
   if($("#event-monitor").length) {
     initAlerts().then(data => {
-      
+
       $("#alert-table").find('tbody').html(data.jq());
       $("#alert-table").find('tbody > tr').not('.info-expansion').on('click', expandInfoRow);
 
@@ -106,7 +102,9 @@ $(function() {
 
   // specific inits for url-grouping
   if($("#url-grouping").length) {
-
+    initUrlGroups().then(data => {
+      
+    });
   }
 
 });

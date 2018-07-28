@@ -1,0 +1,10 @@
+<nav class="tabs">
+  <ul>
+    <li>
+      <a {% if request.endpoint == "url_groups" %}class="active"{% endif %} href="/url-groups">Groups</a>
+    </li>
+    <li>
+      <a {% if request.endpoint == "url_groups_manage" %}class="active"{% endif %} href="/url-groups/manage">Manage</a>
+    </li>
+  </ul>
+</nav>

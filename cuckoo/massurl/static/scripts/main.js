@@ -23304,7 +23304,7 @@ return false;}}// open element in fullscreen mode
 return false;}}}]);return Fullscreen;}();exports.default=Fullscreen;
 
 },{}],50:[function(require,module,exports){
-'use strict';var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _fullscreen=require('./fullscreen');var _fullscreen2=_interopRequireDefault(_fullscreen);var _alerts=require('./alerts');function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}// shifts background based on current state (on/off/toggle)
+'use strict';var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _fullscreen=require('./fullscreen');var _fullscreen2=_interopRequireDefault(_fullscreen);var _alerts=require('./alerts');var _urlGroups=require('./url-groups');function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}// shifts background based on current state (on/off/toggle)
 // swapBackground(null) => toggles
 // swapBackground(true/false) => sets .fill-red class based on bool
 // => this is for demonstrational purposes. Click the logo to trigger
@@ -23319,13 +23319,12 @@ function expandInfoRow(e){e.preventDefault();var row=(0,_jquery2.default)(e.curr
 // elsewise mimic 'close' behavior
 case 13:if(!tableIsExpanded()){(0,_jquery2.default)("#alert-table tbody tr:first-child").trigger('click');}else{(0,_jquery2.default)('#alert-table tbody tr.expanded').trigger('click');}break;// handle RIGHTpress (table: expand next row FROM expanded - otherwise ignore)
 case 39:if(tableIsExpanded())(0,_jquery2.default)("#alert-table tr.expanded").next(".info-expansion").next('tr').trigger("click");break;// handle LEFTpress (table: expand previous row FROM expanded - otherwise ignore)
-case 37:if(tableIsExpanded())(0,_jquery2.default)("#alert-table tr.expanded").prev(".info-expansion").prev('tr').trigger("click");break;}}// shortcut for adding url group
-function addURLGroup(id,name,description){}(0,_jquery2.default)(function(){// global app inits
+case 37:if(tableIsExpanded())(0,_jquery2.default)("#alert-table tr.expanded").prev(".info-expansion").prev('tr').trigger("click");break;}}(0,_jquery2.default)(function(){// global app inits
 (0,_jquery2.default)("#toggle-audio").on('click',function(e){return toggleAudio(e.currentTarget);});(0,_jquery2.default)("#toggle-fullscreen").on('click',function(e){return toggleFullScreen(e.currentTarget);});(0,_jquery2.default)("[data-online]").on('click',toggleSystemIndicator);// specific inits for event-monitor
 if((0,_jquery2.default)("#event-monitor").length){(0,_alerts.initAlerts)().then(function(data){(0,_jquery2.default)("#alert-table").find('tbody').html(data.jq());(0,_jquery2.default)("#alert-table").find('tbody > tr').not('.info-expansion').on('click',expandInfoRow);(0,_jquery2.default)("#swap-bg").on('click',alertMode);(0,_jquery2.default)("html").on("keydown",function(e){return hotkey(e.keyCode);});}).catch(function(e){return console.log(e);});}// specific inits for url-grouping
-if((0,_jquery2.default)("#url-grouping").length){}});
+if((0,_jquery2.default)("#url-grouping").length){(0,_urlGroups.initUrlGroups)().then(function(data){});}});
 
-},{"./alerts":48,"./fullscreen":49,"jquery":44}],51:[function(require,module,exports){
+},{"./alerts":48,"./fullscreen":49,"./url-groups":52,"jquery":44}],51:[function(require,module,exports){
 'use strict';Object.defineProperty(exports,"__esModule",{value:true});var _moment=require('moment');var _moment2=_interopRequireDefault(_moment);var _handlebars=require('handlebars');var _handlebars2=_interopRequireDefault(_handlebars);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}var safe=_handlebars2.default.SafeString;var getLevelName=function getLevelName(level){return['info','warning','danger'][level-1]||"";};var getIconType=function getIconType(level){return['fa-lightbulb','fa-exclamation-circle','fa-skull'][level-1]||"fa-comment";};// forge pwetty dates from timestamps
 _handlebars2.default.registerHelper('pretty-date',function(timestamp){return(0,_moment2.default)(new Date(timestamp)).format('MM/DD/YYYY HH:mm:ss');});// helper for parsing number-level to string-level
 _handlebars2.default.registerHelper('alert-level',function(level){return getLevelName(parseInt(level));});// spit icons from level numbers
@@ -23333,5 +23332,8 @@ _handlebars2.default.registerHelper('alert-icon',function(level){return'<i class
 event:function event(data){return _handlebars2.default.compile('\n    <tr data-row-style="{{alert-level level}}">\n      <td class="drop-padding fill-base"></td>\n      <td class="centerize icon-cell">{{{alert-icon level}}}</td>\n      <td class="no-wrap">{{pretty-date timestamp}}</td>\n      <td>{{title}}</td>\n      <td class="text-wrap">{{content}}</td>\n      <td class="no-wrap">\n        {{#if targetgroup_name}}\n          {{targetgroup_name}}\n        {{else}}\n          <em class="secundary">Unspecified</em>\n        {{/if}}\n      </td>\n      <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>\n    </tr>\n    <tr class="info-expansion">\n      <td colspan="7">\n        <ul class="meta-summary">\n          <li>\n            <i class="far fa-barcode-alt"></i>\n            {{#if targetgroup_name}}\n              {{targetgroup_name}}\n            {{else}}\n              <em class="secundary">Unspecified</em>\n            {{/if}}\n          </li>\n          <li>\n            <i class="far fa-clock"></i>\n            {{pretty-date timestamp}}\n          </li>\n        </ul>\n        <h3>{{title}}</h3>\n        <p>{{content}}</p>\n        <a href="{{target}}" target="_blank" class="button"><i class="far fa-file-alt"></i> View report</a>\n      </td>\n    </tr>\n  ')(data);},// definition for url group
 urlGroup:function urlGroup(data){return _handlebars2.default.compile('\n    <tr>\n      <td class="centerize">{{id}}</td>\n      <td>{{name}}</td>\n      <td>{{description}}</td>\n      <td class="centerize">\n        <button class="button icon-button">\n          <i class="far fa-marker"></i>\n        </button>\n        <button class="button icon-button">\n          <i class="far fa-times"></i>\n        </button>\n      </td>\n    </tr>\n  ')(data);}};exports.default=Templates;
 
-},{"handlebars":32,"moment":45}]},{},[50])
+},{"handlebars":32,"moment":45}],52:[function(require,module,exports){
+"use strict";Object.defineProperty(exports,"__esModule",{value:true});function initUrlGroups(){return new Promise(function(resolve,reject){resolve();});}exports.initUrlGroups=initUrlGroups;
+
+},{}]},{},[50])
 //# sourceMappingURL=main.js.map
