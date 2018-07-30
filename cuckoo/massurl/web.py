@@ -1,3 +1,7 @@
+# Copyright (C) 2018 Cuckoo Foundation.
+# This file is part of Cuckoo Sandbox - https://www.cuckoosandbox.org
+# See the file 'docs/LICENSE' for copying permission.
+
 import gevent.monkey
 gevent.monkey.patch_all()
 
@@ -15,17 +19,11 @@ from gevent.queue import Queue
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 
-from cuckoo.core.database import Database
+from cuckoo.massurl import db
 from cuckoo.common.utils import parse_bool
-from cuckoo.misc import cwd
 
-db = Database()
 alert_queue = Queue()
-app = Flask(
-    __name__,
-    template_folder=cwd("..", "massurl", "templates", private=True),
-    static_folder=cwd("..", "massurl", "static", private=True)
-)
+app = Flask(__name__)
 lock = BoundedSemaphore(1)
 log = logging.getLogger(__name__)
 sockets = set()
@@ -38,22 +36,6 @@ def json_error(status_code, message, *args):
 @app.route("/")
 def index():
     return render_template("index.html")
-
-@app.route("/url-groups")
-def url_groups():
-    return render_template(
-        "url-groups.html", groups=[
-            g.to_dict() for g in db.list_groups(limit=50)
-        ]
-    )
-
-@app.route("/url-groups/manage")
-def url_groups_manage():
-    return render_template(
-        "url-group-content.html", groups=[
-            g.to_dict() for g in db.list_groups(limit=50)
-        ]
-    )
 
 @app.route("/alerts/list")
 def list_alerts():
@@ -81,19 +63,21 @@ def list_alerts():
 
 @app.route("/group/add", methods=["POST"])
 def add_group():
-    name = request.form.get("name" "")
+    name = request.form.get("name", "")
     description = request.form.get("description", "")
+    schedule = request.form.get("schedule") or "1d"
 
     if not name:
         return json_error(400, "Missing 'name' parameter")
     if not description:
         return json_error(400, "Missing 'description' parameter")
 
-    group = db.find_group(name)
-    if group:
+    try:
+        group_id = db.add_group(name, description, schedule)
+    except ValueError as e:
+        return json_error(400, str(e))
+    except KeyError:
         return json_error(409, "Specified group name already exists")
-
-    group_id = db.add_group(name, description)
     if not group_id:
         return json_error(500, "Error while creating a new group")
 
@@ -115,21 +99,17 @@ def group_add_url():
 
         group_id = int(group_id)
 
-    group = db.find_group(name=name, group_id=group_id)
-    if not group:
-        return json_error(404, "Specified group does not exist")
-
     urls = filter(None, [url.strip() for url in urls.split(seperator)])
     if not urls:
         return json_error(400, "No URLs specified")
 
-    if db.mass_group_add(urls, group.id):
+    group_id = db.mass_group_add(urls, name, group_id)
+    if group_id:
         return jsonify(
             message="success",
-            info="Added new URLs to group %s" % group.id
+            info="Added new URLs to group %s" % group_id
         )
-
-    return json_error(500, "Error adding URLs to group")
+    return json_error(404, "Specified group does not exist")
 
 @app.route("/group/view/<int:group_id>")
 @app.route("/group/view/<name>")
@@ -185,14 +165,9 @@ def delete_group():
 
         group_id = int(group_id)
 
-    group = db.find_group(group_id=group_id, name=name)
-    if not group:
-        return json_error(404, "Specified group does not exist")
-
     if db.delete_group(group_id=group_id, name=name):
         return jsonify(message="success")
-
-    return json_error(500, "Failed to delete target group")
+    return json_error(404, "Specified group does not exist")
 
 @app.route("/group/delete/url", methods=["POST"])
 def group_delete_url():
@@ -222,28 +197,6 @@ def group_delete_url():
         return jsonify(message="success")
 
     return json_error(500, "Error removing URLs from group")
-
-@app.route("/groups/list")
-def list_groups():
-    intargs = {
-        "limit": request.args.get("limit", 50),
-        "offset": request.args.get("offset", 0)
-    }
-
-    for key, value in intargs.iteritems():
-        if value:
-            try:
-                intargs[key] = int(value)
-            except ValueError:
-                return json_error(400, "%s should be an integer" % key)
-
-    return jsonify(
-        [
-            g.to_dict() for g in db.list_groups(
-                limit=intargs["limit"], offset=intargs["offset"]
-            )
-        ]
-    )
 
 def random_string(minimum, maximum=None):
     if maximum is None:
@@ -285,16 +238,13 @@ def gen_alerts():
             "title": random_string(5, 30),
             "content": random_string(80, 400),
             "task_id": random.randint(1, 1000),
-            "notify": notify,
-            "targetgroup_name": group_name,
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "url_group_name": group_name,
+            "timestamp": datetime.datetime.now(),
             "target": random.choice(["http://example.com/somepage", None])
         }
-        db.add_alert(
-            alert["level"], alert["title"], alert["content"],
-            target=alert["target"], targetgroup_name=group_name,
-            task_id=alert["task_id"]
-        )
+        db.add_alert(**alert)
+        alert["notify"] = notify
+        alert["timestamp"] = alert["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
         alert_queue.put(json.dumps(alert))
         gevent.sleep(0.2)
 
@@ -359,6 +309,5 @@ def run_server(port=8080, host="localhost"):
     server = WSGIServer(
         (host, int(port)), application=xapp, handler_class=WebSocketHandler
     )
-
     logging.getLogger("geventwebsocket.handler").setLevel(logging.DEBUG)
     server.serve_forever()

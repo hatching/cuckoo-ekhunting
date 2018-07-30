@@ -759,6 +759,23 @@ def server(ctx, host, port, uwsgi, nginx):
 
     cuckoo_distributed(host, port, ctx.parent.parent.level == logging.DEBUG)
 
+@main.command("massurl")
+@click.pass_context
+def massurl(ctx):
+    from cuckoo.massurl.main import massurl_main
+    import cuckoo.massurl.db   # NOQA
+
+    if not os.path.isdir(cwd()) or not os.listdir(cwd()):
+        cuckoo_create()
+        sys.exit(0)
+
+    #cuckoo_init(ctx.parent.level, ctx.parent)
+    init_logging(ctx.parent.level)
+    Database().connect()
+
+    init_console_logging(ctx.parent.level)
+    massurl_main()
+
 @distributed.command("instance")
 @click.argument("name")
 @click.pass_context
