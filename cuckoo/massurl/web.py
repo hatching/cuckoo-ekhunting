@@ -26,7 +26,6 @@ app = Flask(
     template_folder=cwd("..", "massurl", "templates", private=True),
     static_folder=cwd("..", "massurl", "static", private=True)
 )
-
 lock = BoundedSemaphore(1)
 log = logging.getLogger(__name__)
 sockets = set()
@@ -48,7 +47,7 @@ def url_groups():
                 "name": ".ee domain URLs",
                 "description": "Contains all .ee government domain URLs since"
                                " 2011",
-                "id":1
+                "id": 1
             },
             {
                 "name": "Company X",
@@ -344,9 +343,6 @@ def run_server(port=8080, host="localhost"):
     server = WSGIServer(
         (host, int(port)), application=xapp, handler_class=WebSocketHandler
     )
-
-    # start debug mode for server
-    server.debug = True
 
     logging.getLogger("geventwebsocket.handler").setLevel(logging.DEBUG)
     server.serve_forever()
