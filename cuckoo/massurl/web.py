@@ -26,6 +26,7 @@ app = Flask(
     template_folder=cwd("..", "massurl", "templates", private=True),
     static_folder=cwd("..", "massurl", "static", private=True)
 )
+
 lock = BoundedSemaphore(1)
 log = logging.getLogger(__name__)
 sockets = set()
