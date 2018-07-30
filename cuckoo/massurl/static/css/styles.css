@@ -5355,6 +5355,14 @@ table.table {
         outline: none;
         border-color: rgba(74, 111, 165, 0.5);
         background-color: #fbfcfd; }
+  table.table tbody tr.error-row button {
+    float: right; }
+  table.table tbody tr.loading > td {
+    text-align: center;
+    padding: 80px 0;
+    font-size: 80px; }
+    table.table tbody tr.loading > td > .fa-spinner-third {
+      color: #4A6FA5; }
   table.table tbody td,
   table.table tfoot td {
     border-top: 1px solid rgba(0, 0, 0, 0.2); }

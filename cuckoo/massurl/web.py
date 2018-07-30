@@ -45,14 +45,14 @@ def url_groups():
         "url-groups.html", groups=[
             {
                 "name": ".ee domain URLs",
-                "description": "Contains all .ee government domain URLs since"
+                "description": "[MOCKED] Contains all .ee government domain URLs since"
                                " 2011",
-                "id": 1
+                "id": "B"
             },
             {
                 "name": "Company X",
-                "description": "All URLs for application Y of company X",
-                "id": 2
+                "description": "[MOCKED] All URLs for application Y of company X",
+                "id": "A"
             }
         ]
     )

@@ -5,16 +5,7 @@
       {% include 'partials/header.html' %}
       </header>
       <section class="app__body">
-        <nav class="tabs">
-          <ul>
-            <li>
-              <a class="active" href="/url-groups">Groups</a>
-            </li>
-            <li>
-              <a href="/url-group-content">Group content</a>
-            </li>
-          </ul>
-        </nav>
+        {% include 'partials/url-group-nav.html' %}
         <form>
           <table class="table" id="url-groups">
             <thead>
@@ -45,6 +36,21 @@
                   </button>
                 </td>
               </tr>
+              {% for group in groups %}
+                <tr data-group-id="{{group.id}}">
+                  <td class="centerize">{{group.id}}</td>
+                  <td>{{group.name}}</td>
+                  <td>{{group.description}}</td>
+                  <td class="centerize">
+                    <button type="button" class="button icon-button" data-edit>
+                      <i class="far fa-marker"></i>
+                    </button>
+                    <button type="button" class="button icon-button" data-remove>
+                      <i class="far fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+              {% endfor %}
             </tbody>
             <tfoot>
               <td colspan="4"></td>

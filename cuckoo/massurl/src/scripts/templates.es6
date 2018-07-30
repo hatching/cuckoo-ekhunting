@@ -61,10 +61,10 @@ const Templates = {
       <td>{{name}}</td>
       <td>{{description}}</td>
       <td class="centerize">
-        <button class="button icon-button">
+        <button type="button" class="button icon-button" data-edit>
           <i class="far fa-marker"></i>
         </button>
-        <button class="button icon-button">
+        <button type="button" class="button icon-button" data-remove>
           <i class="far fa-times"></i>
         </button>
       </td>
@@ -75,7 +75,7 @@ const Templates = {
   ajaxError: data => Handlebars.compile(`
     <tr class="error-row">
       <td colspan="{{span}}">
-        <p><button data-dismiss><i class="fas fa-times"></i></button> {{message}}</p>
+        <p>{{message}} <button type="button" data-dismiss><i class="fas fa-times"></i></button></p>
       </td>
     </tr>
   `)(data)

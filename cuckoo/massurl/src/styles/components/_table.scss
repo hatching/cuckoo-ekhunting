@@ -234,6 +234,12 @@ table.table {
       }
     }
 
+    &.error-row {
+      button {
+        float: right;
+      }
+    }
+
     &.loading {
       
     }
