@@ -23,12 +23,20 @@
   param $offset: distance from text to stroke
   param $round-cap: toggle round-capped line
  */
-.app__header .nav > ul, .app__header .controls, table.table tbody tr.info-expansion > td .meta-summary, .tabs > ul {
+.editor-ui .url-groups, .app__header .nav > ul, .app__header .controls, table.table tbody tr.info-expansion > td .meta-summary, .tabs > ul {
   padding: 0;
   margin: 0;
   list-style: none;
   display: flex;
   align-items: center; }
+
+.editor-ui .url-groups {
+  flex-direction: column; }
+
+.editor-ui .editor textarea {
+  -webkit-appearance: none;
+  border: 0;
+  box-shadow: 0; }
 
 /*! normalize-scss | MIT/GPLv2 License | bit.ly/normalize-scss */
 /* Document
@@ -4923,6 +4931,13 @@ body {
   height: 100vh;
   overflow: hidden; }
 
+.split-view {
+  display: flex; }
+  .split-view > .split-view-container {
+    flex-basis: 100%; }
+    .split-view > .split-view-container.one-third {
+      flex-basis: 33.33333%; }
+
 /*
   Defines a 100%x100% container (fluid to its parent) that will
   enable a background color, with an optional pattern using :before
@@ -5455,5 +5470,35 @@ table.table {
   .system-indicator[data-online="error"] > .system-indicator--inner {
     border-color: #572F26;
     background-image: linear-gradient(-180deg, #F08863 0%, #DD5034 100%); }
+
+.editor-ui {
+  background-color: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  min-height: 500px; }
+  .editor-ui-left {
+    border-right: 1px solid #ccc; }
+  .editor-ui .url-groups {
+    align-items: stretch;
+    padding: 15px 0; }
+    .editor-ui .url-groups > li {
+      border-bottom: 1px solid #ccc; }
+      .editor-ui .url-groups > li a {
+        display: block;
+        padding: 15px;
+        color: inherit;
+        font-weight: 500;
+        color: #4A6FA5;
+        text-decoration: none; }
+        .editor-ui .url-groups > li a:hover {
+          background-color: #eee; }
+        .editor-ui .url-groups > li a.active {
+          background-color: #d5d5d5; }
+  .editor-ui .editor h3, .editor-ui .editor p {
+    padding: 0 15px; }
+  .editor-ui .editor hr {
+    margin: 0; }
+  .editor-ui .editor textarea {
+    width: 100%;
+    box-sizing: border-box; }
 
 /*# sourceMappingURL=styles.css.map */

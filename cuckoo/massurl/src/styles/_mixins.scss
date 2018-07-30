@@ -41,3 +41,14 @@
   display: flex;
   align-items: center;
 }
+
+%flex-list-v {
+  @extend %flex-list;
+  flex-direction: column;
+}
+
+%reset-input {
+  -webkit-appearance: none;
+  border: 0;
+  box-shadow: 0;
+}

@@ -1,0 +1,41 @@
+.editor-ui {
+
+  background-color: rgba(255,255,255,.98);
+  border-radius: 16px;
+  min-height: 500px;
+
+  &-left {
+    border-right: 1px solid #ccc;
+  }
+
+  .url-groups {
+    @extend %flex-list-v;
+    align-items: stretch;
+    padding: 15px 0;
+    & > li {
+      border-bottom: 1px solid #ccc;
+
+      a {
+        display: block;
+        padding: 15px;
+        color: inherit;
+        font-weight: 500;
+        color: $default-base;
+        text-decoration: none;
+        &:hover { background-color: #eee; }
+        &.active { background-color: #d5d5d5; }
+      }
+    }
+  }
+
+  .editor {
+    h3, p { padding: 0 15px; }
+    hr { margin: 0; }
+    textarea {
+      @extend %reset-input;
+      width: 100%;
+      box-sizing: border-box;
+    }
+  }
+
+}

@@ -59,7 +59,21 @@ def url_groups():
 
 @app.route("/url-groups/manage")
 def url_groups_manage():
-    return render_template("url-group-content.html")
+    return render_template(
+        "url-group-content.html", groups=[
+            {
+                "name": ".ee domain URLs",
+                "description": "[MOCKED] Contains all .ee government domain URLs since"
+                               " 2011",
+                "id": "B"
+            },
+            {
+                "name": "Company X",
+                "description": "[MOCKED] All URLs for application Y of company X",
+                "id": "A"
+            }
+        ]
+    )
 
 @app.route("/alerts/list")
 def list_alerts():
