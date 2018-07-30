@@ -91,18 +91,16 @@ $(function() {
   // specific inits for event-monitor
   if($("#event-monitor").length) {
     initAlerts().then(data => {
-
       $("#alert-table").find('tbody').html(data.jq());
       $("#alert-table").find('tbody > tr').not('.info-expansion').on('click', expandInfoRow);
-
       $("#swap-bg").on('click', alertMode);
       $("html").on("keydown", e => hotkey(e.keyCode));
     }).catch(e => console.log(e));
   }
 
   // specific inits for url-grouping
-  if($("#url-grouping").length) {
-    initUrlGroups().then(data => {
+  if($("main#url-grouping").length) {
+    initUrlGroups($("#url-groups").parents('form')).then(data => {
       
     });
   }

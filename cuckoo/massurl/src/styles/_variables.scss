@@ -1,6 +1,6 @@
 // pre-render overrides
 $roboto-font-path: "/static/fonts";
-$fa-font-path: "../fonts/fontawesome";
+$fa-font-path: "/static/fonts/fontawesome";
 
 // app-wide font scope, cascades down the list until a suitable
 // font has been found.
