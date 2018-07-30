@@ -56,7 +56,7 @@ const Templates = {
 
   // definition for url group
   urlGroup: data => Handlebars.compile(`
-    <tr>
+    <tr data-group-id="{{id}}">
       <td class="centerize">{{id}}</td>
       <td>{{name}}</td>
       <td>{{description}}</td>
@@ -67,6 +67,15 @@ const Templates = {
         <button class="button icon-button">
           <i class="far fa-times"></i>
         </button>
+      </td>
+    </tr>
+  `)(data),
+
+  // definition for a table-error
+  ajaxError: data => Handlebars.compile(`
+    <tr class="error-row">
+      <td colspan="{{span}}">
+        <p><button data-dismiss><i class="fas fa-times"></i></button> {{message}}</p>
       </td>
     </tr>
   `)(data)
