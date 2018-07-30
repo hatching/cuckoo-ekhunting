@@ -42,7 +42,21 @@ def index():
 
 @app.route("/url-groups")
 def url_groups():
-    return render_template("url-groups.html")
+    return render_template(
+        "url-groups.html", groups=[
+            {
+                "name": ".ee domain URLs",
+                "description": "Contains all .ee government domain URLs since"
+                               " 2011",
+                "id":1
+            },
+            {
+                "name": "Company X",
+                "description": "All URLs for application Y of company X",
+                "id": 2
+            }
+        ]
+    )
 
 @app.route("/url-groups/manage")
 def url_groups_manage():
