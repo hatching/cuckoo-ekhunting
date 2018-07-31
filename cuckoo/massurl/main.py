@@ -10,7 +10,7 @@ from cuckoo.massurl.scheduler import massurl_scheduler
 
 log = logging.getLogger(__name__)
 
-def massurl_main():
+def massurl_main(host, port):
     log.debug("Starting massurl")
     gevent.spawn(massurl_scheduler)
-    run_server(9911, "::")
+    run_server(host, port)

@@ -292,7 +292,7 @@ ws_routes = {
     "/alerts": ws_connect
 }
 
-def run_server(port=8080, host="localhost"):
+def run_server(host, port):
     """Run the server. This handles websocket and HTTP requests"""
     log.info("Starting server for %r on %s:%s", app, host, port)
     gevent.spawn(handle_alerts)

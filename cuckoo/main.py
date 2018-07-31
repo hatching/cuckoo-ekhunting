@@ -760,8 +760,10 @@ def server(ctx, host, port, uwsgi, nginx):
     cuckoo_distributed(host, port, ctx.parent.parent.level == logging.DEBUG)
 
 @main.command("massurl")
+@click.option("-H", "--host", default="localhost", help="Host to bind the MassURL server on")
+@click.option("-p", "--port", default=9004, help="Port to bind the MassURL server on")
 @click.pass_context
-def massurl(ctx):
+def massurl(ctx, host, port):
     from cuckoo.massurl.main import massurl_main
     import cuckoo.massurl.db   # NOQA
 
@@ -774,7 +776,7 @@ def massurl(ctx):
     Database().connect()
 
     init_console_logging(ctx.parent.level)
-    massurl_main()
+    massurl_main(host, port)
 
 @distributed.command("instance")
 @click.argument("name")
