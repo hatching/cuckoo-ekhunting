@@ -43,17 +43,7 @@ def index():
 def url_groups():
     return render_template(
         "url-groups.html", groups=[
-            {
-                "name": ".ee domain URLs",
-                "description": "[MOCKED] Contains all .ee government domain URLs since"
-                               " 2011",
-                "id": "B"
-            },
-            {
-                "name": "Company X",
-                "description": "[MOCKED] All URLs for application Y of company X",
-                "id": "A"
-            }
+            g.to_dict() for g in db.list_groups(limit=50)
         ]
     )
 
@@ -61,17 +51,7 @@ def url_groups():
 def url_groups_manage():
     return render_template(
         "url-group-content.html", groups=[
-            {
-                "name": ".ee domain URLs",
-                "description": "[MOCKED] Contains all .ee government domain URLs since"
-                               " 2011",
-                "id": "B"
-            },
-            {
-                "name": "Company X",
-                "description": "[MOCKED] All URLs for application Y of company X",
-                "id": "A"
-            }
+            g.to_dict() for g in db.list_groups(limit=50)
         ]
     )
 
@@ -242,6 +222,28 @@ def group_delete_url():
         return jsonify(message="success")
 
     return json_error(500, "Error removing URLs from group")
+
+@app.route("/groups/list")
+def list_groups():
+    intargs = {
+        "limit": request.args.get("limit", 50),
+        "offset": request.args.get("offset", 0)
+    }
+
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
+    return jsonify(
+        [
+            g.to_dict() for g in db.list_groups(
+                limit=intargs["limit"], offset=intargs["offset"]
+            )
+        ]
+    )
 
 def random_string(minimum, maximum=None):
     if maximum is None:

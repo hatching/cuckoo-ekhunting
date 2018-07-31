@@ -1842,6 +1842,25 @@ class Database(object):
         finally:
             session.close()
 
+    def list_groups(self, limit=50, offset=0):
+        """Retrieve a list of target groups"""
+        groups = []
+        session = self.Session()
+        try:
+            groups = session.query(
+                TargetGroup
+            ).limit(limit).offset(offset).all()
+
+            if groups:
+                for group in groups:
+                    session.expunge(group)
+        except SQLAlchemyError as e:
+            log.error("Failed to retrieve list of target groups. Error: %s", e)
+            return []
+        finally:
+            session.close()
+        return groups
+
     def view_longterm(self, longterm_id):
         """Retrieve longterm analysis info by id"""
 
@@ -1941,6 +1960,7 @@ class Database(object):
             if target_group:
                 search = search.filter_by(target_group=target_group)
 
+            search = search.order_by(Alert.id.desc())
             alerts = search.limit(limit).offset(offset).all()
         except SQLAlchemyError as e:
             log.error("Failed to retrieve list of alerts: %s", e)
