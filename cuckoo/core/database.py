@@ -1847,9 +1847,8 @@ class Database(object):
         groups = []
         session = self.Session()
         try:
-            groups = session.query(
-                TargetGroup
-            ).limit(limit).offset(offset).all()
+            search = session.query(TargetGroup).order_by(TargetGroup.id.desc())
+            groups = search.limit(limit).offset(offset).all()
 
             if groups:
                 for group in groups:
