@@ -304,9 +304,298 @@ module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/amdefine/amdefine.js")
 
-},{"_process":47,"path":46}],2:[function(require,module,exports){
+},{"_process":48,"path":47}],2:[function(require,module,exports){
+/*!
+	autosize 4.0.2
+	license: MIT
+	http://www.jacklmoore.com/autosize
+*/
+(function (global, factory) {
+	if (typeof define === "function" && define.amd) {
+		define(['module', 'exports'], factory);
+	} else if (typeof exports !== "undefined") {
+		factory(module, exports);
+	} else {
+		var mod = {
+			exports: {}
+		};
+		factory(mod, mod.exports);
+		global.autosize = mod.exports;
+	}
+})(this, function (module, exports) {
+	'use strict';
 
+	var map = typeof Map === "function" ? new Map() : function () {
+		var keys = [];
+		var values = [];
+
+		return {
+			has: function has(key) {
+				return keys.indexOf(key) > -1;
+			},
+			get: function get(key) {
+				return values[keys.indexOf(key)];
+			},
+			set: function set(key, value) {
+				if (keys.indexOf(key) === -1) {
+					keys.push(key);
+					values.push(value);
+				}
+			},
+			delete: function _delete(key) {
+				var index = keys.indexOf(key);
+				if (index > -1) {
+					keys.splice(index, 1);
+					values.splice(index, 1);
+				}
+			}
+		};
+	}();
+
+	var createEvent = function createEvent(name) {
+		return new Event(name, { bubbles: true });
+	};
+	try {
+		new Event('test');
+	} catch (e) {
+		// IE does not support `new Event()`
+		createEvent = function createEvent(name) {
+			var evt = document.createEvent('Event');
+			evt.initEvent(name, true, false);
+			return evt;
+		};
+	}
+
+	function assign(ta) {
+		if (!ta || !ta.nodeName || ta.nodeName !== 'TEXTAREA' || map.has(ta)) return;
+
+		var heightOffset = null;
+		var clientWidth = null;
+		var cachedHeight = null;
+
+		function init() {
+			var style = window.getComputedStyle(ta, null);
+
+			if (style.resize === 'vertical') {
+				ta.style.resize = 'none';
+			} else if (style.resize === 'both') {
+				ta.style.resize = 'horizontal';
+			}
+
+			if (style.boxSizing === 'content-box') {
+				heightOffset = -(parseFloat(style.paddingTop) + parseFloat(style.paddingBottom));
+			} else {
+				heightOffset = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+			}
+			// Fix when a textarea is not on document body and heightOffset is Not a Number
+			if (isNaN(heightOffset)) {
+				heightOffset = 0;
+			}
+
+			update();
+		}
+
+		function changeOverflow(value) {
+			{
+				// Chrome/Safari-specific fix:
+				// When the textarea y-overflow is hidden, Chrome/Safari do not reflow the text to account for the space
+				// made available by removing the scrollbar. The following forces the necessary text reflow.
+				var width = ta.style.width;
+				ta.style.width = '0px';
+				// Force reflow:
+				/* jshint ignore:start */
+				ta.offsetWidth;
+				/* jshint ignore:end */
+				ta.style.width = width;
+			}
+
+			ta.style.overflowY = value;
+		}
+
+		function getParentOverflows(el) {
+			var arr = [];
+
+			while (el && el.parentNode && el.parentNode instanceof Element) {
+				if (el.parentNode.scrollTop) {
+					arr.push({
+						node: el.parentNode,
+						scrollTop: el.parentNode.scrollTop
+					});
+				}
+				el = el.parentNode;
+			}
+
+			return arr;
+		}
+
+		function resize() {
+			if (ta.scrollHeight === 0) {
+				// If the scrollHeight is 0, then the element probably has display:none or is detached from the DOM.
+				return;
+			}
+
+			var overflows = getParentOverflows(ta);
+			var docTop = document.documentElement && document.documentElement.scrollTop; // Needed for Mobile IE (ticket #240)
+
+			ta.style.height = '';
+			ta.style.height = ta.scrollHeight + heightOffset + 'px';
+
+			// used to check if an update is actually necessary on window.resize
+			clientWidth = ta.clientWidth;
+
+			// prevents scroll-position jumping
+			overflows.forEach(function (el) {
+				el.node.scrollTop = el.scrollTop;
+			});
+
+			if (docTop) {
+				document.documentElement.scrollTop = docTop;
+			}
+		}
+
+		function update() {
+			resize();
+
+			var styleHeight = Math.round(parseFloat(ta.style.height));
+			var computed = window.getComputedStyle(ta, null);
+
+			// Using offsetHeight as a replacement for computed.height in IE, because IE does not account use of border-box
+			var actualHeight = computed.boxSizing === 'content-box' ? Math.round(parseFloat(computed.height)) : ta.offsetHeight;
+
+			// The actual height not matching the style height (set via the resize method) indicates that 
+			// the max-height has been exceeded, in which case the overflow should be allowed.
+			if (actualHeight < styleHeight) {
+				if (computed.overflowY === 'hidden') {
+					changeOverflow('scroll');
+					resize();
+					actualHeight = computed.boxSizing === 'content-box' ? Math.round(parseFloat(window.getComputedStyle(ta, null).height)) : ta.offsetHeight;
+				}
+			} else {
+				// Normally keep overflow set to hidden, to avoid flash of scrollbar as the textarea expands.
+				if (computed.overflowY !== 'hidden') {
+					changeOverflow('hidden');
+					resize();
+					actualHeight = computed.boxSizing === 'content-box' ? Math.round(parseFloat(window.getComputedStyle(ta, null).height)) : ta.offsetHeight;
+				}
+			}
+
+			if (cachedHeight !== actualHeight) {
+				cachedHeight = actualHeight;
+				var evt = createEvent('autosize:resized');
+				try {
+					ta.dispatchEvent(evt);
+				} catch (err) {
+					// Firefox will throw an error on dispatchEvent for a detached element
+					// https://bugzilla.mozilla.org/show_bug.cgi?id=889376
+				}
+			}
+		}
+
+		var pageResize = function pageResize() {
+			if (ta.clientWidth !== clientWidth) {
+				update();
+			}
+		};
+
+		var destroy = function (style) {
+			window.removeEventListener('resize', pageResize, false);
+			ta.removeEventListener('input', update, false);
+			ta.removeEventListener('keyup', update, false);
+			ta.removeEventListener('autosize:destroy', destroy, false);
+			ta.removeEventListener('autosize:update', update, false);
+
+			Object.keys(style).forEach(function (key) {
+				ta.style[key] = style[key];
+			});
+
+			map.delete(ta);
+		}.bind(ta, {
+			height: ta.style.height,
+			resize: ta.style.resize,
+			overflowY: ta.style.overflowY,
+			overflowX: ta.style.overflowX,
+			wordWrap: ta.style.wordWrap
+		});
+
+		ta.addEventListener('autosize:destroy', destroy, false);
+
+		// IE9 does not fire onpropertychange or oninput for deletions,
+		// so binding to onkeyup to catch most of those events.
+		// There is no way that I know of to detect something like 'cut' in IE9.
+		if ('onpropertychange' in ta && 'oninput' in ta) {
+			ta.addEventListener('keyup', update, false);
+		}
+
+		window.addEventListener('resize', pageResize, false);
+		ta.addEventListener('input', update, false);
+		ta.addEventListener('autosize:update', update, false);
+		ta.style.overflowX = 'hidden';
+		ta.style.wordWrap = 'break-word';
+
+		map.set(ta, {
+			destroy: destroy,
+			update: update
+		});
+
+		init();
+	}
+
+	function destroy(ta) {
+		var methods = map.get(ta);
+		if (methods) {
+			methods.destroy();
+		}
+	}
+
+	function update(ta) {
+		var methods = map.get(ta);
+		if (methods) {
+			methods.update();
+		}
+	}
+
+	var autosize = null;
+
+	// Do nothing in Node.js environment and IE8 (or lower)
+	if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
+		autosize = function autosize(el) {
+			return el;
+		};
+		autosize.destroy = function (el) {
+			return el;
+		};
+		autosize.update = function (el) {
+			return el;
+		};
+	} else {
+		autosize = function autosize(el, options) {
+			if (el) {
+				Array.prototype.forEach.call(el.length ? el : [el], function (x) {
+					return assign(x, options);
+				});
+			}
+			return el;
+		};
+		autosize.destroy = function (el) {
+			if (el) {
+				Array.prototype.forEach.call(el.length ? el : [el], destroy);
+			}
+			return el;
+		};
+		autosize.update = function (el) {
+			if (el) {
+				Array.prototype.forEach.call(el.length ? el : [el], update);
+			}
+			return el;
+		};
+	}
+
+	exports.default = autosize;
+	module.exports = exports['default'];
+});
 },{}],3:[function(require,module,exports){
+
+},{}],4:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -373,7 +662,7 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
-},{"./handlebars.runtime":4,"./handlebars/compiler/ast":6,"./handlebars/compiler/base":7,"./handlebars/compiler/compiler":9,"./handlebars/compiler/javascript-compiler":11,"./handlebars/compiler/visitor":14,"./handlebars/no-conflict":28}],4:[function(require,module,exports){
+},{"./handlebars.runtime":5,"./handlebars/compiler/ast":7,"./handlebars/compiler/base":8,"./handlebars/compiler/compiler":10,"./handlebars/compiler/javascript-compiler":12,"./handlebars/compiler/visitor":15,"./handlebars/no-conflict":29}],5:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -441,7 +730,7 @@ exports['default'] = inst;
 module.exports = exports['default'];
 
 
-},{"./handlebars/base":5,"./handlebars/exception":18,"./handlebars/no-conflict":28,"./handlebars/runtime":29,"./handlebars/safe-string":30,"./handlebars/utils":31}],5:[function(require,module,exports){
+},{"./handlebars/base":6,"./handlebars/exception":19,"./handlebars/no-conflict":29,"./handlebars/runtime":30,"./handlebars/safe-string":31,"./handlebars/utils":32}],6:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -547,7 +836,7 @@ exports.createFrame = _utils.createFrame;
 exports.logger = _logger2['default'];
 
 
-},{"./decorators":16,"./exception":18,"./helpers":19,"./logger":27,"./utils":31}],6:[function(require,module,exports){
+},{"./decorators":17,"./exception":19,"./helpers":20,"./logger":28,"./utils":32}],7:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -580,7 +869,7 @@ exports['default'] = AST;
 module.exports = exports['default'];
 
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -630,7 +919,7 @@ function parse(input, options) {
 }
 
 
-},{"../utils":31,"./helpers":10,"./parser":12,"./whitespace-control":15}],8:[function(require,module,exports){
+},{"../utils":32,"./helpers":11,"./parser":13,"./whitespace-control":16}],9:[function(require,module,exports){
 /* global define */
 'use strict';
 
@@ -798,7 +1087,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 
-},{"../utils":31,"source-map":33}],9:[function(require,module,exports){
+},{"../utils":32,"source-map":34}],10:[function(require,module,exports){
 /* eslint-disable new-cap */
 
 'use strict';
@@ -1373,7 +1662,7 @@ function transformLiteralToPath(sexpr) {
 }
 
 
-},{"../exception":18,"../utils":31,"./ast":6}],10:[function(require,module,exports){
+},{"../exception":19,"../utils":32,"./ast":7}],11:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -1605,7 +1894,7 @@ function preparePartialBlock(open, program, close, locInfo) {
 }
 
 
-},{"../exception":18}],11:[function(require,module,exports){
+},{"../exception":19}],12:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -2735,7 +3024,7 @@ exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
 
 
-},{"../base":5,"../exception":18,"../utils":31,"./code-gen":8}],12:[function(require,module,exports){
+},{"../base":6,"../exception":19,"../utils":32,"./code-gen":9}],13:[function(require,module,exports){
 // File ignored in coverage tests via setting in .istanbul.yml
 /* Jison generated parser */
 "use strict";
@@ -3476,7 +3765,7 @@ var handlebars = (function () {
 module.exports = exports["default"];
 
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 /* eslint-disable new-cap */
 'use strict';
 
@@ -3664,7 +3953,7 @@ PrintVisitor.prototype.HashPair = function (pair) {
 /* eslint-enable new-cap */
 
 
-},{"./visitor":14}],14:[function(require,module,exports){
+},{"./visitor":15}],15:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -3806,7 +4095,7 @@ exports['default'] = Visitor;
 module.exports = exports['default'];
 
 
-},{"../exception":18}],15:[function(require,module,exports){
+},{"../exception":19}],16:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4029,7 +4318,7 @@ exports['default'] = WhitespaceControl;
 module.exports = exports['default'];
 
 
-},{"./visitor":14}],16:[function(require,module,exports){
+},{"./visitor":15}],17:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4047,7 +4336,7 @@ function registerDefaultDecorators(instance) {
 }
 
 
-},{"./decorators/inline":17}],17:[function(require,module,exports){
+},{"./decorators/inline":18}],18:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4078,7 +4367,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":31}],18:[function(require,module,exports){
+},{"../utils":32}],19:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4134,7 +4423,7 @@ exports['default'] = Exception;
 module.exports = exports['default'];
 
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4182,7 +4471,7 @@ function registerDefaultHelpers(instance) {
 }
 
 
-},{"./helpers/block-helper-missing":20,"./helpers/each":21,"./helpers/helper-missing":22,"./helpers/if":23,"./helpers/log":24,"./helpers/lookup":25,"./helpers/with":26}],20:[function(require,module,exports){
+},{"./helpers/block-helper-missing":21,"./helpers/each":22,"./helpers/helper-missing":23,"./helpers/if":24,"./helpers/log":25,"./helpers/lookup":26,"./helpers/with":27}],21:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4223,7 +4512,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":31}],21:[function(require,module,exports){
+},{"../utils":32}],22:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4319,7 +4608,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../exception":18,"../utils":31}],22:[function(require,module,exports){
+},{"../exception":19,"../utils":32}],23:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4346,7 +4635,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../exception":18}],23:[function(require,module,exports){
+},{"../exception":19}],24:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4377,7 +4666,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":31}],24:[function(require,module,exports){
+},{"../utils":32}],25:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4405,7 +4694,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4419,7 +4708,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4454,7 +4743,7 @@ exports['default'] = function (instance) {
 module.exports = exports['default'];
 
 
-},{"../utils":31}],27:[function(require,module,exports){
+},{"../utils":32}],28:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4503,7 +4792,7 @@ exports['default'] = logger;
 module.exports = exports['default'];
 
 
-},{"./utils":31}],28:[function(require,module,exports){
+},{"./utils":32}],29:[function(require,module,exports){
 (function (global){
 /* global window */
 'use strict';
@@ -4528,7 +4817,7 @@ module.exports = exports['default'];
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4837,7 +5126,7 @@ function executeDecorators(fn, prog, container, depths, data, blockParams) {
 }
 
 
-},{"./base":5,"./exception":18,"./utils":31}],30:[function(require,module,exports){
+},{"./base":6,"./exception":19,"./utils":32}],31:[function(require,module,exports){
 // Build out our basic SafeString type
 'use strict';
 
@@ -4854,7 +5143,7 @@ exports['default'] = SafeString;
 module.exports = exports['default'];
 
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -4980,7 +5269,7 @@ function appendContextPath(contextPath, id) {
 }
 
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -5007,7 +5296,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":3,"../dist/cjs/handlebars/compiler/printer":13,"fs":2}],33:[function(require,module,exports){
+},{"../dist/cjs/handlebars":4,"../dist/cjs/handlebars/compiler/printer":14,"fs":3}],34:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -5017,7 +5306,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":40,"./source-map/source-map-generator":41,"./source-map/source-node":42}],34:[function(require,module,exports){
+},{"./source-map/source-map-consumer":41,"./source-map/source-map-generator":42,"./source-map/source-node":43}],35:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5126,7 +5415,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":43,"amdefine":1}],35:[function(require,module,exports){
+},{"./util":44,"amdefine":1}],36:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5274,7 +5563,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":36,"amdefine":1}],36:[function(require,module,exports){
+},{"./base64":37,"amdefine":1}],37:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5349,7 +5638,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":1}],37:[function(require,module,exports){
+},{"amdefine":1}],38:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5468,7 +5757,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":1}],38:[function(require,module,exports){
+},{"amdefine":1}],39:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -5556,7 +5845,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":43,"amdefine":1}],39:[function(require,module,exports){
+},{"./util":44,"amdefine":1}],40:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -5678,7 +5967,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":1}],40:[function(require,module,exports){
+},{"amdefine":1}],41:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6757,7 +7046,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":34,"./base64-vlq":35,"./binary-search":37,"./quick-sort":39,"./util":43,"amdefine":1}],41:[function(require,module,exports){
+},{"./array-set":35,"./base64-vlq":36,"./binary-search":38,"./quick-sort":40,"./util":44,"amdefine":1}],42:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7158,7 +7447,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":34,"./base64-vlq":35,"./mapping-list":38,"./util":43,"amdefine":1}],42:[function(require,module,exports){
+},{"./array-set":35,"./base64-vlq":36,"./mapping-list":39,"./util":44,"amdefine":1}],43:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7574,7 +7863,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":41,"./util":43,"amdefine":1}],43:[function(require,module,exports){
+},{"./source-map-generator":42,"./util":44,"amdefine":1}],44:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7946,7 +8235,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":1}],44:[function(require,module,exports){
+},{"amdefine":1}],45:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v3.3.1
  * https://jquery.com/
@@ -18312,7 +18601,7 @@ if ( !noGlobal ) {
 return jQuery;
 } );
 
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 //! moment.js
 //! version : 2.20.1
 //! authors : Tim Wood, Iskren Chernev, Moment.js contributors
@@ -22849,7 +23138,7 @@ return hooks;
 
 })));
 
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -23078,7 +23367,7 @@ var substr = 'ab'.substr(-1) === 'b'
 
 }).call(this,require('_process'))
 
-},{"_process":47}],47:[function(require,module,exports){
+},{"_process":48}],48:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -23264,10 +23553,20 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],48:[function(require,module,exports){
-'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.initAlerts=undefined;var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _templates=require('./templates');var _templates2=_interopRequireDefault(_templates);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}var baseUrl=window.location.origin+'/alerts/list';function initAlerts(){var response={alerts:[],html:'',jq:function jq(){return(0,_jquery2.default)(this.html);}};return new Promise(function(resolve,reject){_jquery2.default.get(baseUrl,function(alerts){response.alerts=alerts||[];var html='';alerts.forEach(function(alert){return html+=_templates2.default.event(alert);});response.html=html;resolve(response||{});}).fail(function(err){return reject({err:err});});});}exports.initAlerts=initAlerts;
+},{}],49:[function(require,module,exports){
+'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.initAlerts=undefined;var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _templates=require('./templates');var _templates2=_interopRequireDefault(_templates);var _socketHandler=require('./socket-handler');var _socketHandler2=_interopRequireDefault(_socketHandler);var _sounds=require('./sounds');var _sounds2=_interopRequireDefault(_sounds);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}var baseUrl=window.location.origin+'/alerts/list';var socketBase='ws://'+window.location.host+'/alerts';var urls={alerts:function alerts(limit,offset){return baseUrl+'?limit='+limit+'&offset='+offset;}};var currentLimit=20;var currentOffset=0;// shifts background based on current state (on/off/toggle)
+// swapBackground(null) => toggles
+// swapBackground(true/false) => sets .fill-red class based on bool
+// => this is for demonstrational purposes. Click the logo to trigger
+function alertMode(){var toggle=arguments.length>0&&arguments[0]!==undefined?arguments[0]:null;if(toggle===null){if((0,_jquery2.default)("#app-background").hasClass('fill-red')){(0,_jquery2.default)("#app-background").removeClass('fill-red');}else{(0,_jquery2.default)("#app-background").addClass('fill-red');(0,_sounds2.default)('boop');}}else{(0,_jquery2.default)("#app-background").toggleClass('fill-red',toggle);}}// demonstrative function
+function loopSocket(){setInterval(function(){var notify=[true,false][Math.floor(Math.random()*2)];var lvl=[1,2,3][Math.floor(Math.random()*3)];_jquery2.default.get(window.location.origin+'/genalert?level='+lvl+'&notify='+notify,function(response){console.log('generated alert [level: '+lvl+'] [notify: '+notify+']');});},10000);}function connectSocket(cb){return new Promise(function(resolve,reject){var str=(0,_socketHandler2.default)(socketBase,{onmessage:function onmessage(r){return cb?cb(JSON.parse(r)):null;},onerror:function onerror(){return reject('Websocket returned an error');}});resolve(str);});}// toggle-expand the info-row in the table
+function expandInfoRow(e){e.preventDefault();var row=(0,_jquery2.default)(e.currentTarget);row.parents('tbody').find('tr.expanded').not(row).removeClass('expanded');row.toggleClass('expanded');}function addAlert(alert,$table){var method=arguments.length>2&&arguments[2]!==undefined?arguments[2]:'prepend';// pre-reset the alert mode
+alertMode(false);// create table entry
+var el=(0,_jquery2.default)(_templates2.default.event(alert));$table.find('tbody')[method](el);el.on('click',expandInfoRow);// populate alert in top-level
+(0,_jquery2.default)("#top-level-alert").addClass('out');setTimeout(function(){var newContent=(0,_jquery2.default)(_templates2.default.topEvent(alert));(0,_jquery2.default)("#top-level-alert .alert-outer").html(newContent);newContent.on('click',function(e){$table.find('tr[data-id='+(alert.id||alert.task_id)+']').trigger('click');});setTimeout(function(){(0,_jquery2.default)("#top-level-alert").removeClass('out');},500);},300);if(alert.notify)alertMode();}function paginateNext(){return new Promise(function(resolve,reject){currentOffset+=1;console.log('fetching page '+currentOffset+', retrieving '+currentLimit+' more alerts.');_jquery2.default.get(urls.alerts(currentLimit,currentOffset),function(response){return resolve(response);}).fail(function(err){return reject(err);});});}function initAlerts($table){var response={alerts:[],html:'',jq:function jq(){return(0,_jquery2.default)(this.html);}};$table.find('#paginate-next').on('click',function(e){e.preventDefault();paginateNext().then(function(response){if(response.length)response.forEach(function(alert){return addAlert(alert,$table,'append');});}).catch(function(err){return console.log(err);});});return new Promise(function(resolve,reject){_jquery2.default.get(baseUrl,function(alerts){// constructs available alerts from API call
+response.alerts=alerts||[];alerts.forEach(function(alert){return addAlert(alert,$table);});if($table.find('tr.loading').length){$table.find('tr.loading').remove();}connectSocket(function(alert){addAlert(alert,$table);}).then(function(str){response.stream=str;resolve(response||{});}).catch(function(e){return reject(e);});}).fail(function(err){return reject({err:err});});});}exports.initAlerts=initAlerts;
 
-},{"./templates":51,"jquery":44}],49:[function(require,module,exports){
+},{"./socket-handler":52,"./sounds":53,"./templates":54,"jquery":45}],50:[function(require,module,exports){
 'use strict';Object.defineProperty(exports,"__esModule",{value:true});var _createClass=function(){function defineProperties(target,props){for(var i=0;i<props.length;i++){var descriptor=props[i];descriptor.enumerable=descriptor.enumerable||false;descriptor.configurable=true;if("value"in descriptor)descriptor.writable=true;Object.defineProperty(target,descriptor.key,descriptor);}}return function(Constructor,protoProps,staticProps){if(protoProps)defineProperties(Constructor.prototype,protoProps);if(staticProps)defineProperties(Constructor,staticProps);return Constructor;};}();function _classCallCheck(instance,Constructor){if(!(instance instanceof Constructor)){throw new TypeError("Cannot call a class as a function");}}/*
 
   Description:
@@ -23303,38 +23602,47 @@ return false;}}// open element in fullscreen mode
 },{key:'close',value:function close(){if(document.exitFullscreen){document.exitFullscreen();}else if(document.webkitExitFullscreen){document.webkitExitFullscreen();}else if(document.mozExitFullscreen){document.mozExitFullscreen();}else if(document.msExitFullscreen){document.msExitFullscreen();}else{// the message has already been given in the request handler
 return false;}}}]);return Fullscreen;}();exports.default=Fullscreen;
 
-},{}],50:[function(require,module,exports){
-'use strict';var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _fullscreen=require('./fullscreen');var _fullscreen2=_interopRequireDefault(_fullscreen);var _alerts=require('./alerts');var _urlGroups=require('./url-groups');function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}// shifts background based on current state (on/off/toggle)
-// swapBackground(null) => toggles
-// swapBackground(true/false) => sets .fill-red class based on bool
-// => this is for demonstrational purposes. Click the logo to trigger
-function alertMode(){if((0,_jquery2.default)("#app-background").hasClass('fill-red')){// $("#top-level-alert").removeClass('focus');
-(0,_jquery2.default)("#app-background").removeClass('fill-red');}else{// $("#top-level-alert").addClass('focus');
-(0,_jquery2.default)("#app-background").addClass('fill-red');}}// swaps the audio button state. at the moment for demonstrational purposes.
+},{}],51:[function(require,module,exports){
+'use strict';var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _fullscreen=require('./fullscreen');var _fullscreen2=_interopRequireDefault(_fullscreen);var _alerts=require('./alerts');var _urlGroups=require('./url-groups');var _urlManagement=require('./url-management');function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}// util - string bool to bool
+function stringToBoolean(val){var a={'true':true,'false':false};return a[val];}// swaps the audio button state. at the moment for demonstrational purposes.
 // click the audio icon to toggle and view
-function toggleAudio(el){if((0,_jquery2.default)(el).find('.fal').hasClass('fa-volume-mute')){(0,_jquery2.default)(el).find('.fal').removeClass('fa-volume-mute').addClass('fa-volume-up');}else{(0,_jquery2.default)(el).find('.fal').removeClass('fa-volume-up').addClass('fa-volume-mute');}}// toggle the fullscreen mode
-function toggleFullScreen(el){var icon=el.querySelector('.fal');console.log(icon.classList);if(!_fullscreen2.default.active()){icon.classList.remove('fa-expand-alt');icon.classList.add('fa-compress-alt');_fullscreen2.default.open(document.body);}else{icon.classList.remove('fa-compress-alt');icon.classList.add('fa-expand-alt');_fullscreen2.default.close();}}// toggles the different colors of the color indicator
-function toggleSystemIndicator(){var ind=(0,_jquery2.default)(".app__header .controls .system-indicator");var states=['true','false','error'];var curPos=states.indexOf(ind.attr('data-online'));ind.attr('data-online',states[curPos+1]||states[0]);}// toggle-expand the info-row in the table
-function expandInfoRow(e){e.preventDefault();var row=(0,_jquery2.default)(e.currentTarget);row.parents('tbody').find('tr.expanded').not(row).removeClass('expanded');row.toggleClass('expanded');}function hotkey(key){var tableIsExpanded=function tableIsExpanded(){return(0,_jquery2.default)("#alert-table tbody tr.expanded").length>0;};switch(key){// handle ENTERpress (table: expand the first table row IF nothing is expanded)
+function toggleAudio(el){var force=arguments.length>1&&arguments[1]!==undefined?arguments[1]:null;var activate=function activate(){localStorage.setItem('play-audio','true');(0,_jquery2.default)(el).find('.fal').removeClass('fa-volume-mute').addClass('fa-volume-up');};var deactivate=function deactivate(){localStorage.setItem('play-audio','false');(0,_jquery2.default)(el).find('.fal').removeClass('fa-volume-up').addClass('fa-volume-mute');};if(force===null){var cur=stringToBoolean(localStorage.getItem('play-audio'));if(cur===true){deactivate();}else if(cur===false){activate();}}else{if(force===true){activate();}else if(force===false){deactivate();}}}// toggle the fullscreen mode
+function toggleFullScreen(el){var icon=el.querySelector('.fal');if(!_fullscreen2.default.active()){icon.classList.remove('fa-expand-alt');icon.classList.add('fa-compress-alt');_fullscreen2.default.open(document.body);}else{icon.classList.remove('fa-compress-alt');icon.classList.add('fa-expand-alt');_fullscreen2.default.close();}}// toggles the different colors of the color indicator
+function toggleSystemIndicator(){var ind=(0,_jquery2.default)(".app__header .controls .system-indicator");var states=['true','false','error'];var curPos=states.indexOf(ind.attr('data-online'));ind.attr('data-online',states[curPos+1]||states[0]);}function hotkey(key){var tableIsExpanded=function tableIsExpanded(){return(0,_jquery2.default)("#alert-table tbody tr.expanded").length>0;};switch(key){// handle ENTERpress (table: expand the first table row IF nothing is expanded)
 // elsewise mimic 'close' behavior
 case 13:if(!tableIsExpanded()){(0,_jquery2.default)("#alert-table tbody tr:first-child").trigger('click');}else{(0,_jquery2.default)('#alert-table tbody tr.expanded').trigger('click');}break;// handle RIGHTpress (table: expand next row FROM expanded - otherwise ignore)
 case 39:if(tableIsExpanded())(0,_jquery2.default)("#alert-table tr.expanded").next(".info-expansion").next('tr').trigger("click");break;// handle LEFTpress (table: expand previous row FROM expanded - otherwise ignore)
-case 37:if(tableIsExpanded())(0,_jquery2.default)("#alert-table tr.expanded").prev(".info-expansion").prev('tr').trigger("click");break;}}(0,_jquery2.default)(function(){// global app inits
+case 37:if(tableIsExpanded())(0,_jquery2.default)("#alert-table tr.expanded").prev(".info-expansion").prev('tr').trigger("click");break;}}(0,_jquery2.default)(function(){if(localStorage.getItem('play-audio')===null){toggleAudio((0,_jquery2.default)("#toggle-audio"),false);}else{toggleAudio((0,_jquery2.default)("#toggle-audio"),stringToBoolean(localStorage.getItem('play-audio')));}// global app inits
 (0,_jquery2.default)("#toggle-audio").on('click',function(e){return toggleAudio(e.currentTarget);});(0,_jquery2.default)("#toggle-fullscreen").on('click',function(e){return toggleFullScreen(e.currentTarget);});(0,_jquery2.default)("[data-online]").on('click',toggleSystemIndicator);// specific inits for event-monitor
-if((0,_jquery2.default)("#event-monitor").length){(0,_alerts.initAlerts)().then(function(data){(0,_jquery2.default)("#alert-table").find('tbody').html(data.jq());(0,_jquery2.default)("#alert-table").find('tbody > tr').not('.info-expansion').on('click',expandInfoRow);(0,_jquery2.default)("#swap-bg").on('click',alertMode);(0,_jquery2.default)("html").on("keydown",function(e){return hotkey(e.keyCode);});}).catch(function(e){return console.log(e);});}// specific inits for url-grouping
-if((0,_jquery2.default)("main#url-grouping").length){(0,_urlGroups.initUrlGroups)((0,_jquery2.default)("#url-groups").parents('form')).then(function(data){});}});
+if((0,_jquery2.default)("#event-monitor").length){(0,_alerts.initAlerts)((0,_jquery2.default)("#alert-table")).then(function(data){(0,_jquery2.default)("html").on("keydown",function(e){return hotkey(e.keyCode);});}).catch(function(e){return console.log(e);});}// specific inits for url-grouping
+if((0,_jquery2.default)("main#url-grouping").length){(0,_urlGroups.initUrlGroups)((0,_jquery2.default)("#url-groups").parents('form')).then(function(data){});}// specific inits for url-management
+if((0,_jquery2.default)("main#url-management").length){(0,_urlManagement.initUrlManagement)((0,_jquery2.default)("#url-management")).then(function(data){});}});
 
-},{"./alerts":48,"./fullscreen":49,"./url-groups":52,"jquery":44}],51:[function(require,module,exports){
+},{"./alerts":49,"./fullscreen":50,"./url-groups":55,"./url-management":56,"jquery":45}],52:[function(require,module,exports){
+'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.default=stream;/*
+  WebSocket library, credits to @Bun
+ */function stream(url,callbacks,interval,smart_backoff){var had_initial_connection=false;var call=function call(k,a,msg){if(callbacks[k]){var args=msg!==undefined?[msg,callbacks]:[callbacks];args.push.apply(args,a);return callbacks[k].apply(callbacks,args);}};var onopen=function onopen(){console.log('ws: Established:',url);had_initial_connection=true;call('onopen',arguments);};var onclose=function onclose(){console.warn('ws: Disconnected:',url);if(!had_initial_connection&&smart_backoff){setTimeout(connect,30000);}else{setTimeout(connect,interval);}try{call('onclose',arguments);}finally{callbacks.ws=null;}};var onerror=function onerror(){console.warn('ws: Error:',url,arguments);call('onerror',arguments);};var onmessage=function onmessage(e){var msg=e.data;call('onmessage',arguments,msg);};var connect=function connect(){var ws;try{ws=callbacks.ws=new WebSocket(url);ws.binaryType='arraybuffer';}catch(e){console.log('WebSocket error: '+e);return;}ws.onopen=onopen;ws.onclose=onclose;ws.onerror=onerror;ws.onmessage=onmessage;};callbacks.send=function(msg){try{if(callbacks.ws){//console.log('ws: Send:', msg);
+callbacks.ws.send(msg);}}catch(e){console.error('Failed to send:',e);}};callbacks.close=function(){try{if(callbacks.ws){console.log('ws: Close');callbacks.ws.close();}}catch(e){console.error('Close error: '+e);}};connect();return callbacks;};
+
+},{}],53:[function(require,module,exports){
+'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.soundList=undefined;exports.default=sound;var _handlebars=require('handlebars');var _handlebars2=_interopRequireDefault(_handlebars);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}var soundClipPath='/static/sounds/';var availableSounds=['boop','peter-rekts-a-wolf','ploop','taduh','upping'];function renderAvailableSoundsList(){var html=function html(data){return _handlebars2.default.compile('\n    <ul>\n      {{#each sounds}}\n        <li><a href="#">{{this}}</a></li>\n      {{/each}}\n    </ul>\n  ');};return html({sounds:availableSounds});}// util - string bool to bool
+function stringToBoolean(val){var a={'true':true,'false':false};return a[val];}function sound(name){if(availableSounds.indexOf(name)==-1)return false;if(stringToBoolean(localStorage.getItem('play-audio'))===false)return false;var a=new Audio(soundClipPath+'/'+name+'.mp3');a.play();return true;}exports.soundList=renderAvailableSoundsList;
+
+},{"handlebars":33}],54:[function(require,module,exports){
 'use strict';Object.defineProperty(exports,"__esModule",{value:true});var _moment=require('moment');var _moment2=_interopRequireDefault(_moment);var _handlebars=require('handlebars');var _handlebars2=_interopRequireDefault(_handlebars);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}var safe=_handlebars2.default.SafeString;var getLevelName=function getLevelName(level){return['info','warning','danger'][level-1]||"";};var getIconType=function getIconType(level){return['fa-lightbulb','fa-exclamation-circle','fa-skull'][level-1]||"fa-comment";};// forge pwetty dates from timestamps
 _handlebars2.default.registerHelper('pretty-date',function(timestamp){return(0,_moment2.default)(new Date(timestamp)).format('MM/DD/YYYY HH:mm:ss');});// helper for parsing number-level to string-level
 _handlebars2.default.registerHelper('alert-level',function(level){return getLevelName(parseInt(level));});// spit icons from level numbers
-_handlebars2.default.registerHelper('alert-icon',function(level){return'<i class="fal '+getIconType(level)+'"></i>';});var Templates={// template for single alert entry
-event:function event(data){return _handlebars2.default.compile('\n    <tr data-row-style="{{alert-level level}}">\n      <td class="drop-padding fill-base"></td>\n      <td class="centerize icon-cell">{{{alert-icon level}}}</td>\n      <td class="no-wrap">{{pretty-date timestamp}}</td>\n      <td>{{title}}</td>\n      <td class="text-wrap">{{content}}</td>\n      <td class="no-wrap">\n        {{#if targetgroup_name}}\n          {{targetgroup_name}}\n        {{else}}\n          <em class="secundary">Unspecified</em>\n        {{/if}}\n      </td>\n      <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>\n    </tr>\n    <tr class="info-expansion">\n      <td colspan="7">\n        <ul class="meta-summary">\n          <li>\n            <i class="far fa-barcode-alt"></i>\n            {{#if targetgroup_name}}\n              {{targetgroup_name}}\n            {{else}}\n              <em class="secundary">Unspecified</em>\n            {{/if}}\n          </li>\n          <li>\n            <i class="far fa-clock"></i>\n            {{pretty-date timestamp}}\n          </li>\n        </ul>\n        <h3>{{title}}</h3>\n        <p>{{content}}</p>\n        <a href="{{target}}" target="_blank" class="button"><i class="far fa-file-alt"></i> View report</a>\n      </td>\n    </tr>\n  ')(data);},// definition for url group
-urlGroup:function urlGroup(data){return _handlebars2.default.compile('\n    <tr data-group-id="{{id}}">\n      <td class="centerize">{{id}}</td>\n      <td>{{name}}</td>\n      <td>{{description}}</td>\n      <td class="centerize">\n        <button type="button" class="button icon-button" data-edit>\n          <i class="far fa-marker"></i>\n        </button>\n        <button type="button" class="button icon-button" data-remove>\n          <i class="far fa-times"></i>\n        </button>\n      </td>\n    </tr>\n  ')(data);},// definition for a table-error
-ajaxError:function ajaxError(data){return _handlebars2.default.compile('\n    <tr class="error-row">\n      <td colspan="{{span}}">\n        <p>{{message}} <button type="button" data-dismiss><i class="fas fa-times"></i></button></p>\n      </td>\n    </tr>\n  ')(data);}};exports.default=Templates;
+_handlebars2.default.registerHelper('alert-icon',function(level){return'<i class="fal '+getIconType(level)+'"></i>';});// generate a shortened version of a big string
+_handlebars2.default.registerHelper('truncate',function(content){return content.length>45?content.substr(0,45-1)+'&hellip;':content;});// handlebars inline join helper
+_handlebars2.default.registerHelper('join',function(arr){return arr.join('\n');});var Templates={// template for a top-level alert
+topEvent:function topEvent(data){return _handlebars2.default.compile('\n    <div class="alert alert-{{alert-level level}}">\n      <div class="alert-icon">\n        <figure>{{{alert-icon level}}}</figure>\n      </div>\n      <div class="alert-content">\n        <h2>{{title}}</h2>\n        <p>{{{truncate content}}}</p>\n      </div>\n      <div class="alert-time">\n        <p>{{pretty-date timestamp}}</p>\n      </div>\n    </div>\n    <div class="alert-loader">\n      <!-- <div class="alert-loader-inner"></div> -->\n    </div>\n  ')(data);},// template for single alert entry
+event:function event(data){return _handlebars2.default.compile('\n    <tr data-row-style="{{alert-level level}}" data-id="{{task_id}}">\n      <td class="drop-padding fill-base"></td>\n      <td class="centerize icon-cell">{{{alert-icon level}}}</td>\n      <td class="no-wrap">{{pretty-date timestamp}}</td>\n      <td>{{title}}</td>\n      <td class="text-wrap">{{content}}</td>\n      <td class="no-wrap">\n        {{#if targetgroup_name}}\n          {{targetgroup_name}}\n        {{else}}\n          <em class="secundary">Unspecified</em>\n        {{/if}}\n      </td>\n      <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>\n    </tr>\n    <tr class="info-expansion">\n      <td colspan="7">\n        <ul class="meta-summary">\n          <li>\n            <i class="far fa-barcode-alt"></i>\n            {{#if targetgroup_name}}\n              {{targetgroup_name}}\n            {{else}}\n              <em class="secundary">Unspecified</em>\n            {{/if}}\n          </li>\n          <li>\n            <i class="far fa-clock"></i>\n            {{pretty-date timestamp}}\n          </li>\n        </ul>\n        <h3>{{title}}</h3>\n        <p>{{content}}</p>\n        <a href="{{target}}" target="_blank" class="button"><i class="far fa-file-alt"></i> View report</a>\n      </td>\n    </tr>\n  ')(data);},// template for url group
+urlGroup:function urlGroup(data){return _handlebars2.default.compile('\n    <tr data-group-id="{{id}}">\n      <td class="centerize">{{id}}</td>\n      <td>{{name}}</td>\n      <td>{{description}}</td>\n      <td class="centerize">\n        <button type="button" class="button icon-button" data-edit>\n          <i class="far fa-marker"></i>\n        </button>\n        <button type="button" class="button icon-button" data-remove>\n          <i class="far fa-times"></i>\n        </button>\n      </td>\n    </tr>\n  ')(data);},// template for a table-error
+ajaxError:function ajaxError(data){return _handlebars2.default.compile('\n    <tr class="error-row">\n      <td colspan="{{span}}">\n        <p>{{message}} <button type="button" data-dismiss><i class="fas fa-times"></i></button></p>\n      </td>\n    </tr>\n  ')(data);},// template for url-editor
+editor:function editor(data){return _handlebars2.default.compile('\n    <header>\n      <div>\n        <h3>{{name}}</h3>\n        <p>{{description}}</p>\n      </div>\n      <nav>\n        <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>\n        <button class="button icon-button" data-close><i class="fal fa-times"></i></button>\n      </nav>\n    </header>\n    <hr />\n    <div class="url-area">\n      <textarea placeholder="Type urls here">{{join urls}}</textarea>\n    </div>\n  ')(data);}};exports.default=Templates;
 
-},{"handlebars":32,"moment":45}],52:[function(require,module,exports){
-'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.initUrlGroups=undefined;var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _templates=require('./templates');var _templates2=_interopRequireDefault(_templates);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}var urls={add:function add(){return'/group/add';},add_url:function add_url(){return'/group/add/url';},view:function view(id){var d=arguments.length>1&&arguments[1]!==undefined?arguments[1]:0;return'/group/view/'+id+'?details='+d;},view_urls:function view_urls(group_id){var l=arguments.length>1&&arguments[1]!==undefined?arguments[1]:1000;var o=arguments.length>2&&arguments[2]!==undefined?arguments[2]:0;return'/group/view/'+group_id+'?limit='+l+'&offset='+o;},delete:function _delete(){return'/group/delete';},delete_url:function delete_url(){return'/group/delete/url';}// displays an error in the form above the input
+},{"handlebars":33,"moment":46}],55:[function(require,module,exports){
+'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.initUrlGroups=undefined;var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _templates=require('./templates');var _templates2=_interopRequireDefault(_templates);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}var urls={add:function add(){return'/group/add';},add_url:function add_url(){return'/group/add/url';},view:function view(id){var d=arguments.length>1&&arguments[1]!==undefined?arguments[1]:0;return'/group/view/'+id+'?details='+d;},delete:function _delete(){return'/group/delete';}// displays an error in the form above the input
 };function handleError(){var message=arguments.length>0&&arguments[0]!==undefined?arguments[0]:'Something went wrong';var $form=arguments[1];if($form){// generate error html
 var el=(0,_jquery2.default)(_templates2.default.ajaxError({message:message,span:$form?$form.find('thead th').length:'100%'}));// only display one row at once
 if($form.find('.error-row').length)$form.find('.error-row').remove();// inject error row
@@ -23357,5 +23665,23 @@ var el=response.jq();$form.find('table > tbody > .input-row').after(el);rowHandl
 }).catch(function(e){// catch up on errors (renders error-row in table with message)
 if(e.responseJSON instanceof Object){handleError(e.responseJSON.message||null,$form);}else{handleError(null,$form);}});});resolve();});}exports.initUrlGroups=initUrlGroups;
 
-},{"./templates":51,"jquery":44}]},{},[50])
+},{"./templates":54,"jquery":45}],56:[function(require,module,exports){
+'use strict';Object.defineProperty(exports,"__esModule",{value:true});exports.initUrlManagement=undefined;var _jquery=require('jquery');var _jquery2=_interopRequireDefault(_jquery);var _autosize=require('autosize');var _autosize2=_interopRequireDefault(_autosize);var _templates=require('./templates');var _templates2=_interopRequireDefault(_templates);function _interopRequireDefault(obj){return obj&&obj.__esModule?obj:{default:obj};}function _toConsumableArray(arr){if(Array.isArray(arr)){for(var i=0,arr2=Array(arr.length);i<arr.length;i++){arr2[i]=arr[i];}return arr2;}else{return Array.from(arr);}}var urls={view_groups:function view_groups(group_id){var l=arguments.length>1&&arguments[1]!==undefined?arguments[1]:1000;var o=arguments.length>2&&arguments[2]!==undefined?arguments[2]:0;return'/group/view/'+group_id+'?limit='+l+'&offset='+o;},view_urls:function view_urls(group_id){return'/group/view/'+group_id+'/urls';},save_urls:function save_urls(){return'/group/add/url';},delete_urls:function delete_urls(){return'/group/delete/url';}// returns all the urls for a specific group
+};function loadUrlsForGroup(group_id){return new Promise(function(resolve,reject){_jquery2.default.get(urls.view_urls(group_id),function(response){return resolve(response);}).fail(function(err){return reject(err);});});}// loads up a group from an id
+function loadGroup(id){return new Promise(function(resolve,reject){_jquery2.default.get(urls.view_groups(id),function(group){loadUrlsForGroup(group.id).then(function(){var u=arguments.length>0&&arguments[0]!==undefined?arguments[0]:{urls:null};group.urls=u.urls||[];resolve({group:group,template:(0,_jquery2.default)(_templates2.default.editor(group))});}).catch(function(err){return reject(err);});}).fail(function(err){return reject(err);});});}// saves urls to a group
+function saveUrls(){var u=arguments.length>0&&arguments[0]!==undefined?arguments[0]:false;var id=arguments.length>1&&arguments[1]!==undefined?arguments[1]:null;return new Promise(function(resolve,reject){_jquery2.default.post(urls.save_urls(),{group_id:id,urls:u},function(response){return resolve(response);}).fail(function(err){return reject(err);});});}// deletes a bunch of urls from a group
+function deleteUrls(){var u=arguments.length>0&&arguments[0]!==undefined?arguments[0]:false;var id=arguments.length>1&&arguments[1]!==undefined?arguments[1]:null;return new Promise(function(resolve,reject){_jquery2.default.post(urls.delete_urls(),{group_id:id,urls:u},function(response){return resolve(response);}).fail(function(err){return reject(err);});});}// parses textarea content to array using separator [s]
+function textAreaToArray(textarea){var seperator=arguments.length>1&&arguments[1]!==undefined?arguments[1]:"\n";if(textarea)return[].concat(_toConsumableArray(textarea[0].value.split(seperator)));return[];}// initializes and renders a url editor for a group
+function initEditor(){var data=arguments.length>0&&arguments[0]!==undefined?arguments[0]:{};var $editor=arguments[1];if(!data.template||!$editor)return false;$editor.html(data.template);var $textfield=$editor.find('textarea');// initialize textarea auto-type-resizer
+(0,_autosize2.default)($textfield);// something about data storage
+var state={urls:[].concat(_toConsumableArray(data.group.urls))// returns a list of the 'removed' entries based on the originally loaded
+// urls state for the group.
+};var diffRemoved=function diffRemoved(arr){return state.urls.filter(function(url){return arr.indexOf(url)==-1;});};$editor.find('button[data-save]').on('click',function(e){var values=$textfield.val();var id=(0,_jquery2.default)(e.currentTarget).attr('data-save');var a=textAreaToArray($textfield);var rm=diffRemoved(a).join("\n");if(rm.length){deleteUrls(rm,data.group.id).then(function(res){console.log(res);saveUrls(values,id).then(function(res){loadUrlsForGroup(data.group.id).then(function(u){// update state
+state.urls=u.urls;}).catch(function(e){return console.log(e);});}).catch(function(e){return console.log(e);});}).catch(function(e){console.log(e);});}else{saveUrls(values,id).then(function(res){loadUrlsForGroup(data.group.id).then(function(u){// update state
+state.urls=u.urls;}).catch(function(e){return console.log(e);});}).catch(function(e){return console.log(e);});}});// close the editor
+$editor.find('button[data-close]').on('click',function(e){$editor.empty().addClass('idle');});}// detects a ?mng={id} item to pre-open url editors
+function detectTarget(){var tgt=window.location.search.replace('?','').split('=');if(tgt.length==2){return parseInt(tgt[1]);}else{return false;}}// initializes the url management ui
+function initUrlManagement($editor){var openAt=detectTarget();var $links=$editor.find('.url-groups a[href^="open:"]');return new Promise(function(resolve,reject){$links.on('click',function(e){e.preventDefault();var id=parseInt((0,_jquery2.default)(e.currentTarget).attr('href').split(':')[1]);$editor.find('.editor').empty().removeClass('idle').addClass('loading');$links.removeClass('active');(0,_jquery2.default)(e.currentTarget).addClass('active');loadGroup(id).then(function(data){initEditor(data,$editor.find('#url-edit'));$editor.find('#url-edit').removeClass('loading idle');}).catch(function(err){return console.log(err);});});$editor.find('.editor').removeClass('loading');if(openAt){$editor.find('.url-groups a[href="open:'+openAt+'"]').trigger('click');}else{$editor.find('.editor').addClass('idle');}resolve();});}exports.initUrlManagement=initUrlManagement;
+
+},{"./templates":54,"autosize":2,"jquery":45}]},{},[51])
 //# sourceMappingURL=main.js.map

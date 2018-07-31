@@ -594,8 +594,14 @@ template {
 .fas,
 table.table tbody tr.expanded [data-expand-row] i,
 table.table tbody tr.expanded > td.icon-cell .fal,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after,
 .far,
 .fal,
+.editor-ui .editor.loading:after,
+.editor-ui .editor.idle:after,
 .fab {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
@@ -679,8 +685,14 @@ table.table tbody tr.expanded > td.icon-cell .fal,
 .fas.fa-pull-left,
 table.table tbody tr.expanded [data-expand-row] i.fa-pull-left,
 table.table tbody tr.expanded > td.icon-cell .fa-pull-left.fal,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.loading:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-left.editor.loading:after,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.idle:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-left.editor.idle:after,
 .far.fa-pull-left,
 .fal.fa-pull-left,
+.editor-ui .fa-pull-left.editor.loading:after,
+.editor-ui .fa-pull-left.editor.idle:after,
 .fab.fa-pull-left {
   margin-right: .3em; }
 
@@ -688,12 +700,18 @@ table.table tbody tr.expanded > td.icon-cell .fa-pull-left.fal,
 .fas.fa-pull-right,
 table.table tbody tr.expanded [data-expand-row] i.fa-pull-right,
 table.table tbody tr.expanded > td.icon-cell .fa-pull-right.fal,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.loading:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-right.editor.loading:after,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.idle:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-right.editor.idle:after,
 .far.fa-pull-right,
 .fal.fa-pull-right,
+.editor-ui .fa-pull-right.editor.loading:after,
+.editor-ui .fa-pull-right.editor.idle:after,
 .fab.fa-pull-right {
   margin-left: .3em; }
 
-.fa-spin {
+.fa-spin, .editor-ui .editor.loading:after, .editor-ui .editor.idle.loading:after {
   animation: fa-spin 2s infinite linear; }
 
 .fa-pulse {
@@ -4885,7 +4903,11 @@ readers do not read off random characters that represent icons */
 .fa,
 .fas,
 table.table tbody tr.expanded [data-expand-row] i,
-table.table tbody tr.expanded > td.icon-cell .fal {
+table.table tbody tr.expanded > td.icon-cell .fal,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after,
+table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
+.editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after {
   font-family: 'Font Awesome 5 Pro';
   font-weight: 900; }
 
@@ -4915,7 +4937,10 @@ table.table tbody tr.expanded > td.icon-cell .fal {
   src: url("/static/fonts/fontawesome/fa-light-300.eot");
   src: url("/static/fonts/fontawesome/fa-light-300.eot?#iefix") format("embedded-opentype"), url("/static/fonts/fontawesome/fa-light-300.woff2") format("woff2"), url("/static/fonts/fontawesome/fa-light-300.woff") format("woff"), url("/static/fonts/fontawesome/fa-light-300.ttf") format("truetype"), url("/static/fonts/fontawesome/fa-light-300.svg#fontawesome") format("svg"); }
 
-.fal {
+
+.fal,
+.editor-ui .editor.loading:after,
+.editor-ui .editor.idle:after {
   font-family: 'Font Awesome 5 Pro';
   font-weight: 300; }
 
@@ -4997,6 +5022,8 @@ body {
     border-bottom: 2px solid rgba(255, 255, 255, 0.5);
     background-color: rgba(0, 0, 0, 0.25); }
     .app__header {
+      position: relative;
+      z-index: 10;
       display: flex;
       align-items: center;
       padding: 0 60px;
@@ -5064,6 +5091,8 @@ body {
         margin-left: 0; }
       .app__header .controls li:last-child {
         margin-right: 0; }
+      .app__header .controls li.with-options {
+        position: relative; }
     .app__header .controls button {
       -webkit-appearance: none;
       border: 0;
@@ -5073,12 +5102,12 @@ body {
       color: #fff;
       background: rgba(29, 32, 34, 0.5);
       padding: 3px 0 0; }
-      .app__header .controls button .fal {
+      .app__header .controls button .fal, .app__header .controls button .editor-ui .editor.loading:after, .editor-ui .app__header .controls button .editor.loading:after, .app__header .controls button .editor-ui .editor.idle:after, .editor-ui .app__header .controls button .editor.idle:after {
         font-size: 16px;
         transition: opacity 100ms linear; }
-        .app__header .controls button .fal.fa-volume-mute {
+        .app__header .controls button .fal.fa-volume-mute, .app__header .controls button .editor-ui .fa-volume-mute.editor.loading:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.loading:after, .app__header .controls button .editor-ui .fa-volume-mute.editor.idle:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.idle:after {
           opacity: .5; }
-        .app__header .controls button .fal.fa-expand-alt {
+        .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after {
           opacity: .5; }
       .app__header .controls button:focus {
         outline: 0; }
@@ -5183,6 +5212,16 @@ body {
   .alert.alert-info + .alert-loader .alert-loader-inner {
     background-color: #4287EB; }
 
+#top-level-alert {
+  min-height: 170px; }
+  #top-level-alert .alert-outer {
+    opacity: 1;
+    transform: scale(1);
+    transition: transform 300ms linear, opacity 300ms linear; }
+  #top-level-alert.out .alert-outer {
+    opacity: 0;
+    transform: scale(0.5); }
+
 table.table {
   border-radius: 16px;
   background-color: #fff;
@@ -5209,35 +5248,44 @@ table.table {
     table.table td em {
       opacity: .5; }
   table.table thead th,
-  table.table tbody td {
+  table.table tbody td,
+  table.table tfoot td {
     border-left: 1px solid rgba(0, 0, 0, 0.3); }
     table.table thead th:first-child,
-    table.table tbody td:first-child {
+    table.table tbody td:first-child,
+    table.table tfoot td:first-child {
       border-left: 0; }
     table.table thead th.centerize,
-    table.table tbody td.centerize {
+    table.table tbody td.centerize,
+    table.table tfoot td.centerize {
       text-align: center;
       vertical-align: middle; }
     table.table thead th.righterize,
-    table.table tbody td.righterize {
+    table.table tbody td.righterize,
+    table.table tfoot td.righterize {
       text-align: right;
       vertical-align: middle; }
     table.table thead th.md-padding,
-    table.table tbody td.md-padding {
+    table.table tbody td.md-padding,
+    table.table tfoot td.md-padding {
       padding-left: 5px;
       padding-right: 5px; }
     table.table thead th.drop-padding,
-    table.table tbody td.drop-padding {
+    table.table tbody td.drop-padding,
+    table.table tfoot td.drop-padding {
       padding-left: 0;
       padding-right: 0; }
     table.table thead th.icon-cell i,
-    table.table tbody td.icon-cell i {
+    table.table tbody td.icon-cell i,
+    table.table tfoot td.icon-cell i {
       font-size: 22px; }
     table.table thead th.no-wrap,
-    table.table tbody td.no-wrap {
+    table.table tbody td.no-wrap,
+    table.table tfoot td.no-wrap {
       white-space: nowrap; }
     table.table thead th.text-wrap,
-    table.table tbody td.text-wrap {
+    table.table tbody td.text-wrap,
+    table.table tfoot td.text-wrap {
       white-space: nowrap;
       max-width: 300px;
       overflow: hidden;
@@ -5346,7 +5394,7 @@ table.table {
     font-weight: 700; }
     table.table tbody tr.expanded > td:not(.fill-base) {
       background-color: rgba(0, 0, 0, 0.05); }
-    table.table tbody tr.expanded > td.icon-cell .fal {
+    table.table tbody tr.expanded > td.icon-cell .fal, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after {
       position: relative;
       top: 1px;
       margin-top: 1px;
@@ -5471,12 +5519,20 @@ table.table {
     border-color: #572F26;
     background-image: linear-gradient(-180deg, #F08863 0%, #DD5034 100%); }
 
+.editor-body {
+  display: flex;
+  flex-direction: column; }
+  .editor-body .editor-ui {
+    flex-basis: 100%; }
+
 .editor-ui {
-  background-color: rgba(255, 255, 255, 0.98);
+  background-color: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
-  min-height: 500px; }
+  min-height: 500px;
+  overflow: hidden; }
   .editor-ui-left {
-    border-right: 1px solid #ccc; }
+    border-right: 1px solid #ccc;
+    overflow-y: auto; }
   .editor-ui .url-groups {
     align-items: stretch;
     padding: 15px 0; }
@@ -5492,13 +5548,52 @@ table.table {
         .editor-ui .url-groups > li a:hover {
           background-color: #eee; }
         .editor-ui .url-groups > li a.active {
-          background-color: #d5d5d5; }
-  .editor-ui .editor h3, .editor-ui .editor p {
-    padding: 0 15px; }
-  .editor-ui .editor hr {
-    margin: 0; }
-  .editor-ui .editor textarea {
-    width: 100%;
-    box-sizing: border-box; }
+          background-color: #4A6FA5;
+          color: #fff; }
+  .editor-ui .editor {
+    overflow-y: auto; }
+    .editor-ui .editor.loading, .editor-ui .editor.idle {
+      display: flex;
+      align-items: center;
+      justify-content: center; }
+      .editor-ui .editor.loading:after, .editor-ui .editor.idle:after {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        display: inline-block;
+        font-style: normal;
+        font-variant: normal;
+        font-weight: normal;
+        line-height: 1;
+        vertical-align: -.125em;
+        color: #4A6FA5;
+        font-size: 80px;
+        opacity: .9;
+        transition: opacity 450ms linear; }
+      .editor-ui .editor.loading.loading:after, .editor-ui .editor.idle.loading:after {
+        content: "\f3f4"; }
+      .editor-ui .editor.loading.idle:after, .editor-ui .editor.idle.idle:after {
+        content: "\f0ac";
+        opacity: .05; }
+    .editor-ui .editor header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px; }
+    .editor-ui .editor hr {
+      margin: 0; }
+    .editor-ui .editor textarea {
+      background-color: transparent;
+      width: 100%;
+      box-sizing: border-box;
+      resize: none;
+      height: 30px;
+      font-size: 18px;
+      line-height: 24px; }
+      .editor-ui .editor textarea:focus {
+        outline: none; }
+    .editor-ui .editor .url-area {
+      padding: 20px;
+      border-bottom: 1px solid #ccc;
+      background-color: #fff; }
 
 /*# sourceMappingURL=styles.css.map */

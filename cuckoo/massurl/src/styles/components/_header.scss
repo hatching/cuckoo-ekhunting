@@ -1,4 +1,6 @@
 & {
+  position: relative;
+  z-index: 10;
   display: flex;
   align-items: center;
   padding: 0 60px;
@@ -74,6 +76,7 @@
     margin: 0 5px;
     &:first-child { margin-left: 0;}
     &:last-child { margin-right: 0; }
+    &.with-options { position: relative; }
   }
 
   button {
@@ -99,4 +102,5 @@
       .fa-expand-alt { opacity: .8; }
     }
   }
+
 }

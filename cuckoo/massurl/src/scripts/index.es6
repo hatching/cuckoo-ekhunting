@@ -2,35 +2,51 @@ import $ from 'jquery';
 import Fullscreen from './fullscreen';
 import { initAlerts } from './alerts';
 import { initUrlGroups } from './url-groups';
+import { initUrlManagement } from './url-management';
 
-// shifts background based on current state (on/off/toggle)
-// swapBackground(null) => toggles
-// swapBackground(true/false) => sets .fill-red class based on bool
-// => this is for demonstrational purposes. Click the logo to trigger
-function alertMode() {
-  if($("#app-background").hasClass('fill-red')) {
-    // $("#top-level-alert").removeClass('focus');
-    $("#app-background").removeClass('fill-red');
-  } else {
-     // $("#top-level-alert").addClass('focus');
-    $("#app-background").addClass('fill-red');
-  }
+// util - string bool to bool
+function stringToBoolean(val){
+  let a = {
+    'true':true,
+    'false':false
+  };
+  return a[val];
 }
 
 // swaps the audio button state. at the moment for demonstrational purposes.
 // click the audio icon to toggle and view
-function toggleAudio(el) {
-  if($(el).find('.fal').hasClass('fa-volume-mute')) {
+function toggleAudio(el, force = null) {
+
+  let activate = () => {
+    localStorage.setItem('play-audio', 'true');
     $(el).find('.fal').removeClass('fa-volume-mute').addClass('fa-volume-up');
-  } else {
+  }
+
+  let deactivate = () => {
+    localStorage.setItem('play-audio', 'false');
     $(el).find('.fal').removeClass('fa-volume-up').addClass('fa-volume-mute');
   }
+
+  if(force === null) {
+    let cur = stringToBoolean(localStorage.getItem('play-audio'));
+    if(cur === true) {
+      deactivate();
+    } else if(cur === false) {
+      activate();
+    }
+  } else {
+    if(force === true) {
+      activate();
+    } else if(force === false) {
+      deactivate();
+    }
+  }
+
 }
 
 // toggle the fullscreen mode
 function toggleFullScreen(el) {
   let icon = el.querySelector('.fal');
-  console.log(icon.classList);
   if(!Fullscreen.active()) {
     icon.classList.remove('fa-expand-alt');
     icon.classList.add('fa-compress-alt');
@@ -48,14 +64,6 @@ function toggleSystemIndicator() {
   let states = ['true','false','error'];
   let curPos = states.indexOf(ind.attr('data-online'));
   ind.attr('data-online', states[curPos+1] || states[0]);
-}
-
-// toggle-expand the info-row in the table
-function expandInfoRow(e) {
-  e.preventDefault();
-  let row = $(e.currentTarget);
-  row.parents('tbody').find('tr.expanded').not(row).removeClass('expanded');
-  row.toggleClass('expanded');
 }
 
 function hotkey(key) {
@@ -83,6 +91,12 @@ function hotkey(key) {
 
 $(function() {
 
+  if(localStorage.getItem('play-audio') === null) {
+    toggleAudio($("#toggle-audio"), false);
+  } else {
+    toggleAudio($("#toggle-audio"), stringToBoolean(localStorage.getItem('play-audio')));
+  }
+
   // global app inits
   $("#toggle-audio").on('click', e => toggleAudio(e.currentTarget));
   $("#toggle-fullscreen").on('click', e => toggleFullScreen(e.currentTarget));
@@ -90,10 +104,7 @@ $(function() {
 
   // specific inits for event-monitor
   if($("#event-monitor").length) {
-    initAlerts().then(data => {
-      $("#alert-table").find('tbody').html(data.jq());
-      $("#alert-table").find('tbody > tr').not('.info-expansion').on('click', expandInfoRow);
-      $("#swap-bg").on('click', alertMode);
+    initAlerts($("#alert-table")).then(data => {
       $("html").on("keydown", e => hotkey(e.keyCode));
     }).catch(e => console.log(e));
   }
@@ -101,7 +112,14 @@ $(function() {
   // specific inits for url-grouping
   if($("main#url-grouping").length) {
     initUrlGroups($("#url-groups").parents('form')).then(data => {
-      
+
+    });
+  }
+
+  // specific inits for url-management
+  if($("main#url-management").length) {
+    initUrlManagement($("#url-management")).then(data => {
+
     });
   }
 

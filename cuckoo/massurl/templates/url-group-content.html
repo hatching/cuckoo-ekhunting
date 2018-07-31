@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-  <main class="viewport" id="url-grouping">
+  <main class="viewport" id="url-management">
     <div class="foreground app">
       {% include 'partials/header.html' %}
-      <section class="app__body">
+      <section class="app__body editor-body">
         {% include 'partials/url-group-nav.html' %}
         <div class="split-view editor-ui">
-
           <div class="split-view-container one-third editor-ui-left" id="url-group-list">
             <ul class="url-groups">
             {% for group in groups %}
@@ -14,13 +13,7 @@
             {% endfor %}
             </ul>
           </div>
-
-          <div class="split-view-container editor" id="url-edit">
-            <h3>Title</h3>
-            <p>Description</p>
-            <hr />
-            <textarea>http://www.google.nl</textarea>
-          </div>
+          <div class="split-view-container editor loading" id="url-edit"></div>
         </div>
       </section>
     </div>

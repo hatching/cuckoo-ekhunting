@@ -1,11 +1,23 @@
+// this wraps the app always perfect in the viewport
+.editor-body {
+  display: flex;
+  flex-direction: column;
+
+  .editor-ui {
+    flex-basis: 100%;
+  }
+}
+
 .editor-ui {
 
-  background-color: rgba(255,255,255,.98);
+  background-color: rgba(255,255,255,.95);
   border-radius: 16px;
   min-height: 500px;
+  overflow: hidden;
 
   &-left {
     border-right: 1px solid #ccc;
+    overflow-y: auto;
   }
 
   .url-groups {
@@ -23,19 +35,73 @@
         color: $default-base;
         text-decoration: none;
         &:hover { background-color: #eee; }
-        &.active { background-color: #d5d5d5; }
+        &.active {
+          background-color: $default-base;
+          color: #fff;
+        }
       }
     }
   }
 
   .editor {
-    h3, p { padding: 0 15px; }
+
+    overflow-y: auto;
+
+    &.loading,
+    &.idle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:after {
+        @include fa-icon;
+        @extend .fal;
+        color: $default-base;
+        font-size: 80px;
+        opacity: .9;
+        transition: opacity 450ms linear;
+      }
+
+      &.loading:after {
+        @extend .fa-spin;
+        content: fa-content($fa-var-spinner-third);
+      }
+
+      &.idle:after {
+        content: fa-content($fa-var-globe);
+        opacity: .05;
+      }
+
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+    }
+
     hr { margin: 0; }
     textarea {
       @extend %reset-input;
+      background-color: transparent;
       width: 100%;
       box-sizing: border-box;
+      resize: none;
+      height: 30px;
+      font-size: 18px;
+      line-height: 24px;
+
+      &:focus {
+        outline: none;
+      }
     }
+    .url-area {
+      padding: 20px;
+      border-bottom: 1px solid #ccc;
+      background-color: #fff;
+    }
+
   }
 
 }

@@ -112,3 +112,20 @@
   }
 
 }
+
+// bouncy animation edit
+#top-level-alert {
+  min-height: 170px;
+  .alert-outer {
+    opacity: 1;
+    transform: scale(1);
+    transition: transform 300ms linear,
+                opacity 300ms linear;
+  }
+  &.out {
+    .alert-outer {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+  }
+}

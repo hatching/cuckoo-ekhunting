@@ -51,7 +51,8 @@ table.table {
   }
 
   thead th,
-  tbody td {
+  tbody td,
+  tfoot td {
     border-left: 1px solid $table-border-vertical;
     &:first-child { border-left: 0; }
 
@@ -241,7 +242,12 @@ table.table {
     }
 
     &.loading {
-      
+      & > td {
+        text-align: center;
+        padding: 80px 0;
+        font-size: 80px;
+        & > .fa-spinner-third { color: $default-base; }
+      }
     }
 
   }

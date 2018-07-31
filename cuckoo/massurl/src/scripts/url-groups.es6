@@ -5,9 +5,7 @@ const urls = {
   add: () => '/group/add',
   add_url: () => '/group/add/url',
   view: (id, d = 0) => `/group/view/${id}?details=${d}`,
-  view_urls: (group_id, l = 1000, o = 0) => `/group/view/${group_id}?limit=${l}&offset=${o}`,
-  delete: () => '/group/delete',
-  delete_url: () => '/group/delete/url'
+  delete: () => '/group/delete'
 }
 
 // displays an error in the form above the input
@@ -63,7 +61,6 @@ function addGroup(d = {}) {
 
 // deletes a group
 function deleteGroup(group_id = undefined) {
-
   return new Promise((resolve, reject) => {
     let youSure = confirm('Delete this group?');
     if(!group_id)
@@ -164,4 +161,6 @@ function initUrlGroups($form) {
   });
 }
 
-export { initUrlGroups }
+export {
+  initUrlGroups
+}

@@ -11,12 +11,35 @@ Handlebars.registerHelper('pretty-date', timestamp => moment(new Date(timestamp)
 Handlebars.registerHelper('alert-level', level => getLevelName(parseInt(level)));
 // spit icons from level numbers
 Handlebars.registerHelper('alert-icon', level => `<i class="fal ${getIconType(level)}"></i>`);
+// generate a shortened version of a big string
+Handlebars.registerHelper('truncate', content => (content.length > 45) ? content.substr(0, 45-1) + '&hellip;' : content);
+// handlebars inline join helper
+Handlebars.registerHelper('join', arr => arr.join('\n'));
 
 const Templates = {
 
+  // template for a top-level alert
+  topEvent: data => Handlebars.compile(`
+    <div class="alert alert-{{alert-level level}}">
+      <div class="alert-icon">
+        <figure>{{{alert-icon level}}}</figure>
+      </div>
+      <div class="alert-content">
+        <h2>{{title}}</h2>
+        <p>{{{truncate content}}}</p>
+      </div>
+      <div class="alert-time">
+        <p>{{pretty-date timestamp}}</p>
+      </div>
+    </div>
+    <div class="alert-loader">
+      <!-- <div class="alert-loader-inner"></div> -->
+    </div>
+  `)(data),
+
   // template for single alert entry
   event: data => Handlebars.compile(`
-    <tr data-row-style="{{alert-level level}}">
+    <tr data-row-style="{{alert-level level}}" data-id="{{task_id}}">
       <td class="drop-padding fill-base"></td>
       <td class="centerize icon-cell">{{{alert-icon level}}}</td>
       <td class="no-wrap">{{pretty-date timestamp}}</td>
@@ -54,7 +77,7 @@ const Templates = {
     </tr>
   `)(data),
 
-  // definition for url group
+  // template for url group
   urlGroup: data => Handlebars.compile(`
     <tr data-group-id="{{id}}">
       <td class="centerize">{{id}}</td>
@@ -71,13 +94,31 @@ const Templates = {
     </tr>
   `)(data),
 
-  // definition for a table-error
+  // template for a table-error
   ajaxError: data => Handlebars.compile(`
     <tr class="error-row">
       <td colspan="{{span}}">
         <p>{{message}} <button type="button" data-dismiss><i class="fas fa-times"></i></button></p>
       </td>
     </tr>
+  `)(data),
+
+  // template for url-editor
+  editor: data => Handlebars.compile(`
+    <header>
+      <div>
+        <h3>{{name}}</h3>
+        <p>{{description}}</p>
+      </div>
+      <nav>
+        <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
+        <button class="button icon-button" data-close><i class="fal fa-times"></i></button>
+      </nav>
+    </header>
+    <hr />
+    <div class="url-area">
+      <textarea placeholder="Type urls here">{{join urls}}</textarea>
+    </div>
   `)(data)
 
 };

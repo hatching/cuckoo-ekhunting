@@ -5,25 +5,7 @@
       {% include 'partials/header.html' %}
       <section class="app__body">
         <div id="top-level-alert" class="container">
-          <div class="alert-outer">
-            <div class="alert alert-info">
-              <div class="alert-icon">
-                <figure>
-                  <i class="fal fa-lightbulb"></i>
-                </figure>
-              </div>
-              <div class="alert-content">
-                <h2>Possible exploit kit detected</h2>
-                <p>Page/URL hxxp://example.ee/login/ loads iframe with X.</p>
-              </div>
-              <div class="alert-time">
-                <p>24 minutes ago</p>
-              </div>
-            </div>
-            <div class="alert-loader">
-              <div class="alert-loader-inner"></div>
-            </div>
-          </div>
+          <div class="alert-outer"></div>
         </div>
         <div id="alert-table" class="container">
           <table class="table">
@@ -59,7 +41,9 @@
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="7"></td>
+                <td colspan="7" class="centerize">
+                  <a class="button" id="paginate-next">Load more</a>
+                </td>
               </tr>
             </tfoot>
           </table>
