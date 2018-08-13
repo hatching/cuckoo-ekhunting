@@ -7,10 +7,11 @@ import os
 import importlib
 import inspect
 import logging
+import sys
 
 import cuckoo
 
-from cuckoo.common.abstracts import Configuration
+from cuckoo.common.abstracts import Configuration, Signature
 from cuckoo.common.config import config2
 from cuckoo.common.exceptions import (
     CuckooConfigurationError, CuckooProcessingError, CuckooReportError,
@@ -339,6 +340,38 @@ class RunSignatures(object):
 
         # Signatures to call per API name.
         self.api_sigs = {}
+
+        # Prebuild a list of signatures that *may* be interested
+        self.call_always = set()
+        self.call_for_api = {}
+        self.call_for_cat = {}
+        for sig in self.signatures:
+            # Direct dispatch per API call
+            for n in dir(sig):
+                if n.startswith("on_call_"):
+                    self.call_for_api.setdefault(n[8:], set()).add(sig)
+            if not self._on_call_defined(sig):
+                # Not implemented...
+                continue
+            if not sig.filter_apinames and not sig.filter_categories:
+                self.call_always.add(sig)
+                continue
+            for api in sig.filter_apinames:
+                self.call_for_api.setdefault(api, set()).add(sig)
+            for cat in sig.filter_categories:
+                self.call_for_cat.setdefault(cat, set()).add(sig)
+
+    def _on_call_defined(self, sig):
+        """Test if on_call is defined.  This is not pretty, but it allows
+        on_call to be defined in `abstracts` for documentation purposes.
+        """
+
+        # In Python 3, we can just use a simple check
+        if sys.version_info[0] >= 3:
+            return sig.on_call is not Signature.on_call
+
+        # Check where the method was defined
+        return sig.on_call.__func__.__module__ != Signature.on_call.__func__.__module__
 
     @classmethod
     def init_once(cls):
