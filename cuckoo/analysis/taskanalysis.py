@@ -8,6 +8,7 @@ import time
 import threading
 
 from cuckoo.common.abstracts import AnalysisManager
+from cuckoo.common.config import config
 from cuckoo.common.constants import faq
 from cuckoo.common.objects import File, Analysis
 from cuckoo.common.exceptions import (
@@ -189,6 +190,21 @@ class TaskAnalysis(AnalysisManager):
         # Start auxiliary modules
         self.aux.start()
 
+        # Check if the current task has remotecontrol
+        # enabled before starting the machine.
+        self.control_enabled = (
+            config("cuckoo:remotecontrol:enabled") and
+            "remotecontrol" in self.task.options
+        )
+        if self.control_enabled:
+            try:
+                self.machinery.enable_remote_control(self.machine.label)
+            except NotImplementedError:
+                raise CuckooMachineError(
+                    "Remote control support has not been implemented "
+                    "for this machinery."
+                )
+
         # Json log for performance measurement purposes
         logger(
             "Starting VM",
@@ -227,6 +243,19 @@ class TaskAnalysis(AnalysisManager):
             action="vm.start", status="success",
             vmname=self.machine.name
         )
+
+        # retrieve the port used for remote control
+        if self.control_enabled:
+            try:
+                params = self.machinery.get_remote_control_params(
+                    self.machine.label
+                )
+                self.db.set_machine_rcparams(self.machine.label, params)
+            except NotImplementedError:
+                raise CuckooMachineError(
+                    "Remote control support has not been implemented "
+                    "for this machinery."
+                )
 
         # Enable network routing
         self.route_network()
@@ -340,6 +369,17 @@ class TaskAnalysis(AnalysisManager):
             action="vm.stop", status="success",
             vmname=self.machine.name
         )
+
+        # Disable remote control after stopping the machine
+        # if it was enabled for the task.
+        if self.control_enabled:
+            try:
+                self.machinery.disable_remote_control(self.machine.label)
+            except NotImplementedError:
+                raise CuckooMachineError(
+                    "Remote control support has not been implemented "
+                    "for this machinery."
+                )
 
         # After all this, we can make the ResultServer forget about the
         # internal state for this analysis task.
