@@ -570,5 +570,5 @@ class TestRegular(object):
         assert os.path.isfile(task_json_path)
 
     def test_support_list(self):
-        for tasktype in ("regular", "baseline", "server"):
+        for tasktype in ("regular", "baseline", "service"):
             assert tasktype in Regular.supports

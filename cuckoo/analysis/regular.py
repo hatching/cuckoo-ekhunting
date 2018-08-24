@@ -52,6 +52,13 @@ class Regular(AnalysisManager):
             self.task.task_dict, self.machine, self.guest_manager
         )
 
+        # Check if the current task has remotecontrol
+        # enabled before starting the machine.
+        self.control_enabled = (
+            config("cuckoo:remotecontrol:enabled") and
+            "remotecontrol" in self.task.options
+        )
+
         # Write task to disk in json file
         self.task.write_task_json()
 
@@ -204,19 +211,14 @@ class Regular(AnalysisManager):
         # Start auxiliary modules
         self.aux.start()
 
-        # Check if the current task has remotecontrol
-        # enabled before starting the machine.
-        self.control_enabled = (
-            config("cuckoo:remotecontrol:enabled") and
-            "remotecontrol" in self.task.options
-        )
         if self.control_enabled:
             try:
                 self.machinery.enable_remote_control(self.machine.label)
             except NotImplementedError:
-                raise CuckooMachineError(
+                self.control_enabled = False
+                log.exception(
                     "Remote control support has not been implemented "
-                    "for this machinery."
+                    "for machinery %s.", self.machine.manager
                 )
 
         # Json log for performance measurement purposes
@@ -265,9 +267,9 @@ class Regular(AnalysisManager):
                 )
                 self.db.set_machine_rcparams(self.machine.label, params)
             except NotImplementedError:
-                raise CuckooMachineError(
+                log.exception(
                     "Remote control support has not been implemented "
-                    "for this machinery."
+                    "for machinery %s.", self.machine.manager
                 )
 
         # Enable network routing
@@ -384,9 +386,9 @@ class Regular(AnalysisManager):
             try:
                 self.machinery.disable_remote_control(self.machine.label)
             except NotImplementedError:
-                raise CuckooMachineError(
+                log.exception(
                     "Remote control support has not been implemented "
-                    "for this machinery."
+                    "for machinery %s.", self.machine.manager
                 )
 
         # After all this, we can make the ResultServer forget about the
