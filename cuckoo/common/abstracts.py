@@ -150,9 +150,6 @@ class Machinery(object):
         self.db = Database()
         self.options = None
         self.remote_control = False
-        # Machine table is cleaned to be filled from configuration file
-        # at each start.
-        # self.db.clean_machines()
 
     @classmethod
     def init_once(cls):
