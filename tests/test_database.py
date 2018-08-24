@@ -13,10 +13,9 @@ import tempfile
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy import MetaData
 
-from cuckoo.common.files import Files
 from cuckoo.common.objects import File, URL
 from cuckoo.core.database import (
-    Database, Task, Tag, AlembicVersion, SCHEMA_VERSION, TargetGroup,
+    Database, Task, AlembicVersion, SCHEMA_VERSION, TargetGroup,
     TargetTargetgroup, Target
 )
 from cuckoo.common.exceptions import CuckooOperationalError
@@ -279,7 +278,7 @@ class DatabaseEngine(object):
     def test_set_machine_rcparams(self):
         self.d.add_machine(
             "name5", "label5", "1.2.3.4", "windows", None,
-            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043
+            "tag1 tag2", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
 
         self.d.set_machine_rcparams("label5", {
@@ -566,7 +565,7 @@ class DatabaseEngine(object):
             "name3", "name3", "1.2.3.4", "CoffeeOS", ["opt3", "opt4"],
             "cofOS,office7", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
-        self.d.machine_reserve(name="name2", task_id=1337)
+        self.d.machine_reserve(label="name2", task_id=1337)
         self.d.lock_machine(label="name3")
         available = self.d.get_available_machines()
         names = [m["name"] for m in [db_m.to_dict() for db_m in available]]
@@ -608,7 +607,7 @@ class DatabaseEngine(object):
             "app1,office7", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
         assert self.d.view_machine(name="name1").reserved_by is None
-        self.d.machine_reserve(name="name1", task_id=42)
+        self.d.machine_reserve(label="name1", task_id=42)
         assert self.d.view_machine(name="name1").reserved_by == 42
 
     def test_clear_reservation(self):
@@ -616,9 +615,9 @@ class DatabaseEngine(object):
             "name1", "name1", "1.2.3.4", "windows", "",
             "app1,office7", "int0", "snap0", "5.6.7.8", 2043, "virtualbox"
         )
-        self.d.machine_reserve(name="name1", task_id=42)
+        self.d.machine_reserve(label="name1", task_id=42)
         assert self.d.view_machine(name="name1").reserved_by == 42
-        self.d.clear_reservation(name="name1")
+        self.d.clear_reservation(label="name1")
         assert self.d.view_machine(name="name1").reserved_by is None
 
     def test_clean_machines(self):

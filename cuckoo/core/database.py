@@ -859,16 +859,16 @@ class Database(object):
             session.close()
 
     @classlock
-    def clear_reservation(self, name):
+    def clear_reservation(self, label):
         """Clear reservation of a machine
-        @param name: name of the machine to reserve"""
+        @param label: label of the machine to reserve"""
         session = self.Session()
         try:
-            machine = session.query(Machine).filter_by(name=name).first()
+            machine = session.query(Machine).filter_by(label=label).first()
             if not machine:
                 raise CuckooDatabaseError(
                     "Tried to remove reservation from non-existent"
-                    " machine %s" % name
+                    " machine %s" % label
                 )
 
             machine.reserved_by = None
