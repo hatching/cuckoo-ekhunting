@@ -97,7 +97,8 @@ class Route(object):
                 "inetsim_enable", self.machine.ip,
                 config("routing:inetsim:server"),
                 config("%s:%s:interface" % (machinery, machinery)),
-                str(config("cuckoo:resultserver:port"))
+                str(config("cuckoo:resultserver:port")),
+                config("routing:inetsim:ports") or ""
             )
 
         if self.route == "tor":
@@ -132,7 +133,7 @@ class Route(object):
                 "srcroute_disable", self.rt_table, self.machine.ip
             )
 
-        if self.route != "none":
+        if self.route == "drop" or self.route == "internet":
             rooter(
                 "drop_disable", self.machine.ip,
                 config("cuckoo:resultserver:ip"),
@@ -145,7 +146,8 @@ class Route(object):
                 "inetsim_disable", self.machine.ip,
                 config("routing:inetsim:server"),
                 config("%s:%s:interface" % (machinery, machinery)),
-                str(config("cuckoo:resultserver:port"))
+                str(config("cuckoo:resultserver:port")),
+                config("routing:inetsim:ports") or ""
             )
 
         if self.route == "tor":
