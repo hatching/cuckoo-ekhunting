@@ -7,9 +7,8 @@ import logging
 import time
 
 from cuckoo.common.abstracts import Auxiliary
-from cuckoo.common.config import Config
-from cuckoo.common.objects import Analysis
-from cuckoo.core.database import Database
+from cuckoo.common.config import Config, config
+from cuckoo.core.database import Database, TASK_PENDING
 from cuckoo.core.task import Task
 
 log = logging.getLogger(__name__)
@@ -25,15 +24,11 @@ class Services(Auxiliary):
         """Start a VM containing one or more services."""
         # We give all services a total of 5 minutes to boot up before
         # starting the actual analysis.
-        timeout = self.task.timeout or Config().timeouts.default
+        timeout = self.task.timeout or config("cuckoo:timeouts:default")
         timeout += 300
         tags = "service,%s" % service
 
-        return submit_task.add_service(timeout, self.task.owner, tags)
-
-    def stop_service(self, task_id):
-        """Stop a VM containing one or more services."""
-        self.guest_manager.analysis.set_status(Analysis.STOPPED)
+        return submit_task.add_service(timeout, self.task.id, tags)
 
     def start(self):
         self.tasks = []
@@ -51,16 +46,23 @@ class Services(Auxiliary):
                 continue
 
             task_id = self.start_service(service)
+            if not task_id:
+                log.error(
+                    "Failed to add service task for service '%s' and task #%s",
+                    service, self.task.id
+                )
+                continue
+
             self.tasks.append((task_id, service))
 
-            log.info("Started service %s #%d for task #%d",
-                     service, task_id, self.task.id)
+            log.info(
+                "Started service %s #%d for task #%d", service, task_id,
+                self.task.id
+            )
 
-        # Wait until each service is either starting to run, running, or for
-        # some reason stopped.
-        wait_states = "starting", "running", "stopping"
+        # Wait until each service task not pending anymore
         for task_id, service in self.tasks:
-            while self.guest_manager.analysis.status not in wait_states:
+            while db.view_task(task_id, details=False).status == TASK_PENDING:
                 time.sleep(1)
 
         # Wait an additional timeout before starting the actual analysis.
@@ -69,10 +71,7 @@ class Services(Auxiliary):
             time.sleep(timeout)
 
     def stop(self):
-        if self.task.type == "service":
-            return
-
-        for task_id, service in self.tasks:
-            log.info("Stopping service %s #%d for task #%d",
-                     service, task_id, self.task.id)
-            self.stop_service(task_id)
+        # TODO Edit Regular analysis manager to het status
+        # of other tasks by asking scheduler. This to let the service tasks
+        # know when their parent task has stopped, without polling the db.
+        return
