@@ -793,8 +793,10 @@ class TestVirtualboxInitialize(object):
         db.connect()
 
         self.m = VirtualBox()
+        self.m.db.clean_machines = mock.MagicMock()
         self.m.set_options(Config("virtualbox"))
         self.m._initialize("virtualbox")
+        self.m.db.clean_machines.assert_called_once()
 
         m, = db.list_machines()
         assert m.label == "cuckoo1"

@@ -176,7 +176,7 @@ class Machinery(object):
         self._initialize_check()
 
     def _initialize(self, module_name):
-        """Read configuration.
+        """Read configuration and clean machines table.
         @param module_name: module name.
         """
         old_machines = {}

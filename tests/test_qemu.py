@@ -24,7 +24,6 @@ class TestQemu(object):
             p.return_value = mock.MagicMock()
             self.m = QEMU()
 
-        self.m.db.clean_machines.assert_called_once()
         self.m.set_options(Config("qemu"))
 
     @mock.patch("cuckoo.machinery.qemu.os.remove")
