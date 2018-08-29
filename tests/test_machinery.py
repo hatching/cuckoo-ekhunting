@@ -35,7 +35,6 @@ class TestVirtualbox(object):
             p.return_value = mock.MagicMock()
             self.m = VirtualBox()
 
-        self.m.db.clean_machines.assert_called_once()
         self.m.set_options(Config("virtualbox"))
 
     def test_invalid_vboxmanage_configuration(self):
@@ -741,7 +740,6 @@ class TestBrokenMachine(object):
             p.return_value = mock.MagicMock()
             self.m = VirtualBox()
 
-        self.m.db.clean_machines.assert_called_once()
         self.m.set_options(Config("virtualbox"))
 
     def test_missing_snapshot(self):
