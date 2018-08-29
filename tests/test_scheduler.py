@@ -2,7 +2,6 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
-import Queue
 import mock
 import os
 import pytest
@@ -13,6 +12,7 @@ import threading
 from cuckoo.analysis.regular import Regular
 from cuckoo.common import config
 from cuckoo.common.exceptions import CuckooCriticalError
+from cuckoo.common.objects import Dictionary
 from cuckoo.core.database import Database
 from cuckoo.core.init import write_cuckoo_conf
 from cuckoo.core.scheduler import Scheduler
@@ -44,6 +44,11 @@ class FakeTask(object):
         self.tags = ""
         self.machine = ""
         self.type = "regular"
+        self._taskdict = {}
+        self.targets = []
+
+    def to_dict(self):
+        return self._taskdict
 
 class TestScheduler(object):
 
@@ -443,8 +448,14 @@ class TestScheduler(object):
 
     def test_get_analysis_manager_unsupportedtype(self):
         s = Scheduler()
-        id = self.db.add([], task_type="longterm")
-        db_task = self.db.view_task(id)
+        db_task = FakeTask(4)
+        db_task._taskdict = Dictionary({
+            "id": 4,
+            "type": "dogeTask",
+            "targets": []
+        })
+        db_task.type = "dogeTask"
+
         manager = s.get_analysis_manager(db_task, FakeMachine())
 
         assert manager is None
