@@ -325,6 +325,10 @@ class Scheduler(object):
 
             # Release machine lock as the machine will not be starting
             self.machine_lock.release()
+
+            # Set task status to failed as it cannot be analysed if no matching
+            # analysis manager for its type exists
+            self.db.set_status(task.id, TASK_FAILED_ANALYSIS)
             return
 
         # Only lock task for running if we are sure we will try to start it
