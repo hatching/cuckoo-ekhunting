@@ -877,7 +877,8 @@ class TestProcessingMachineInfo(object):
         assert rp.machine == {
             "status": None,
             "resultserver_port": 2042,
-            "tags": [], "ip": "192.168.56.101",
+            "tags": [],
+            "ip": "192.168.56.101",
             "resultserver_ip": "192.168.56.1",
             "manager": "VirtualBox",
             "interface": None,
@@ -887,10 +888,10 @@ class TestProcessingMachineInfo(object):
             "label": "cuckoo2",
             "locked_changed_on": None,
             "platform": "windows",
+            "rcparams": {},
             "reserved_by": None,
             "snapshot": None,
-            "options": [],
-            "reserved_by": None
+            "options": []
         }
 
 class TestBehavior(object):
