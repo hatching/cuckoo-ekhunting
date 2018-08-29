@@ -97,8 +97,8 @@ class TestFeedback(object):
         e.match("Could not validate")
 
     @mock.patch("cuckoo.web.controllers.analysis.analysis.AnalysisController")
-    def test_include_report(self, p):
-        p._get_report.return_value = self.report(
+    def test_include_report_web(self, p):
+        p.get_report.return_value = self.report(
             "tests/files/sample_analysis_storage"
         )
 
@@ -133,7 +133,7 @@ class TestFeedback(object):
         fake_task = cwd(analysis=1)
         shutil.copytree("tests/files/sample_analysis_storage", fake_task)
 
-        q._get_report.return_value = self.report(
+        q.get_report.return_value = self.report(
             "tests/files/sample_analysis_storage"
         )
 
@@ -181,7 +181,7 @@ class TestFeedback(object):
                     "task_id": 1,
                 }
 
-        q._get_report.return_value = {}
+        q.get_report.return_value = {}
         p.return_value.report = None
         p.return_value.validate.side_effect = CuckooFeedbackError
 
@@ -198,15 +198,17 @@ class TestFeedback(object):
 
     def report(self, analysis_path):
         return {
-            "info": {
-                "id": 1,
-                "analysis_path": analysis_path
-            },
-            "target": {
-                "category": "file",
-                "file": {
-                    "name": "binary",
-                    "size": 91010,
+            "analysis": {
+                "info": {
+                    "id": 1,
+                    "analysis_path": analysis_path
+                },
+                "target": {
+                    "category": "file",
+                    "file": {
+                        "name": "binary",
+                        "size": 91010,
+                    }
                 }
             }
         }
