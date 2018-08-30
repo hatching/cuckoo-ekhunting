@@ -11,7 +11,7 @@ import tempfile
 from cuckoo.common.abstracts import Signature
 from cuckoo.common.objects import Dictionary
 from cuckoo.common.scripting import Scripting
-from cuckoo.core.database import Database
+from cuckoo.core.database import Database, Task
 from cuckoo.core.extract import ExtractManager
 from cuckoo.core.plugins import RunSignatures, RunProcessing
 from cuckoo.core.startup import init_yara, init_modules
@@ -412,11 +412,12 @@ def test_on_extract():
         "first_seen": 2,
     }, cmd)
 
-    results = RunProcessing(task=Dictionary({
-        "id": 2,
-        "category": "file",
-        "target": __file__,
-    })).run()
+    task = Task()
+    task = task.to_dict()
+    task["id"] = 2
+    task["target"] = __file__
+    task["category"] = "file"
+    results = RunProcessing(task=task).run()
 
     assert results["extracted"] == [{
         "category": "script",
