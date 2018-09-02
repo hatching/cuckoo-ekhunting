@@ -903,7 +903,6 @@ class DatabaseMigrationEngine(object):
 
     def test_long_error(self):
         db_target = self.add_test_url("http://example1.com")
-        print "TARGET IS: %s" % db_target
 
         task_id = self.d.add([db_target])
         self.d.add_error("A"*1024, task_id)
