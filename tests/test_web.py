@@ -24,6 +24,7 @@ from cuckoo.core.database import Database
 from cuckoo.core.feedback import CuckooFeedback
 from cuckoo.core.submit import SubmitManager
 from cuckoo.core.task import Task
+from cuckoo.core.startup import init_yara
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import cwd, set_cwd
 from cuckoo.processing.static import Static
@@ -486,6 +487,7 @@ class TestWebInterface(object):
 
     @mock.patch("cuckoo.web.controllers.analysis.analysis.AnalysisController")
     def test_summary_office2(self, p, request):
+        init_yara()
         s = Static()
         s.set_task({
             "id": 1,
