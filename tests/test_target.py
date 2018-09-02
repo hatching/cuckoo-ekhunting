@@ -64,7 +64,7 @@ class TestTask(object):
         assert self.t.category == "url"
         assert self.t.copied_binary is None
         assert isinstance(self.t.helper, URL)
-        assert self.t.is_file
+        assert not self.t.is_file
 
     def test_target_init(self):
         id = self.create_target_file()
