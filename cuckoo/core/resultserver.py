@@ -37,7 +37,7 @@ BUFSIZE = 16 * 1024
 
 # Directories in which analysis-related files will be stored; also acts as
 # whitelist
-RESULT_UPLOADABLE = ("files", "shots", "buffer",  "extracted")
+RESULT_UPLOADABLE = ("files", "shots", "buffer",  "extracted", "memory")
 RESULT_DIRECTORIES = RESULT_UPLOADABLE + ("reports", "logs")
 
 # Prevent malicious clients from using potentially dangerious filenames
@@ -223,8 +223,11 @@ class BsonStore(ProtocolHandler):
         # in the sense that newer Cuckoo Monitor binaries work with older
         # versions of Cuckoo, the other way around doesn't apply here.
         if self.version is None:
-            log.warning("Agent is sending BSON files without PID parameter, "
-                        "you should probably update it")
+            log.error(
+                "Please update to the latest version of the Cuckoo monitor."
+                " No behavioral logs are collected with your current version. "
+                "Receiving BSON files without a PID parameter"
+            )
             self.fd = None
             return
 
