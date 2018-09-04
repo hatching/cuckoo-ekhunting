@@ -1436,17 +1436,29 @@ class BehaviorHandler(object):
         behavior[self.key]."""
         raise NotImplementedError
 
+
 class ProtocolHandler(object):
     """Abstract class for protocol handlers coming out of the analysis."""
-    def __init__(self, handler, version=None):
-        self.handler = handler
+    def __init__(self, task_id, ctx, version=None):
+        self.task_id = task_id
+        self.handler = ctx
+        self.fd = None
         self.version = version
 
-    def init(self):
-        pass
+    def __enter__(self):
+        self.init()
+
+    def __exit__(self, type, value, traceback):
+        self.close()
 
     def close(self):
-        pass
+        if self.fd:
+            self.fd.close()
+            self.fd = None
+
+    def handle(self):
+        raise NotImplementedError
+
 
 class Extractor(object):
     """One piece in a series of recursive extractors & unpackers."""
