@@ -47,10 +47,10 @@ def netlog_sanitize_fname(path):
     path = path.replace("\\", "/")
     dir_part, name = os.path.split(path)
     if dir_part not in RESULT_UPLOADABLE:
-        raise CuckooOperationalError("Netlog client requested banned path: %s"
+        raise CuckooOperationalError("Netlog client requested banned path: %r"
                                      % path)
     if any(c in BANNED_PATH_CHARS for c in name):
-        raise CuckooOperationalError("Netlog client requested banned path: %s"
+        raise CuckooOperationalError("Netlog client requested banned path: %r"
                                      % path)
     return path
 
@@ -164,7 +164,7 @@ class FileUpload(ProtocolHandler):
         else:
             filepath, pids = None, []
 
-        log.debug("Task #%s: File upload for %s", self.task_id, dump_path)
+        log.debug("Task #%s: File upload for %r", self.task_id, dump_path)
         file_path = os.path.join(self.storagepath, dump_path)
 
         try:
