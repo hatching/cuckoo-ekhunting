@@ -400,11 +400,13 @@ class TestProcessingTasks(object):
         assert mt.call_count == 92
 
     @mock.patch("cuckoo.apps.apps.Database")
-    def test_process_task_range_duplicate(self, p):
+    @mock.patch("cuckoo.apps.apps.process_task")
+    def test_process_task_range_duplicate(self, mp, p):
         process_task_range("3,3,42")
         assert p.return_value.view_task.call_count == 2
         p.return_value.view_task.assert_any_call(3)
         p.return_value.view_task.assert_any_call(42)
+        assert mp.call_count == 2
 
     @mock.patch("cuckoo.main.load_signatures")
     @mock.patch("cuckoo.main.process_tasks")

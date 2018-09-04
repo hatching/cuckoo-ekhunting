@@ -816,7 +816,7 @@ class TestConnectOnce(object):
 
     @mock.patch("cuckoo.main.Database")
     @mock.patch("cuckoo.apps.apps.Database")
-    @mock.patch("cuckoo.apps.apps.process")
+    @mock.patch("cuckoo.apps.apps.process_task")
     def test_process_task(self, q, p1, p2):
         mkdir(cwd(analysis=1))
         p1.return_value.view_task.return_value = {}
@@ -831,7 +831,7 @@ class TestConnectOnce(object):
 
     @mock.patch("cuckoo.main.Database")
     @mock.patch("cuckoo.apps.apps.Database")
-    @mock.patch("cuckoo.apps.apps.process")
+    @mock.patch("cuckoo.apps.apps.process_task")
     def test_process_tasks(self, q, p1, p2):
         p1.return_value.processing_get_task.side_effect = 1, 2
         p1.return_value.view_task.side_effect = [
