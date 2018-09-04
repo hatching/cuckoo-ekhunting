@@ -199,7 +199,7 @@ class LogHandler(ProtocolHandler):
         try:
             self.fd = open_exclusive(self.logpath, bufsize=1)
         except OSError:
-            log.error("Task #%s: attempted to reopen live log analysis.log.",
+            log.debug("Task #%s: attempted to reopen live log analysis.log.",
                       self.task_id)
             return
         log.debug("Task #%s: live log analysis.log initialized.",
