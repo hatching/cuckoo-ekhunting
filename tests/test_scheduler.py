@@ -149,43 +149,39 @@ class TestScheduler(object):
         s.machine_lock.release.assert_called_once()
         mfd.assert_called_once()
 
-    @mock.patch("cuckoo.core.scheduler.get_free_disk")
-    def test_ready_for_new_run_maxcount(self, mfd):
-        mfd.return_value = 10000
+    def test_task_limit_hit(self):
         s = Scheduler(10)
         s.stop = mock.MagicMock()
         s.total_analysis_count = 10
-        s.machine_lock = mock.MagicMock()
-        s.machinery = mock.MagicMock()
-        s.machinery.availables.return_value = [FakeMachine()]
 
-        result = s.ready_for_new_run()
-
-        assert not result
-        s.machine_lock.acquire.assert_called_once_with(False)
-        s.machine_lock.release.assert_called_once()
-        mfd.assert_called_once()
+        assert s.task_limit_hit()
         s.stop.assert_called_once()
 
-    @mock.patch("cuckoo.core.scheduler.get_free_disk")
-    def test_ready_for_new_run_maxcount2(self, mfd):
-        mfd.return_value = 10000
+    def test_task_limit_hit_running_manager(self):
         s = Scheduler(10)
-        # Scheduler should not stop if max is reached and there are still
-        # running analyses
-        s.managers.append(mock.MagicMock())
         s.stop = mock.MagicMock()
+        s.managers.append(mock.MagicMock())
         s.total_analysis_count = 10
-        s.machine_lock = mock.MagicMock()
-        s.machinery = mock.MagicMock()
-        s.machinery.availables.return_value = [FakeMachine()]
 
-        result = s.ready_for_new_run()
+        assert s.task_limit_hit()
+        s.stop.assert_not_called()
 
-        assert not result
-        s.machine_lock.acquire.assert_called_once_with(False)
-        s.machine_lock.release.assert_called_once()
-        mfd.assert_called_once()
+    def test_task_limit_not_hit(self):
+        s = Scheduler(11)
+        s.stop = mock.MagicMock()
+        s.managers.append(mock.MagicMock())
+        s.total_analysis_count = 10
+
+        assert not s.task_limit_hit()
+        s.stop.assert_not_called()
+
+    def test_task_no_limit(self):
+        s = Scheduler()
+        s.stop = mock.MagicMock()
+        s.managers.append(mock.MagicMock())
+        s.total_analysis_count = 117
+
+        assert not s.task_limit_hit()
         s.stop.assert_not_called()
 
     @mock.patch("cuckoo.core.scheduler.get_free_disk")
@@ -214,7 +210,7 @@ class TestScheduler(object):
         s.machinery.availables.assert_not_called()
 
     @mock.patch("cuckoo.core.scheduler.get_free_disk")
-    def test_ready_for_new_run_noavailbles(self, mfd):
+    def test_ready_for_new_run_noavailables(self, mfd):
         mfd.return_value = 10000
         s = Scheduler()
         s.machine_lock = mock.MagicMock()
@@ -413,6 +409,34 @@ class TestScheduler(object):
         s.machine_lock.release.assert_called_once()
         analysis_manager.start.assert_not_called()
 
+    def test_handle_pending_no_manager(self):
+        # No analysis manager is found
+        s = Scheduler()
+        s.db = mock.MagicMock()
+        mock_machine1 = mock.MagicMock()
+        mock_machine1.reserved_by = None
+        s.db.get_available_machines.return_value = [mock_machine1]
+        s.machinery = mock.MagicMock()
+        task = FakeTask(1)
+        s.db.fetch.side_effect = [None, task]
+        machine_mock2 = mock.MagicMock()
+        s.machinery.acquire.return_value = machine_mock2
+        s.machine_lock = mock.MagicMock()
+        s.get_analysis_manager = mock.MagicMock(return_value=None)
+
+        s.handle_pending()
+
+        s.machine_lock.acquire.assert_called_once_with(False)
+        mock_machine1.is_analysis.assert_called_once()
+        s.db.fetch.assert_has_calls([
+            mock.call(machine=mock.ANY),
+            mock.call(service=False, exclude=[])
+        ])
+        s.get_analysis_manager.assert_called_once_with(task, machine_mock2)
+        s.machine_lock.release.assert_called_once()
+        s.db.set_status.assert_called_once_with(1, "failed_analysis")
+        assert s.total_analysis_count == 0
+
     def test_get_analysis_manager_regular(self):
         s = Scheduler()
         task = Task()
@@ -518,6 +542,7 @@ class TestScheduler(object):
         s.initialize = mock.MagicMock()
         s.db = mock.MagicMock()
         s.db.count_tasks.return_value = 1
+        s.task_limit_hit = mock.MagicMock(return_value=False)
         s.ready_for_new_run = mock.MagicMock()
         s.handle_pending = mock.MagicMock()
         s.handle_managers = mock.MagicMock()
@@ -529,8 +554,35 @@ class TestScheduler(object):
         s.start()
 
         mts.assert_called_once()
+
+        s.task_limit_hit.assert_called_once()
         s.db.count_tasks.assert_called_once_with(status="pending")
         s.ready_for_new_run.assert_called_once()
         s.handle_pending.assert_called_once()
         s.handle_managers.assert_called_once()
+        assert s.managers == []
+
+    @mock.patch("time.sleep")
+    def test_start_limit_reached(self, mts):
+        s = Scheduler()
+        s.initialize = mock.MagicMock()
+        s.db = mock.MagicMock()
+        s.task_limit_hit = mock.MagicMock()
+        s.ready_for_new_run = mock.MagicMock()
+        s.handle_pending = mock.MagicMock()
+        s.handle_managers = mock.MagicMock()
+        s.keep_running = mock.MagicMock(side_effect=[True, False])
+        manager = mock.MagicMock()
+        s.handle_managers.return_value = [manager]
+        s.managers = [manager]
+
+        s.start()
+
+        mts.assert_called_once()
+
+        s.handle_managers.assert_called_once()
+        s.task_limit_hit.assert_called_once()
+        s.db.count_tasks.assert_not_called()
+        s.ready_for_new_run.assert_not_called()
+        s.handle_pending.assert_not_called()
         assert s.managers == []
