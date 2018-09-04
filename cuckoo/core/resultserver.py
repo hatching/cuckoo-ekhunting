@@ -328,13 +328,13 @@ class FileUpload(ProtocolHandler):
         else:
             filepath, pids = None, []
 
-        log.debug("File upload request for %s", dump_path)
+        log.debug("File upload request for %r", dump_path)
 
         dir_part, filename = os.path.split(dump_path)
 
         if "./" in dump_path or not dir_part or dump_path.startswith("/"):
             raise CuckooOperationalError(
-                "FileUpload failure, banned path: %s" % dump_path
+                "FileUpload failure, banned path: %r" % dump_path
             )
 
         for restricted in self.RESTRICTED_DIRECTORIES:
