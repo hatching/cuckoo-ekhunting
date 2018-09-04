@@ -185,29 +185,6 @@ class Scheduler(object):
             )
             return False
 
-        # Stops the scheduler if the max_analysis_count in the configuration
-        # file has been reached.
-        if self.maxcount and self.total_analysis_count >= self.maxcount:
-            if not self.managers:
-                log.debug(
-                    "Reached max analysis count, exiting.", extra={
-                        "action": "scheduler.max_analysis",
-                        "status": "success",
-                        "limit": self.total_analysis_count,
-                })
-                self.stop()
-                return False
-
-            log.debug(
-                "Maximum analysis hit, awaiting active analyses to finish off."
-                " Still active: %s", len(self.managers), extra={
-                    "action": "scheduler.max_analysis",
-                    "status": "busy",
-                    "active": len(self.managers)
-                }
-            )
-            return False
-
         if not self.machinery.availables():
             logger(
                 "No available machines",
@@ -216,6 +193,33 @@ class Scheduler(object):
             return False
 
         return True
+
+    def task_limit_hit(self):
+        """Stops the scheduler is the maximum amount of tasks has been
+        reached. This can be configured by max_analysis_count in cuckoo.conf
+        or passed as an argument when starting Cuckoo."""
+        if self.maxcount and self.total_analysis_count >= self.maxcount:
+            if not self.managers:
+                log.debug(
+                    "Reached max analysis count, exiting.", extra={
+                        "action": "scheduler.max_analysis",
+                        "status": "success",
+                        "limit": self.total_analysis_count,
+                    }
+                )
+                self.stop()
+                return True
+
+            log.debug(
+                "Maximum analyses hit, awaiting active analyses to finish. "
+                "Still active: %s", len(self.managers), extra={
+                    "action": "scheduler.max_analysis",
+                    "status": "busy",
+                    "active": len(self.managers)
+                }
+            )
+            return True
+        return False
 
     def handle_pending(self):
         """Handles pending tasks. Checks if a new task can be started. Eg:
@@ -279,8 +283,8 @@ class Scheduler(object):
                     )
                 except CuckooOperationalError:
                     log.error(
-                        "Task #%s cannot be started, no machine with matching"
-                        " requirements for this task exists. Requirements: %s",
+                        "Task #%s cannot be started, no machine with matching "
+                        "requirements for this task exists. Requirements: %s",
                         task.id, Task.requirements_str(task)
                     )
                     # No machine with required tags, name etc exists
@@ -333,7 +337,7 @@ class Scheduler(object):
         # Only lock task for running if we are sure we will try to start it
         self.db.set_status(task.id, TASK_RUNNING)
 
-        # Increment the total of analyses
+        # Increment the total amount of analyses
         self.total_analysis_count += 1
 
         analysis_manager.daemon = True
@@ -355,7 +359,6 @@ class Scheduler(object):
         """Searches all available analysis managers for one
         that supports the type of the given task. Returns an
         analysis manager. Returns None if no manager supports the type"""
-
         managers = cuckoo.analysis.plugins
         analysis_manager = None
         for manager in managers:
@@ -419,20 +422,26 @@ class Scheduler(object):
 
         while self.keep_running():
             time.sleep(1)
-            # Handle pending tasks by finding the matching machine and
-            # analysis manager. The manager is started added to tracked
-            # analysis managers
-            if self.db.count_tasks(status=TASK_PENDING):
-                # Check if the max amount of VMs are running, if there is
-                # enough disk space, etc
-                if self.ready_for_new_run():
-                    # Grab a pending task, find a machine that matches, find
-                    # a matching analysis manager and start the analysis
-                    self.handle_pending()
 
             # Handles actions requested by analysis managers and performs
             # finalization actions for the managers if they exit.
             for untrack_manager in self.handle_managers():
                 self.managers.remove(untrack_manager)
+
+            # Verify if the maximum amount of analyses to process has been hit.
+            # Stops the scheduler if no running analysis managers are left.
+            if self.task_limit_hit():
+                continue
+
+            # Handle pending tasks by finding the matching machine and
+            # analysis manager. The manager is started added to tracked
+            # analysis managers.
+            if self.db.count_tasks(status=TASK_PENDING):
+                # Check if the max amount of VMs are running, if there is
+                # enough disk space, etc.
+                if self.ready_for_new_run():
+                    # Grab a pending task, find a machine that matches, find
+                    # a matching analysis manager and start the analysis.
+                    self.handle_pending()
 
         log.debug("End of analyses.")
