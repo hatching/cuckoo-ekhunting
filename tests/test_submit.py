@@ -115,10 +115,10 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/url1.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target == "http://cuckoosandbox.org"
+        assert t.targets[0].target == "http://cuckoosandbox.org"
         assert t.package == "ie"
         assert t.timeout == 120
-        assert t.category == "url"
+        assert t.targets[0].category == "url"
         assert t.status == "pending"
         assert not t.enforce_timeout
         assert not t.memory
@@ -135,10 +135,10 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/url2.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target == "http://google.com"
+        assert t.targets[0].target == "http://google.com"
         assert t.package == "ie"
         assert t.timeout == 120
-        assert t.category == "url"
+        assert t.targets[0].category == "url"
         assert t.status == "pending"
         assert not t.enforce_timeout
         assert not t.memory
@@ -157,10 +157,10 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/file1.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("icardres.dll")
+        assert t.targets[0].target.endswith("icardres.dll")
         assert t.package == "dll"
         assert t.timeout == 120
-        assert t.category == "file"
+        assert t.targets[0].category == "file"
         assert t.status == "pending"
         assert t.enforce_timeout is True
         assert not t.memory
@@ -178,10 +178,10 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/file2.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("pdf0.pdf")
+        assert t.targets[0].target.endswith("pdf0.pdf")
         assert t.package == "pdf"
         assert t.timeout == 111
-        assert t.category == "file"
+        assert t.targets[0].category == "file"
         assert t.status == "pending"
         assert t.enforce_timeout is True
         assert t.memory is True
@@ -201,7 +201,7 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/file3.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("msgbox.exe")
+        assert t.targets[0].target.endswith("msgbox.exe")
         assert t.options == {
             "procmemdump": "yes",
             "route": "drop",
@@ -216,7 +216,7 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/file4.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("msgbox.exe")
+        assert t.targets[0].target.endswith("msgbox.exe")
         assert t.options == {
             "procmemdump": "yes",
             "route": "tor",
@@ -231,10 +231,10 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/arc1.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("msg_invoice.msg")
+        assert t.targets[0].target.endswith("msg_invoice.msg")
         assert t.package == "doc"
         assert t.timeout == 120
-        assert t.category == "archive"
+        assert t.targets[0].category == "archive"
         assert t.status == "pending"
         assert t.machine == "cuckoo2"
         assert not t.enforce_timeout
@@ -243,7 +243,7 @@ class TestSubmitManager(object):
             "route": "internet",
             "filename": "oledata.mso",
         }
-        assert len(zipfile.ZipFile(t.target).read("oledata.mso")) == 234898
+        assert len(zipfile.ZipFile(t.targets[0].target).read("oledata.mso")) == 234898
 
     def test_submit_arc2(self):
         assert self.submit_manager.pre("files", [{
@@ -254,10 +254,10 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/arc2.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("pdf0.zip")
+        assert t.targets[0].target.endswith("pdf0.zip")
         assert t.package == "pdf"
         assert t.timeout == 10
-        assert t.category == "archive"
+        assert t.targets[0].category == "archive"
         assert t.status == "pending"
         assert t.machine is None
         assert not t.enforce_timeout
@@ -267,7 +267,7 @@ class TestSubmitManager(object):
             "procmemdump": "yes",
             "filename": "files/pdf0.pdf",
         }
-        assert len(zipfile.ZipFile(t.target).read("files/pdf0.pdf")) == 680
+        assert len(zipfile.ZipFile(t.targets[0].target).read("files/pdf0.pdf")) == 680
 
     def test_submit_arc3(self):
         assert self.submit_manager.pre("files", [{
@@ -278,10 +278,10 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/arc3.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("pdf0.zip")
+        assert t.targets[0].target.endswith("pdf0.zip")
         assert t.package == "pdf"
         assert t.timeout == 10
-        assert t.category == "archive"
+        assert t.targets[0].category == "archive"
         assert t.status == "pending"
         assert t.machine is None
         assert not t.enforce_timeout
@@ -291,7 +291,7 @@ class TestSubmitManager(object):
             "procmemdump": "yes",
             "filename": "files/pdf0.pdf",
         }
-        assert len(zipfile.ZipFile(t.target).read("files/pdf0.pdf")) == 680
+        assert len(zipfile.ZipFile(t.targets[0].target).read("files/pdf0.pdf")) == 680
 
     @pytest.mark.skipif("sys.platform != 'linux2'")
     def test_submit_arc4(self):
@@ -303,13 +303,13 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/arc4.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("rar_plain.rar")
+        assert t.targets[0].target.endswith("rar_plain.rar")
         assert t.options == {
             "route": "none",
             "procmemdump": "yes",
             "filename": "bar.txt",
         }
-        assert len(zipfile.ZipFile(t.target).read("bar.txt")) == 12
+        assert len(zipfile.ZipFile(t.targets[0].target).read("bar.txt")) == 12
 
     @pytest.mark.skipif("sys.platform != 'linux2'")
     def test_submit_arc5(self):
@@ -321,13 +321,13 @@ class TestSubmitManager(object):
         config = json.load(open("tests/files/submit/arc5.json", "rb"))
         assert self.submit_manager.submit(1, config) == [1]
         t = db.view_task(1)
-        assert t.target.endswith("rar_plain.rar")
+        assert t.targets[0].target.endswith("rar_plain.rar")
         assert t.options == {
             "route": "none",
             "procmemdump": "yes",
             "filename": "bar.txt",
         }
-        assert len(zipfile.ZipFile(t.target).read("bar.txt")) == 12
+        assert len(zipfile.ZipFile(t.targets[0].target).read("bar.txt")) == 12
 
     def test_pre_options(self):
         assert self.submit_manager.pre(
