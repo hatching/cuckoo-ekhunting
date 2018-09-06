@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Cuckoo Foundation.
+# Copyright (C) 2018 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -67,7 +67,7 @@ class TestRoute(object):
         assert route.rt_table is None
         mr.assert_called_once_with(
             "inetsim_enable", "192.168.56.10", "192.168.56.1",
-            "vboxnet0", "2042"
+            "vboxnet0", "2042", ""
         )
 
     @mock.patch("cuckoo.common.routing.rooter")
@@ -154,7 +154,6 @@ class TestRoute(object):
         mr.assert_has_calls([
             mock.call("forward_disable", "tap0", "tun0", "192.168.56.10"),
             mock.call("srcroute_disable", "tun0", "192.168.56.10"),
-            mock.call("drop_disable", "192.168.56.10", "192.168.56.1", "2042")
         ])
 
     @mock.patch("cuckoo.common.routing.rooter")
@@ -164,10 +163,9 @@ class TestRoute(object):
         route.unroute_network()
 
         mr.assert_has_calls([
-            mock.call("drop_disable", "192.168.56.10", "192.168.56.1", "2042"),
             mock.call(
                 "inetsim_disable", "192.168.56.10", "192.168.56.1", "vboxnet0",
-                "2042"
+                "2042", ""
             )
         ])
 
@@ -178,7 +176,6 @@ class TestRoute(object):
         route.unroute_network()
 
         mr.assert_has_calls([
-            mock.call("drop_disable", "192.168.56.10", "192.168.56.1", "2042"),
             mock.call(
                 "tor_disable", "192.168.56.10", "192.168.56.1", "5353", "9040"
             )
