@@ -358,3 +358,16 @@ def get_directory_size(path):
             size += os.path.getsize(fp)
 
     return size
+
+def str_to_datetime(strdt):
+    formats = [
+        "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%m-%d-%Y %H:%M:%S",
+        "%m-%d-%Y %H:%M", "%d-%m-%Y %H:%M", "%d-%m-%Y %H:%M:%S"
+    ]
+
+    for dtfmt in formats:
+        try:
+            return datetime.datetime.strptime(strdt, dtfmt)
+        except ValueError:
+            continue
+    return None

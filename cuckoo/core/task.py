@@ -13,15 +13,21 @@ import zipfile
 from cuckoo.common.config import config
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.files import Folders, Files
-from cuckoo.common.objects import Dictionary
-from cuckoo.common.utils import get_directory_size, json_default, json_encode
-from cuckoo.core.database import Database, TASK_RECOVERED, Task as DbTask
+from cuckoo.common.utils import (
+    get_directory_size, json_default, json_encode, str_to_datetime
+)
+from cuckoo.core.database import (
+    Database, TASK_RECOVERED, Task as DbTask, Target as DbTarget
+)
 from cuckoo.core.plugins import RunProcessing, RunSignatures, RunReporting
 from cuckoo.core.target import Target
 from cuckoo.misc import cwd
 
+from sqlalchemy.exc import SQLAlchemyError
+
 log = logging.getLogger(__name__)
 db = Database()
+target = Target()
 
 class Task(object):
 
@@ -41,8 +47,9 @@ class Task(object):
         self.db_task = db_task
         self.path = cwd(analysis=db_task.id)
         self.task_dict = db_task.to_dict()
+
         self.task_dict["targets"] = [
-            Target(db_target) for db_target in self.db_task.targets
+            Target(db_target) for db_target in db_task.targets
         ]
         # For backwards compatibility, load these two attributes
         # TODO Remove when processing and reporting changes
@@ -57,16 +64,16 @@ class Task(object):
         """Load all dict key values as attributes to the object.
         Try to change target dictionaries to target objects"""
         # Cast to Cuckoo dictionary, so keys can be accessed as attributes
-        newtask = DbTask()
-        newtask = newtask.to_dict()
         targets = []
-        for dict_target in task_dict.get("targets", []):
+        for target_dict in task_dict.get("targets", []):
             target = Target()
-            target.target_dict = dict_target
+            target.target_dict = target_dict
+            targets.append(target)
 
+        newtask = DbTask().to_dict()
         task_dict["targets"] = targets
         newtask.update(task_dict)
-        self.task_dict = Dictionary(newtask)
+        self.task_dict = newtask
         self.path = cwd(analysis=task_dict["id"])
 
     def load_from_db(self, task_id):
@@ -85,18 +92,21 @@ class Task(object):
         if self.targets:
             self.targets[0].symlink_to_task(self.id)
 
-    def create_dirs(self):
+    def create_dirs(self, id=None):
         """Create the folders for this analysis. Returns True if
         all folders were created. False if not"""
+        if not id:
+            id = self.id
+
         for task_dir in self.dirs:
-            create_dir = cwd(task_dir, analysis=self.id)
+            create_dir = cwd(task_dir, analysis=id)
             try:
                 if not os.path.exists(create_dir):
                     Folders.create(create_dir)
             except CuckooOperationalError as e:
                 log.error(
                     "Unable to create folder '%s' for task #%s Error: %s",
-                    create_dir, self.id, e
+                    create_dir, id, e
                 )
                 return False
 
@@ -196,7 +206,7 @@ class Task(object):
             memory=False, enforce_timeout=False, clock=None, task_type=None,
             submit_id=None, start_on=None, longterm_id=None):
         """Create new task
-        @param targets: object to add (File or URL).
+        @param targets: List of ORM Target objects.
         @param timeout: selected timeout.
         @param package: the analysis package to use
         @param options: analysis options.
@@ -213,18 +223,9 @@ class Task(object):
         @param longterm_id: Longterm analysis ID to connect this task to
         @return: task id or None.
         """
-        # Convert empty strings and None values to a valid int
-        if not timeout:
-            timeout = 0
-        if not priority:
-            priority = 1
-
         if isinstance(start_on, basestring):
-            try:
-                start_on = datetime.datetime.strptime(
-                    start_on, "%Y-%m-%d %H:%M"
-                )
-            except ValueError:
+            start_on = str_to_datetime(start_on)
+            if not start_on:
                 log.error("'start on' format should be: 'YYYY-M-D H:M'")
                 return None
 
@@ -234,35 +235,91 @@ class Task(object):
         if not clock and start_on:
             clock = start_on
 
-        if clock:
-            if isinstance(clock, basestring):
-                dfmt = "%m-%d-%Y %H:%M:%S"
-                try:
-                    clock = datetime.datetime.strptime(clock, dfmt)
-                except ValueError:
-                    log.warning(
-                        "Datetime %s not in format %s. Using current "
-                        "timestamp", clock, dfmt
-                    )
-                    clock = datetime.datetime.now()
+        if clock and isinstance(clock, basestring):
+            clock = str_to_datetime(clock)
+            if not clock:
+                log.warning(
+                    "Datetime %s not in format M-D-YYY H:M:S. Using current "
+                    "timestamp", clock
+                )
+                clock = datetime.datetime.now()
 
-        task = db.add(
-            targets, timeout=timeout, package=package, options=options,
-            priority=priority, custom=custom, owner=owner, machine=machine,
-            platform=platform, tags=self.get_tags_list(tags), memory=memory,
-            enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
-            submit_id=submit_id,  start_on=start_on, longterm_id=longterm_id
-        )
+        newtask = DbTask()
+        newtask.type = task_type
+        newtask.timeout = timeout
+        newtask.priority = priority
+        newtask.custom = custom
+        newtask.owner = owner
+        newtask.machine = machine
+        newtask.package = package
+        newtask.options = options
+        newtask.platform = platform
+        newtask.memory = memory
+        newtask.enforce_timeout = enforce_timeout
+        newtask.clock = clock
+        newtask.submit_id = submit_id
+        newtask.start_on = start_on
+        newtask.longterm_id = longterm_id
 
-        if not task:
-            log.error("Failed to create new task")
+        session = db.Session()
+        for tag in self.get_tags_list(tags):
+            newtask.tags.append(db.get_or_create(session, name=tag))
+
+        session.add(newtask)
+        try:
+            session.commit()
+        except SQLAlchemyError as e:
+            log.exception("Exception when adding task to database: %s", e)
+            session.rollback()
+            session.close()
             return None
 
-        # Use the returned task id to initialize this core task object
-        self.set_task(db.view_task(task))
-        self.create_empty()
+        task_id = newtask.id
+        for t in targets:
+            t.task_id = task_id
 
-        return self.id
+        try:
+            if len(targets) > 1:
+                # Bulk add targets
+                db.engine.execute(
+                    DbTarget.__table__.insert(), [t.to_dict() for t in targets]
+                )
+            elif targets:
+                session.add(targets[0])
+                session.commit()
+
+            # Create the directories for this task
+            self.create_dirs(id=task_id)
+
+            # If the target type is a file, create a symlink pointing to it
+            # inside the task folder.
+            if targets and targets[0].category in Target.files:
+                Target(targets[0]).symlink_to_task(task_id)
+
+        except SQLAlchemyError as e:
+            log.exception("Exception while adding targets to database: %s", e)
+            session.rollback()
+            return None
+        finally:
+            session.close()
+
+        return task_id
+
+    def add_massurl(self, urls=[], timeout=0, package="", options="",
+                 priority=1, custom="", owner="", machine="", platform="",
+                 tags=None, memory=False, enforce_timeout=False, clock=None,
+                 start_on=None):
+
+        if not urls:
+            log.error("No URLs provided. Cannot create task.")
+
+        return self.add(
+            targets=Target.create_urls(urls), timeout=timeout, package=package,
+            options=options, priority=priority, custom=custom, owner=owner,
+            machine=machine, platform=platform, tags=tags, memory=memory,
+            enforce_timeout=enforce_timeout, clock=clock, task_type="massurl",
+            start_on=start_on
+        )
 
     def add_path(self, file_path, timeout=0, package="", options="",
                  priority=1, custom="", owner="", machine="", platform="",
@@ -288,13 +345,13 @@ class Task(object):
             log.error("No file path given to analyze, cannot create task")
             return None
 
-        target = Target()
-        if not target.create_file(file_path):
+        db_target = target.create_file(file_path)
+        if not db_target:
             log.error("New task creation failed, could not create target")
             return None
 
         return self.add(
-            targets=[target.db_target], timeout=timeout, package=package,
+            targets=[db_target], timeout=timeout, package=package,
             options=options, priority=priority, custom=custom, owner=owner,
             machine=machine, platform=platform, tags=tags, memory=memory,
             enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
@@ -329,13 +386,13 @@ class Task(object):
         options = options or {}
         options["filename"] = filename
 
-        target = Target()
-        if not target.create_archive(file_path):
+        db_target = target.create_archive(file_path)
+        if not db_target:
             log.error("New task creation failed, could not create target")
             return None
 
         return self.add(
-            targets=[target.db_target], timeout=timeout, package=package,
+            targets=[db_target], timeout=timeout, package=package,
             options=options, priority=priority, custom=custom, owner=owner,
             machine=machine, platform=platform, tags=tags, memory=memory,
             enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
@@ -366,13 +423,13 @@ class Task(object):
             log.error("No URL given, cannot create task")
             return None
 
-        target = Target()
-        if not target.create_url(url):
+        db_target = target.create_url(url)
+        if not db_target:
             log.error("New task creation failed, could not create target")
-            return
+            return None
 
         return self.add(
-            targets=[target.db_target], timeout=timeout, package=package,
+            targets=[db_target], timeout=timeout, package=package,
             options=options, priority=priority, custom=custom, owner=owner,
             machine=machine, platform=platform, tags=tags, memory=memory,
             enforce_timeout=enforce_timeout, clock=clock, task_type=task_type,
@@ -483,7 +540,7 @@ class Task(object):
             task_type=self.type,
         )
 
-    def add_longterm(self, target, startdate, days, starttime, stoptime,
+    def add_longterm(self, db_target, startdate, days, starttime, stoptime,
                      name=None, package=None, options="", priority=1,
                      custom=None, owner=None, machine=None, platform=None,
                      tags=None, memory=False, clock=None):
@@ -527,13 +584,17 @@ class Task(object):
 
         # Create 'days' amount of tasks
         timeout = (stoptime - starttime).seconds
-        targets = [target.db_target]
         starton = datetime.datetime.combine(startdate.date(), starttime.time())
         for d in range(days):
+            # Only the first task should have the chosen package. All following
+            # tasks should look try to monitor behavior created by files left
+            # behind of the first task. This is taken care of by the longterm
+            # analysis package
             self.add(
-                targets=targets, timeout=timeout, package=package,
-                options=options, priority=priority, custom=custom, owner=owner,
-                machine=machine, platform=platform, tags=tags, memory=memory,
+                targets=db_target if d < 1 else [], timeout=timeout,
+                package=package if d < 1 else "longterm", options=options,
+                priority=priority, custom=custom, owner=owner, machine=machine,
+                platform=platform, tags=tags, memory=memory,
                 enforce_timeout=True, clock=clock, task_type="longterm",
                 longterm_id=lta_id, start_on=starton
             )
@@ -541,14 +602,6 @@ class Task(object):
             # Increment the starting datetime by one day, so the next task
             # is scheduled for the next day.
             starton = starton + datetime.timedelta(days=1)
-
-            # Only the first task should have the chosen package. All following
-            # tasks should look try to monitor behavior created by files left
-            # behind of the first task. This is taken care of by the longterm
-            # analysis package
-            if package != "longterm":
-                package = "longterm"
-                targets = []
 
         return lta_id
 
@@ -561,35 +614,35 @@ class Task(object):
             log.error("No URL given, cannot create task")
             return None
 
-        target = Target()
-        if not target.create_url(url):
+        db_target = target.create_url(url)
+        if not db_target:
             log.error("New task creation failed, could not create target")
             return None
 
         return self.add_longterm(
-            target=target, startdate=startdate, days=days,
+            db_target=db_target, startdate=startdate, days=days,
             starttime=starttime, stoptime=stoptime, name=name, package=package,
             options=options, priority=priority, custom=custom, owner=owner,
             machine=machine, platform=platform, tags=tags, memory=memory,
             clock=clock
         )
 
-    def add_path_longterm(self, file_path, startdate, days, starttime, stoptime,
-                     name=None, package=None, options="", priority=1,
-                     custom=None, owner=None, machine=None, platform=None,
-                     tags=None, memory=False, clock=None):
+    def add_path_longterm(self, file_path, startdate, days, starttime,
+                          stoptime, name=None, package=None, options="",
+                          priority=1, custom=None, owner=None, machine=None,
+                          platform=None, tags=None, memory=False, clock=None):
 
         if not file_path:
             log.error("No file path given to analyze, cannot create task")
             return None
 
-        target = Target()
-        if not target.create_file(file_path):
+        db_target = target.create_file(file_path)
+        if not db_target:
             log.error("New task creation failed, could not create target")
             return None
 
         return self.add_longterm(
-            target=target, startdate=startdate, days=days,
+            db_target=db_target, startdate=startdate, days=days,
             starttime=starttime, stoptime=stoptime, name=name, package=package,
             options=options, priority=priority, custom=custom, owner=owner,
             machine=machine, platform=platform, tags=tags, memory=memory,
