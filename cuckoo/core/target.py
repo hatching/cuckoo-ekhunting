@@ -7,7 +7,7 @@ import os
 
 from cuckoo.common.files import Files
 from cuckoo.common.objects import File, URL
-from cuckoo.core.database import Database
+from cuckoo.core.database import Database, Target as DbTarget
 from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
@@ -46,36 +46,35 @@ class Target(object):
         else:
             self.helper = helper(db_target.target)
 
-    def _create(self, target, helper, args):
-        db_target = db.find_target(sha256=helper.get_sha256())
-        if db_target:
-            log.info(
-                "Target '%s' (%s) already exists. Using existing target",
-                target, args.get("category")
-            )
-            self.set_target(db_target)
-            return db_target.id
+    def _create(self, target, target_helper, **kwargs):
+        db_target = DbTarget(
+            target=target, crc32=target_helper.get_crc32(),
+            md5=target_helper.get_md5(), sha1=target_helper.get_sha1(),
+            sha256=target_helper.get_sha256(),
+            sha512=target_helper.get_sha512(),
+            ssdeep=target_helper.get_ssdeep(),
+            **kwargs
+        )
 
-        args.update(dict(
-            target=target,
-            crc32=helper.get_crc32(),
-            md5=helper.get_md5(),
-            sha1=helper.get_sha1(),
-            sha256=helper.get_sha256(),
-            sha512=helper.get_sha512(),
-            ssdeep=helper.get_ssdeep()
-        ))
-        target_id = db.add_target(**args)
-        if not target_id:
-            log.error("Error adding new target")
-            return None
-
-        self.set_target(db.find_target(id=target_id))
-
-        if self.is_file:
+        self.set_target(db_target)
+        if kwargs.get("category") in self.files:
             self.copy()
 
-        return target_id
+        return db_target
+
+    @staticmethod
+    def create_urls(urls=[]):
+        db_targets = []
+        for url in urls:
+            helper = URL(url)
+            db_targets.append(DbTarget(
+                target=url, category="url", crc32=helper.get_crc32(),
+                md5=helper.get_md5(), sha1=helper.get_sha1(),
+                sha256=helper.get_sha256(), sha512=helper.get_sha512(),
+                ssdeep=helper.get_ssdeep()
+            ))
+
+        return db_targets
 
     def create_url(self, url):
         url_helper = URL(url)
@@ -84,8 +83,7 @@ class Target(object):
             log.error("Cannot create target for URL '%s', it is empty", url)
             return None
 
-        args = dict(category="url")
-        return self._create(url, url_helper, args)
+        return self._create(url, url_helper, category="url")
 
     def create_file(self, file_path):
         file_helper = File(file_path)
@@ -97,12 +95,10 @@ class Target(object):
             )
             return None
 
-        args = dict(
-            category="file",
-            file_type=file_helper.get_type(),
-            file_size=file_helper.get_size()
+        return self._create(
+            file_path, file_helper, category="file",
+            file_type=file_helper.get_type(), file_size=file_helper.get_size()
         )
-        return self._create(file_path, file_helper, args)
 
     def create_archive(self, file_path):
         file_helper = File(file_path)
@@ -114,12 +110,10 @@ class Target(object):
             )
             return None
 
-        args = dict(
-            category="archive",
-            file_type=file_helper.get_type(),
-            file_size=file_helper.get_size()
+        return self._create(
+            file_path, file_helper, category="archive",
+            file_type=file_helper.get_type(), file_size=file_helper.get_size()
         )
-        return self._create(file_path, file_helper, args)
 
     def copy(self):
         """Create a copy in the binaries folder of the current target file"""
