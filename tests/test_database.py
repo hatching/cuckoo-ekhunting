@@ -15,8 +15,7 @@ from sqlalchemy import MetaData
 
 from cuckoo.common.objects import File, URL
 from cuckoo.core.database import (
-    Database, Task, AlembicVersion, SCHEMA_VERSION, TargetGroup,
-    TargetTargetgroup, Target
+    Database, Task, AlembicVersion, SCHEMA_VERSION, Target
 )
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.core.startup import init_yara
@@ -665,148 +664,148 @@ class DatabaseEngine(object):
         assert task.id == taskid
         assert len(task.targets) == 10
 
-    def test_add_group(self):
-        ses = self.d.Session()
-        id = self.d.add_group(name="group1", desc="This is a group")
-        assert id == 1
-        group = ses.query(TargetGroup).get(1)
-        ses.close()
-        assert group is not None
-        assert group.description == "This is a group"
-        assert group.name == "group1"
-
-    def test_find_group_by_id(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        group = self.d.find_group(group_id=id)
-        assert group.id == id
-        assert group.name == "group1"
-        assert group.description == "This is a group"
-        assert group.targets == []
-
-    def test_find_group_by_name(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        group = self.d.find_group(name="group1")
-        assert group.id == id
-        assert group.name == "group1"
-        assert group.description == "This is a group"
-        assert group.targets == []
-
-    def test_find_group_with_details(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        t = ["http://example.com/", "http://example.com/451"]
-        self.d.mass_group_add(t, id)
-        group = self.d.find_group(name="group1", details=True)
-
-        assert len(group.targets) == 2
-        assert group.targets[0].target == "http://example.com/"
-        assert group.targets[1].target == "http://example.com/451"
-
-    def test_mass_group_add(self):
-        ses = self.d.Session()
-        id = self.d.add_group(name="group1", desc="This is a group")
-        alltargets = ses.query(Target.id).all()
-        assert len(alltargets) == 0
-        urls = [rstring() for x in range(200)]
-        res = self.d.mass_group_add(urls, id)
-        assert res
-        alltargets2 = ses.query(Target.id).all()
-        assert len(alltargets2) == 200
-
-        members = ses.query(TargetTargetgroup).all()
-        ses.close()
-        assert len(members) == 200
-        for m in members:
-            assert m.targetgroup_id == id
-
-    def test_mass_group_add_noduplicate(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        self.d.mass_group_add(urls, id)
-        self.d.mass_group_add(urls, id)
-
-        ses = self.d.Session()
-        members = ses.query(TargetTargetgroup).all()
-        ses.close()
-        assert len(members) == 200
-
-    def test_mass_group_add_multigroup(self):
-        id1 = self.d.add_group(name="group1", desc="This is a group")
-        id2 = self.d.add_group(name="group2", desc="This is also a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id1)
-        self.d.mass_group_add(urls, id2)
-        ses = self.d.Session()
-        all = ses.query(TargetTargetgroup).all()
-        group1 = ses.query(TargetTargetgroup).filter_by(
-            targetgroup_id=id1
-        ).all()
-        group2 = ses.query(TargetTargetgroup).filter_by(
-            targetgroup_id=id2
-        ).all()
-        ses.close()
-        assert len(all) == 400
-        assert len(group1) == 200
-        assert len(group2) == 200
-
-    def test_find_urls_group(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        t = self.d.find_urls_group(id)
-        t.sort()
-        urls.sort()
-        assert t == urls
-
-    def test_find_urls_group_limit(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        t = self.d.find_urls_group(id, limit=50)
-        assert len(t) == 50
-
-    def test_find_urls_group_offset(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        t = self.d.find_urls_group(id, limit=200, offset=50)
-        assert len(t) == 150
-
-    def test_delete_url_from_group(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        res = self.d.delete_url_from_group(urls[0:50], id)
-        assert res
-        t = self.d.find_urls_group(id)
-        assert len(t) == 150
-        for u in urls[0:50]:
-            assert u not in t
-
-    def test_delete_group_by_id(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        res = self.d.delete_group(group_id=id)
-        assert res
-        assert self.d.find_group(group_id=id) is None
-
-    def test_delete_group_by_name(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        res = self.d.delete_group(name="group1")
-        assert res
-        assert self.d.find_group(group_id=id) is None
-
-    @pytest.mark.xfail(reason="cascades are not properly working for sqlite")
-    def test_delete_group_verify_cascade(self):
-        id = self.d.add_group(name="group1", desc="This is a group")
-        urls = [rstring() for x in range(200)]
-        self.d.mass_group_add(urls, id)
-        res = self.d.delete_group(name="group1")
-        all = self.d.find_urls_group(group_id=id)
-        assert len(all) == 0
+    # def test_add_group(self):
+    #     ses = self.d.Session()
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     assert id == 1
+    #     group = ses.query(TargetGroup).get(1)
+    #     ses.close()
+    #     assert group is not None
+    #     assert group.description == "This is a group"
+    #     assert group.name == "group1"
+    #
+    # def test_find_group_by_id(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     group = self.d.find_group(group_id=id)
+    #     assert group.id == id
+    #     assert group.name == "group1"
+    #     assert group.description == "This is a group"
+    #     assert group.targets == []
+    #
+    # def test_find_group_by_name(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     group = self.d.find_group(name="group1")
+    #     assert group.id == id
+    #     assert group.name == "group1"
+    #     assert group.description == "This is a group"
+    #     assert group.targets == []
+    #
+    # def test_find_group_with_details(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     t = ["http://example.com/", "http://example.com/451"]
+    #     self.d.mass_group_add(t, id)
+    #     group = self.d.find_group(name="group1", details=True)
+    #
+    #     assert len(group.targets) == 2
+    #     assert group.targets[0].target == "http://example.com/"
+    #     assert group.targets[1].target == "http://example.com/451"
+    #
+    # def test_mass_group_add(self):
+    #     ses = self.d.Session()
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     alltargets = ses.query(Target.id).all()
+    #     assert len(alltargets) == 0
+    #     urls = [rstring() for x in range(200)]
+    #     res = self.d.mass_group_add(urls, id)
+    #     assert res
+    #     alltargets2 = ses.query(Target.id).all()
+    #     assert len(alltargets2) == 200
+    #
+    #     members = ses.query(TargetTargetgroup).all()
+    #     ses.close()
+    #     assert len(members) == 200
+    #     for m in members:
+    #         assert m.targetgroup_id == id
+    #
+    # def test_mass_group_add_noduplicate(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     self.d.mass_group_add(urls, id)
+    #     self.d.mass_group_add(urls, id)
+    #
+    #     ses = self.d.Session()
+    #     members = ses.query(TargetTargetgroup).all()
+    #     ses.close()
+    #     assert len(members) == 200
+    #
+    # def test_mass_group_add_multigroup(self):
+    #     id1 = self.d.add_group(name="group1", desc="This is a group")
+    #     id2 = self.d.add_group(name="group2", desc="This is also a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id1)
+    #     self.d.mass_group_add(urls, id2)
+    #     ses = self.d.Session()
+    #     all = ses.query(TargetTargetgroup).all()
+    #     group1 = ses.query(TargetTargetgroup).filter_by(
+    #         targetgroup_id=id1
+    #     ).all()
+    #     group2 = ses.query(TargetTargetgroup).filter_by(
+    #         targetgroup_id=id2
+    #     ).all()
+    #     ses.close()
+    #     assert len(all) == 400
+    #     assert len(group1) == 200
+    #     assert len(group2) == 200
+    #
+    # def test_find_urls_group(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     t = self.d.find_urls_group(id)
+    #     t.sort()
+    #     urls.sort()
+    #     assert t == urls
+    #
+    # def test_find_urls_group_limit(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     t = self.d.find_urls_group(id, limit=50)
+    #     assert len(t) == 50
+    #
+    # def test_find_urls_group_offset(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     t = self.d.find_urls_group(id, limit=200, offset=50)
+    #     assert len(t) == 150
+    #
+    # def test_delete_url_from_group(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     res = self.d.delete_url_from_group(urls[0:50], id)
+    #     assert res
+    #     t = self.d.find_urls_group(id)
+    #     assert len(t) == 150
+    #     for u in urls[0:50]:
+    #         assert u not in t
+    #
+    # def test_delete_group_by_id(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     res = self.d.delete_group(group_id=id)
+    #     assert res
+    #     assert self.d.find_group(group_id=id) is None
+    #
+    # def test_delete_group_by_name(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     res = self.d.delete_group(name="group1")
+    #     assert res
+    #     assert self.d.find_group(group_id=id) is None
+    #
+    # @pytest.mark.xfail(reason="cascades are not properly working for sqlite")
+    # def test_delete_group_verify_cascade(self):
+    #     id = self.d.add_group(name="group1", desc="This is a group")
+    #     urls = [rstring() for x in range(200)]
+    #     self.d.mass_group_add(urls, id)
+    #     res = self.d.delete_group(name="group1")
+    #     all = self.d.find_urls_group(group_id=id)
+    #     assert len(all) == 0
 
 class TestConnectOnce(object):
     def setup(self):
