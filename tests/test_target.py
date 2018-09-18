@@ -8,12 +8,13 @@ import shutil
 import tempfile
 
 from cuckoo.common.objects import File, URL
-from cuckoo.core.database import Database
+from cuckoo.core.database import Database, Target as DbTarget
 from cuckoo.core.target import Target
+from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd, cwd
 
-class TestTask(object):
+class TestTarget(object):
 
     def setup(self):
         set_cwd(tempfile.mkdtemp())
@@ -29,18 +30,40 @@ class TestTask(object):
 
     def create_target_file(self, target=None):
         fileobj = File(target or __file__)
-        return self.db.add_target(
-            fileobj.file_path, "file", fileobj.get_crc32(), fileobj.get_md5(),
-            fileobj.get_sha1(), fileobj.get_sha256(), fileobj.get_sha512(),
-            file_type=fileobj.get_type(), file_size=fileobj.get_size()
+        ses = self.db.Session()
+        task_id = Task().add()
+        t = DbTarget(
+            target=target, crc32=fileobj.get_crc32(),
+            md5=fileobj.get_md5(), sha1=fileobj.get_sha1(),
+            sha256=fileobj.get_sha256(),
+            sha512=fileobj.get_sha512(),
+            ssdeep=fileobj.get_ssdeep(), category="file",
+            file_size=fileobj.get_size(), file_type=fileobj.get_type(),
+            task_id=task_id
         )
+        ses.add(t)
+        ses.commit()
+        target_id = t.id
+        ses.close()
+        return target_id
 
-    def create_target_url(self, target=None):
-        urlobj = URL(target or "http://example.com/")
-        return self.db.add_target(
-            urlobj.url, "url", urlobj.get_crc32(), urlobj.get_md5(),
-            urlobj.get_sha1(), urlobj.get_sha256(), urlobj.get_sha512()
+    def create_target_file(self, url):
+        urlobj = URL(url)
+        ses = self.db.Session()
+        task_id = Task().add()
+        t = DbTarget(
+            target=url, crc32=urlobj.get_crc32(),
+            md5=urlobj.get_md5(), sha1=urlobj.get_sha1(),
+            sha256=urlobj.get_sha256(),
+            sha512=urlobj.get_sha512(),
+            ssdeep=urlobj.get_ssdeep(), category="url",
+            task_id=task_id
         )
+        ses.add(t)
+        ses.commit()
+        target_id = t.id
+        ses.close()
+        return target_id
 
     def test_set_target_file(self):
         id = self.create_target_file()
@@ -53,6 +76,7 @@ class TestTask(object):
         assert self.t.copied_binary == cwd(
             "storage", "binaries", f.get_sha256()
         )
+        assert self.t.is_file
         assert isinstance(self.t.helper, File)
 
     def test_set_target_url(self):
@@ -73,54 +97,41 @@ class TestTask(object):
         assert t.id == id
         assert t.target == __file__
         assert t.category == "file"
+        assert t.is_file
 
     def test_create_url(self):
         url = "http://example.com/42"
-        id = self.t.create_url(url)
+        dbtarget = self.t.create_url(url)
         urlobj = URL(url)
 
-        assert id == 1
-        assert self.t.target == url
-        assert self.t.id == 1
-        assert self.t.category == "url"
-        assert self.t.crc32 == urlobj.get_crc32()
-        assert self.t.md5 == urlobj.get_md5()
-        assert self.t.sha1 == urlobj.get_sha1()
-        assert self.t.sha256 == urlobj.get_sha256()
-        assert self.t.sha512 == urlobj.get_sha512()
-        assert self.t.ssdeep == urlobj.get_ssdeep()
-        assert not self.t.is_file
-
-    def test_create_url_duplicate(self):
-        id1 = self.t.create_url("http://example.com/42")
-        id2 = self.t.create_url("http://example.com/42")
-        id3 = self.t.create_url("http://example.com/43")
-        assert id1 is not None
-        assert id1 == id2
-        assert id3 != id1
+        assert dbtarget.target == url
+        assert dbtarget.category == "url"
+        assert dbtarget.crc32 == urlobj.get_crc32()
+        assert dbtarget.md5 == urlobj.get_md5()
+        assert dbtarget.sha1 == urlobj.get_sha1()
+        assert dbtarget.sha256 == urlobj.get_sha256()
+        assert dbtarget.sha512 == urlobj.get_sha512()
+        assert dbtarget.ssdeep == urlobj.get_ssdeep()
 
     def test_invalid_url(self):
         t1 = self.t.create_url("")
         assert t1 is None
 
     def test_create_file(self):
-        id = self.t.create_file(__file__)
+        dbtarget = self.t.create_file(__file__)
         fileobj = File(__file__)
 
-        assert id == 1
-        assert self.t.target == __file__
-        assert self.t.id == 1
-        assert self.t.category == "file"
-        assert self.t.crc32 == fileobj.get_crc32()
-        assert self.t.md5 == fileobj.get_md5()
-        assert self.t.sha1 == fileobj.get_sha1()
-        assert self.t.sha256 == fileobj.get_sha256()
-        assert self.t.sha512 == fileobj.get_sha512()
-        assert self.t.ssdeep == fileobj.get_ssdeep()
-        assert self.t.file_type == fileobj.get_type()
-        assert self.t.file_size == fileobj.get_size()
+        assert dbtarget.target == __file__
+        assert dbtarget.category == "file"
+        assert dbtarget.crc32 == fileobj.get_crc32()
+        assert dbtarget.md5 == fileobj.get_md5()
+        assert dbtarget.sha1 == fileobj.get_sha1()
+        assert dbtarget.sha256 == fileobj.get_sha256()
+        assert dbtarget.sha512 == fileobj.get_sha512()
+        assert dbtarget.ssdeep == fileobj.get_ssdeep()
+        assert dbtarget.file_type == fileobj.get_type()
+        assert dbtarget.file_size == fileobj.get_size()
         assert os.path.exists(cwd("storage", "binaries", fileobj.get_sha256()))
-        assert self.t.is_file
 
     def test_create_file_duplicate(self):
         fd, path = tempfile.mkstemp()

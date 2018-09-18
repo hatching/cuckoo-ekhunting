@@ -13,7 +13,7 @@ import tempfile
 import zipfile
 
 from cuckoo.common.objects import File
-from cuckoo.core.database import Database, Task as DbTask, Target as DbTarget
+from cuckoo.core.database import Database, Task as DbTask
 from cuckoo.core.task import Task
 from cuckoo.core.target import Target
 from cuckoo.main import cuckoo_create
@@ -33,7 +33,7 @@ class TestTask(object):
         self.files = []
 
     def teardown(self):
-        #shutil.rmtree(self.cwd)
+        shutil.rmtree(self.cwd)
         for path in self.files:
             try:
                 return
@@ -78,28 +78,14 @@ class TestTask(object):
             ses.commit()
             task_id = newtask.id
 
-            print task_id
-
             db_target.task_id = task_id
             ses.add(db_target)
-            print db_target
             ses.commit()
             target = db_target.target
         finally:
             ses.close()
 
         return [task_id, target]
-
-    # def add_task(self, category="file", url=None, **kwargs):
-    #     target = Target()
-    #     if category == "file":
-    #         target.create_file(self.get_file())
-    #     elif category == "url":
-    #         target.create_url(url)
-    #
-    #     kwargs["targets"] = [target.db_target]
-    #
-    #     return [self.db.add(**kwargs), target.target]
 
     def test_defined_task_dirs(self):
         assert Task.dirs == [
@@ -153,10 +139,10 @@ class TestTask(object):
         assert task.category == "file"
         assert task.target == "/tmp/stuff/doge42.exe"
         assert task.path == cwd(analysis=42)
+        assert task.type == "regular"
 
     def test_create_dirs(self):
         id, sample = self.add_task()
-        print id
         task = Task()
         task.load_from_db(id)
 
@@ -324,41 +310,10 @@ class TestTask(object):
         task.load_from_db(id)
         task.write_task_json()
 
-
-
-        # session = self.db.Session()
-        # target = Target()
-        # db_target = target.create_file("tests/files/pdf0.pdf")
-        #
-        # db_target.target = "/tmp/doge.exe"
-        # session.commit()
-        # session.refresh(db_target)
-        # id, sample = self.add_task()
-        # db_task = session.query(DbTask).filter_by(id=id).first()
-        # db_task.status = "reported"
-        # db_task.machine = "DogeOS1"
-        # db_task.targets = [db_target]
-        # db_task.start_on = datetime.datetime(2017, 5, 10, 18, 0)
-        # db_task.added_on = datetime.datetime(2017, 5, 10, 18, 0)
-        # db_task.clock = datetime.datetime(2017, 5, 10, 18, 0)
-        # session.commit()
-        # session.refresh(db_task)
-        #
-        # task = Task()
-        # task.load_from_db(id)
-        # task.create_dirs()
-        # task.write_task_json()
-
-        correct = open("tests/files/task_dump.json", "rb")
+        correct = open("tests/files/tasktest-taskjson.json", "rb")
         correct_json = json.load(correct)
         generated = open(os.path.join(task.path, "task.json"), "rb")
-        print task.path
-
-
         generated_json = json.load(generated)
-        import pprint
-
-        pprint.pprint(generated_json)
 
         assert generated_json == correct_json
 
@@ -366,8 +321,6 @@ class TestTask(object):
         id, sample = self.add_task()
         task = Task()
         task.load_from_db(id)
-        print task.targets
-        print task.task_dict
 
         assert task["id"] == id
         assert task["category"] == "file"
@@ -576,6 +529,18 @@ class TestTask(object):
         id = submit_task.add_path(tmpfile, start_on="13-11-2013")
         assert id is None
 
+    def test_add_massurl(self):
+        urls = ["http://example%s.com" % n for n in range(500)]
+        id = submit_task.add_massurl(urls)
+        task = Task()
+        task.load_from_db(id)
+
+        assert id is not None
+        assert os.path.exists(cwd(analysis=id))
+        assert task.path == cwd(analysis=id)
+        assert len(task.targets) == 500
+        assert task.type == "massurl"
+
     def test_add_file(self):
         sample = self.get_file()
         db_target = create_target.create_file(sample)
@@ -671,7 +636,7 @@ class TestTask(object):
             "owner", "machine", "package", "tags", "options", "platform",
             "memory", "enforce_timeout", "clock", "added_on", "start_on",
             "started_on", "completed_on", "status", "sample_id", "submit_id",
-            "processing", "route", "targets"
+            "processing", "route", "targets", "longterm_id"
         ]
 
         try:
