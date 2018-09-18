@@ -194,6 +194,10 @@ class Target(object):
         return self.target_dict.get("id")
 
     @property
+    def task_id(self):
+        return self.target_dict.get("task_id")
+
+    @property
     def target(self):
         return self.target_dict.get("target")
 
@@ -232,3 +236,4 @@ class Target(object):
     @property
     def file_type(self):
         return self.target_dict.get("file_type")
+

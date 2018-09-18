@@ -529,8 +529,9 @@ class Task(Base):
         """
         return json_encode(self.to_dict())
 
-    def __init__(self, id=None):
+    def __init__(self, task_type=TYPE_REGULAR, id=None):
         self.id = id
+        self.type = TYPE_REGULAR
 
     def __repr__(self):
         return "<Task('%s','%s','%s')>" % (self.id, self.type, self.status)
