@@ -63,7 +63,8 @@ class TestRegular(object):
             os.close(fd)
             newname = os.path.join(os.path.dirname(fpath), "testanalysis.exe")
             os.rename(fpath, newname)
-            task.add_path(newname)
+            id = task.add_path(newname)
+            task.load_from_db(id)
 
         manager = Regular(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
@@ -75,7 +76,8 @@ class TestRegular(object):
     def test_set_task(self):
         self.create_cwd()
         task = Task()
-        task.add_path(__file__)
+        id = task.add_path(__file__)
+        task.load_from_db(id)
         manager = self.get_manager()
         manager.set_task(task)
 
@@ -86,7 +88,8 @@ class TestRegular(object):
     def test_set_target(self):
         self.create_cwd()
         task = Task()
-        task.add_path(__file__)
+        id = task.add_path(__file__)
+        task.load_from_db(id)
         manager = self.get_manager()
         manager.set_target(task.targets)
         assert manager.target == task.targets[0]
@@ -94,7 +97,8 @@ class TestRegular(object):
     def test_set_target_empty(self):
         self.create_cwd()
         task = Task()
-        task.add_path(__file__)
+        id = task.add_path(__file__)
+        task.load_from_db(id)
         task.task_dict["targets"] = []
         manager = self.get_manager()
         manager.set_target(task.targets)
@@ -145,7 +149,8 @@ class TestRegular(object):
     def test_init_non_file(self, mb):
         self.create_cwd()
         task = Task()
-        task.add_url("http://example.com/42")
+        id = task.add_url("http://example.com/42")
+        task.load_from_db(id)
         manager = self.get_manager(task)
 
         result = manager.init(self.db)
@@ -161,7 +166,8 @@ class TestRegular(object):
         fd, tmpfile = tempfile.mkstemp()
         os.write(fd, os.urandom(64))
         os.close(fd)
-        task.add_path(tmpfile)
+        id = task.add_path(tmpfile)
+        task.load_from_db(id)
         tmpfile_obj = File(tmpfile)
         tmpfile_obj.calc_hashes()
         manager = self.get_manager(task)
@@ -183,7 +189,8 @@ class TestRegular(object):
         fd, tmpfile = tempfile.mkstemp()
         os.write(fd, os.urandom(64))
         os.close(fd)
-        task.add_path(tmpfile)
+        id = task.add_path(tmpfile)
+        task.load_from_db(id)
         manager = self.get_manager(task)
         copy_path = cwd("storage", "binaries", File(tmpfile).get_sha256())
 
@@ -246,7 +253,8 @@ class TestRegular(object):
     def test_start_and_wait_url(self, mrsa, msas, mrs):
         self.create_cwd()
         task = Task()
-        task.add_url("http://example.com/42")
+        id = task.add_url("http://example.com/42")
+        task.load_from_db(id)
 
         # Mock resultserver obj so we can check if add_task was called
         resulserver_obj = mock.MagicMock()
@@ -287,7 +295,8 @@ class TestRegular(object):
     def test_start_and_wait_baseline(self, mts, mrsa, msas, mrs):
         self.create_cwd()
         task = Task()
-        task.add_baseline()
+        id = task.add_baseline()
+        task.load_from_db(id)
 
         # Mock resultserver obj so we can check if add_task was called
         resulserver_obj = mock.MagicMock()
@@ -323,7 +332,8 @@ class TestRegular(object):
     def test_start_and_wait_noagent(self, mwf, mrsa, msas, mrs):
         self.create_cwd()
         task = Task()
-        task.add_service(owner="1", tags="service,mitm", timeout=120)
+        id = task.add_service(owner="1", tags="service,mitm", timeout=120)
+        task.load_from_db(id)
 
         # Mock resultserver obj so we can check if add_task was called
         resulserver_obj = mock.MagicMock()
@@ -381,7 +391,8 @@ class TestRegular(object):
     def test_stop_and_wait_dump_mem(self, msas, mrs):
         self.create_cwd()
         task = Task()
-        task.add_path(__file__, memory=True)
+        id = task.add_path(__file__, memory=True)
+        task.load_from_db(id)
 
         # Mock resultserver obj so we can check if del_task was called
         resulserver_obj = mock.MagicMock()
