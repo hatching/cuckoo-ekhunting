@@ -317,8 +317,7 @@ class TestProcessingTasks(object):
     @mock.patch("cuckoo.apps.apps.process_task")
     @mock.patch("cuckoo.apps.apps.Task")
     def test_process_task_range_single_db(self, mt, mp):
-        task = Task()
-        id = task.add_path(__file__)
+        id = submit_task.add_path(__file__)
         process_task_range(str(id))
         mt.assert_has_calls([
             mock.call().set_task(mock.ANY)
@@ -423,8 +422,9 @@ class TestProcessingTasks(object):
     def test_logger(self, p, q):
         task = Task()
         task.process = mock.MagicMock()
-        task.add_path(__file__, options={"a": "b"}, custom="foobar",
+        id = submit_task.add_path(__file__, options={"a": "b"}, custom="foobar",
                       package="baz")
+        task.load_from_db(id)
         process_task(task)
 
         p.assert_called_once()
@@ -481,7 +481,8 @@ def test_process_log_taskid():
     init_logfile("process-p0.json")
 
     task = Task()
-    task.add_url("http://google.com/", package="ie")
+    id = submit_task.add_url("http://google.com/", package="ie")
+    task.load_from_db(id)
     task.process = mock.MagicMock()
     process_task(task)
 

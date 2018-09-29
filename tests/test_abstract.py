@@ -9,10 +9,8 @@ import shutil
 import tempfile
 
 from cuckoo.common import abstracts
-from cuckoo.common import config
 from cuckoo.common.objects import Analysis
 from cuckoo.core.database import Database
-from cuckoo.core.init import write_cuckoo_conf
 from cuckoo.core.task import Task
 from cuckoo.main import cuckoo_create
 from cuckoo.misc import set_cwd
@@ -140,7 +138,8 @@ class TestAnalysisManager(object):
 
     def test_set_task(self):
         task = Task()
-        task.add_path(__file__)
+        id = task.add_path(__file__)
+        task.load_from_db(id)
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
@@ -153,7 +152,8 @@ class TestAnalysisManager(object):
 
     def test_set_target(self):
         task = Task()
-        task.add_path(__file__)
+        id = task.add_path(__file__)
+        task.load_from_db(id)
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
@@ -162,7 +162,8 @@ class TestAnalysisManager(object):
 
     def test_build_options(self):
         task = Task()
-        task.add_path(__file__, options={"free": "yes"})
+        id = task.add_path(__file__, options={"free": "yes"})
+        task.load_from_db(id)
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
@@ -196,7 +197,8 @@ class TestAnalysisManager(object):
     @mock.patch("time.sleep")
     def test_wait_finish(self, mts):
         task = Task()
-        task.add_url("http://example.com/42")
+        id = task.add_url("http://example.com/42")
+        task.load_from_db(id)
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )
@@ -207,7 +209,8 @@ class TestAnalysisManager(object):
 
     def test_request_scheduler_action(self):
         task = Task()
-        task.add_url("http://example.com/42")
+        id = task.add_url("http://example.com/42")
+        task.load_from_db(id)
         a = abstracts.AnalysisManager(
             FakeMachine(), mock.MagicMock(), mock.MagicMock()
         )

@@ -440,7 +440,8 @@ class TestScheduler(object):
     def test_get_analysis_manager_regular(self):
         s = Scheduler()
         task = Task()
-        task.add_path(__file__)
+        id = task.add_path(__file__)
+        task.load_from_db(id)
         manager = s.get_analysis_manager(task.db_task, FakeMachine())
 
         assert isinstance(manager, Regular)
@@ -451,7 +452,8 @@ class TestScheduler(object):
     def test_get_analysis_manager_service(self):
         s = Scheduler()
         task = Task()
-        task.add_service(60, "doge", [])
+        id = task.add_service(60, "doge", [])
+        task.load_from_db(id)
         manager = s.get_analysis_manager(task.db_task, FakeMachine())
 
         assert isinstance(manager, Regular)
@@ -462,7 +464,8 @@ class TestScheduler(object):
     def test_get_analysis_manager_baseline(self):
         s = Scheduler()
         task = Task()
-        task.add_baseline()
+        id = task.add_baseline()
+        task.load_from_db(id)
         manager = s.get_analysis_manager(task.db_task, FakeMachine())
 
         assert isinstance(manager, Regular)

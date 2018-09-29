@@ -114,6 +114,7 @@ class TestProcessing(object):
             options="free=yes,human.move_mouse=0", package="pdf",
             custom="doges42", platform="DogeOS"
         )
+        t.load_from_db(id)
         t.set_status("reported")
         a.set_task(t.task_dict)
         a.set_machine({
