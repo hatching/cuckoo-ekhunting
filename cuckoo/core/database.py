@@ -478,7 +478,7 @@ class Task(Base):
         lazy="subquery"
     )
     targets = relationship(
-        "Target", lazy="subquery"
+        "Target", lazy="subquery", cascade="all, delete-orphan"
     )
     errors = relationship(
         "Error", backref="tasks", cascade="save-update, delete"
