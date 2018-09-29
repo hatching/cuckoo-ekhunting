@@ -22,6 +22,7 @@ from cuckoo.core.startup import init_yara
 from cuckoo.distributed.app import create_app
 from cuckoo.main import main, cuckoo_create
 from cuckoo.misc import set_cwd, cwd, mkdir
+from tests.utils import add_task, add_target
 
 def rstring():
     return ''.join(random.choice(
@@ -53,51 +54,10 @@ class DatabaseEngine(object):
         finally:
             ses.close()
 
-    def add_url(self, url, priority=1, status="pending"):
-        url = URL(url)
-        target_id = self.d.add_target(
-            url.url, "url", url.get_crc32(), url.get_md5(),
-            url.get_sha1(), url.get_sha256(), url.get_sha512()
-        )
-        db_target = self.d.find_target(id=target_id)
-        task_id = self.d.add(targets=[db_target], priority=priority)
-        self.d.set_status(task_id, status)
-        return task_id
-
-    def add_file(self, file_path, priority=1, status="pending"):
-        fileobj = File(file_path)
-        target_id = self.d.add_target(
-            file_path, "file", fileobj.get_crc32(), fileobj.get_md5(),
-            fileobj.get_sha1(), fileobj.get_sha256(), fileobj.get_sha512(),
-            file_type=fileobj.get_type(), file_size=fileobj.get_size()
-        )
-        db_target = self.d.find_target(id=target_id)
-        task_id = self.d.add(targets=[db_target], priority=priority)
-        self.d.set_status(task_id, status)
-        return task_id
-
-    def add_test_target(self, fileobj=None, path=None, return_id=False,
-                        url=None):
-        if not fileobj and path:
-            fileobj = File(path)
-        elif url:
-            url = URL(url)
-
-        if fileobj:
-            id = self.d.add_target(
-                fileobj.file_path, "file", fileobj.get_crc32(), fileobj.get_md5(),
-                fileobj.get_sha1(), fileobj.get_sha256(), fileobj.get_sha512(),
-                file_type=fileobj.get_type(), file_size=fileobj.get_size()
-            )
-        elif url:
-            id = self.d.add_target(
-                url.url, "url", url.get_crc32(), url.get_md5(),
-                url.get_sha1(), url.get_sha256(), url.get_sha512()
-            )
-        if return_id:
-            return id
-        else:
-            return self.d.find_target(id=id)
+    def test_add_target(self):
+        count = self.d.Session().query(Target).count()
+        add_target("http://example.com", category="url")
+        assert self.d.Session().query(Target).count() == count + 1
 
     def test_add_task(self):
         fd, sample_path = tempfile.mkstemp()
@@ -106,7 +66,7 @@ class DatabaseEngine(object):
 
         # Add task.
         count = self.d.Session().query(Task).count()
-        self.add_file(sample_path)
+        add_task(sample_path, category="file")
         assert self.d.Session().query(Task).count() == count + 1
 
     def test_processing_get_task(self):
@@ -121,13 +81,34 @@ class DatabaseEngine(object):
         })
         session.commit()
 
-        t1 = self.add_url("http://google.com/1", priority=1, status="completed")
-        t2 = self.add_url("http://google.com/2", priority=2, status="completed")
-        t3 = self.add_url("http://google.com/3", priority=1, status="completed")
-        t4 = self.add_url("http://google.com/4", priority=1, status="completed")
-        t5 = self.add_url("http://google.com/5", priority=3, status="completed")
-        t6 = self.add_url("http://google.com/6", priority=1, status="completed")
-        t7 = self.add_url("http://google.com/7", priority=1, status="completed")
+        t1 = add_task(
+            "http://google.com/1", priority=1, status="completed",
+            category="url"
+        )
+        t2 = add_task(
+            "http://google.com/2", priority=2, status="completed",
+            category="url"
+        )
+        t3 = add_task(
+            "http://google.com/3", priority=1, status="completed",
+            category="url"
+        )
+        t4 = add_task(
+            "http://google.com/4", priority=1, status="completed",
+            category="url"
+        )
+        t5 = add_task(
+            "http://google.com/5", priority=3, status="completed",
+            category="url"
+        )
+        t6 = add_task(
+            "http://google.com/6", priority=1, status="completed",
+            category="url"
+        )
+        t7 = add_task(
+            "http://google.com/7", priority=1, status="completed",
+            category="url"
+        )
 
         assert self.d.processing_get_task("foo") == t5
         assert self.d.processing_get_task("foo") == t2
@@ -139,14 +120,14 @@ class DatabaseEngine(object):
         assert self.d.processing_get_task("foo") is None
 
     def test_error_exists(self):
-        task_id = self.add_url("http://google.com/")
+        task_id = add_task("http://google.com/7", category="url")
         self.d.add_error("A"*1024, task_id)
         assert len(self.d.view_errors(task_id)) == 1
         self.d.add_error("A"*1024, task_id)
         assert len(self.d.view_errors(task_id)) == 2
 
     def test_long_error(self):
-        self.add_url("http://google.com/")
+        add_task("http://google.com/", category="url")
         self.d.add_error("A"*1024, 1)
         err = self.d.view_errors(1)
         assert err and len(err[0].message) == 1024
@@ -173,10 +154,9 @@ class DatabaseEngine(object):
 
     def test_view_submit_tasks(self):
         submit_id = self.d.add_submit(None, None, None)
-        target_id = self.add_test_target(path=__file__, return_id=True)
-        db_target = self.d.find_target(id=target_id)
-        t1 = self.d.add([db_target], custom="1", submit_id=submit_id)
-        t2 = self.d.add([db_target], custom="2", submit_id=submit_id)
+        target_id = add_target(__file__, category="file")
+        t1 = add_task(custom="1", submit_id=submit_id)
+        t2 = add_task(custom="2", submit_id=submit_id)
 
         submit = self.d.view_submit(submit_id)
         assert submit.id == submit_id
@@ -192,15 +172,14 @@ class DatabaseEngine(object):
         assert tasks[1][1].custom == "2"
 
     def test_task_set_options(self):
-        db_target = self.add_test_target(path=__file__)
-        t0 = self.d.add([db_target], options={"foo": "bar"})
-        t1 = self.d.add([db_target], options="foo=bar")
+        t0 = add_task(__file__, options={"foo": "bar"})
+        t1 = add_task(__file__, options="foo=bar")
 
         assert self.d.view_task(t0).options == {"foo": "bar"}
         assert self.d.view_task(t1).options == {"foo": "bar"}
 
     def test_error_action(self):
-        task_id = self.d.add([self.add_test_target(path=__file__)])
+        task_id = add_task(__file__)
         self.d.add_error("message1", task_id)
         self.d.add_error("message2", task_id, "actionhere")
         e1, e2 = self.d.view_errors(task_id)
@@ -210,8 +189,8 @@ class DatabaseEngine(object):
         assert e2.action == "actionhere"
 
     def test_view_tasks(self):
-        t1 = self.d.add([self.add_test_target(path=__file__)])
-        t2 = self.d.add([self.add_test_target(url="http://example.com")])
+        t1 = add_task(__file__)
+        t2 = add_task("http://example.com", category="url")
         tasks = self.d.view_tasks([t1, t2])
         assert tasks[0].to_dict() == self.d.view_task(t1).to_dict()
         assert tasks[1].to_dict() == self.d.view_task(t2).to_dict()
@@ -245,10 +224,10 @@ class DatabaseEngine(object):
         assert m1.manager == "virtualbox"
         assert m4.reserved_by == 1600
 
-    def test_add(self):
+    def test_adding_task(self):
         now = datetime.datetime.now()
-        id = self.d.add(
-            [self.add_test_target(path=__file__)], 0, "py", "free=yes", 3,
+        id = add_task(
+            __file__, "file", 0, "py", "free=yes", 3,
             "custom", "owner", "machine1", "DogeOS", ["tag1"], False,
             False, now, "regular", None, now
         )
@@ -299,11 +278,7 @@ class DatabaseEngine(object):
         os.close(fd)
         target = File(sample_path)
 
-        id = self.d.add_target(
-            sample_path, "file", target.get_crc32(), target.get_md5(),
-            target.get_sha1(), target.get_sha256(), target.get_sha512(),
-            file_type=target.get_type(), file_size=target.get_size()
-        )
+        id = add_target(sample_path, "file")
         db_target = self.d.find_target(id=id)
 
         assert id is not None
@@ -320,10 +295,7 @@ class DatabaseEngine(object):
     def test_add_target_url(self):
         target = URL("http://example.com/")
 
-        id = self.d.add_target(
-            target.url, "url", target.get_crc32(), target.get_md5(),
-            target.get_sha1(), target.get_sha256(), target.get_sha512()
-        )
+        id = add_target(target.url, "url")
         db_target = self.d.find_target(id=id)
 
         assert id is not None
@@ -340,7 +312,7 @@ class DatabaseEngine(object):
         os.write(fd, os.urandom(64))
         os.close(fd)
         target = File(sample_path)
-        id = self.add_test_target(target, return_id=True)
+        id = add_target(sample_path, category="file")
 
         assert self.d.find_target(id=id).id == id
         assert self.d.find_target(crc32=target.get_crc32()).id == id
@@ -360,7 +332,7 @@ class DatabaseEngine(object):
             os.write(fd, randbytes)
             os.close(fd)
             target = File(sample_path)
-            ids.append(self.add_test_target(target, return_id=True))
+            ids.append(add_target(sample_path, category="file"))
 
         db_target = self.d.find_target(
             sha256=target.get_sha256(), target=paths[1]
@@ -370,11 +342,10 @@ class DatabaseEngine(object):
 
     def test_fetch_with_machine(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
-        db_target = self.add_test_target(path=__file__)
-        self.d.add([db_target], tags=["service"])
-        t2 = self.d.add([db_target], machine="machine1")
-        self.d.add([db_target], start_on=future)
-        self.d.add([db_target])
+        add_task(__file__, category="file", tags=["service"])
+        t2 = add_task(__file__, category="file", machine="machine1")
+        add_task(__file__, category="file", start_on=future)
+        add_task(__file__, category="file")
 
         t = self.d.fetch(machine="machine1", service=False)
 
@@ -382,20 +353,18 @@ class DatabaseEngine(object):
         assert t.status == "pending"
 
     def test_fetch_service_false(self):
-        db_target = self.add_test_target(path=__file__)
-        self.d.add([db_target], tags=["service"])
-        t2 = self.d.add([db_target])
+        add_task(__file__, category="file", tags=["service"])
+        t2 = add_task(__file__, category="file")
 
         t = self.d.fetch(service=False)
         assert t.id == t2
         assert t.status == "pending"
 
     def test_fetch_service_true(self):
-        db_target = self.add_test_target(path=__file__)
-        t1 = self.d.add([db_target], tags=["service"])
-        self.d.add([db_target], machine="machine1")
-        self.d.add([db_target])
-        self.d.add([db_target])
+        t1 = add_task(__file__, category="file", tags=["service"])
+        add_task(__file__, category="file", machine="machine1")
+        add_task(__file__)
+        add_task(__file__)
 
         task = self.d.fetch()
         assert task.id == t1
@@ -403,9 +372,8 @@ class DatabaseEngine(object):
 
     def test_fetch_use_start_on_true(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
-        db_target = self.add_test_target(path=__file__)
-        self.d.add([db_target], start_on=future, priority=999)
-        t2 = self.d.add([db_target])
+        add_task(__file__, category="file", start_on=future, priority=999)
+        t2 = add_task(__file__, category="file")
         t = self.d.fetch(service=False)
 
         assert t.id == t2
@@ -413,37 +381,34 @@ class DatabaseEngine(object):
 
     def test_fetch_use_start_on_false(self):
         future = datetime.datetime(2200, 5, 12, 12, 12)
-        db_target = self.add_test_target(path=__file__)
-        t1 = self.d.add([db_target], start_on=future, priority=999)
-        self.d.add([db_target])
+        t1 = add_task(__file__, category="file", start_on=future, priority=999)
+        add_task(__file__, category="file")
 
         t = self.d.fetch(use_start_on=False, service=False)
         assert t.id == t1
         assert t.status == "pending"
 
     def test_fetch_use_exclude(self):
-        db_target = self.add_test_target(path=__file__)
-        t1 = self.d.add([db_target], priority=999)
-        t2 = self.d.add([db_target], priority=999)
-        t3 = self.d.add([db_target], priority=999)
-        t4 = self.d.add([db_target], priority=998)
+
+        t1 = add_task(__file__, category="file", priority=999)
+        t2 = add_task(__file__, category="file", priority=999)
+        t3 = add_task(__file__, category="file", priority=999)
+        t4 = add_task(__file__, category="file", priority=999)
 
         t = self.d.fetch(service=False, exclude=[t1,t2,t3])
         assert t.id == t4
         assert t.status == "pending"
 
     def test_fetch_specific_task(self):
-        db_target = self.add_test_target(path=__file__)
-        t1 = self.d.add([db_target], priority=999)
-        t2 = self.d.add([db_target], priority=999)
+        t1 = add_task(__file__, category="file", priority=999)
+        t2 = add_task(__file__, category="file", priority=999)
         t = self.d.fetch(task_id=t1)
         assert t.id == t1
         assert t.status == "pending"
 
     def test_lock_machine(self):
-        db_target = self.add_test_target(path=__file__)
-        t1 = self.d.add([db_target], tags=["app1", "office7"])
-        t2 = self.d.add([db_target], tags=["office15"])
+        t1 = add_task(__file__, category="file", tags=["app1", "office7"])
+        t2 = add_task(__file__, category="file", tags=["app1", "office15"])
 
         self.d.add_machine(
             "name1", "name1", "1.2.3.4", "windows", "",
@@ -473,12 +438,12 @@ class DatabaseEngine(object):
         assert m3.name == "name3"
 
     def test_list_tasks(self):
-        db_target = self.add_test_target(path=__file__)
-        t1 = self.d.add(
-            [db_target],  owner="doge", options={"route": "vpn511"}
+        t1 = add_task(
+            __file__, category="file",  owner="doge",
+            options={"route": "vpn511"}
         )
-        t2 = self.d.add([db_target])
-        self.d.add([db_target])
+        t2 = add_task(__file__, category="file")
+        add_task(__file__, category="file")
         self.d.set_status(t2, "reported")
         self.d.set_status(t1, "reported")
 
@@ -491,9 +456,8 @@ class DatabaseEngine(object):
         assert len(tasks3) == 2
 
     def test_list_tasks_between(self):
-        db_target = self.add_test_target(path=__file__)
         for x in range(5):
-             self.d.add([db_target])
+            add_task(__file__, category="file")
 
         tasks = self.d.list_tasks(
             filter_by="id", operators="between", values=(1, 3)
@@ -503,9 +467,8 @@ class DatabaseEngine(object):
     def test_list_tasks_multiple_filter(self):
         ids = []
         future = None
-        db_target = self.add_test_target(path=__file__)
         for x in range(10):
-            id = self.d.add([db_target])
+            id = add_task(__file__, category="file")
             ids.append(id)
             future = datetime.datetime.now() + datetime.timedelta(days=id)
             ses = self.d.Session()
@@ -522,18 +485,16 @@ class DatabaseEngine(object):
         assert tasks[0].id == 5
 
     def test_list_tasks_offset_limit(self):
-        db_target = self.add_test_target(path=__file__)
         for x in range(10):
-            self.d.add([db_target])
+            add_task(__file__, category="file")
 
         tasks = self.d.list_tasks(offset=5, limit=10, order_by="id")
         assert len(tasks) == 5
         assert tasks[4].id == 10
 
     def test_list_tasks_notvalue(self):
-        db_target = self.add_test_target(path=__file__)
         for x in range(10):
-            id = self.d.add([db_target])
+            id = add_task(__file__, category="file")
             if id % 2 == 0:
                 self.d.set_status(id, "running")
 
@@ -545,9 +506,8 @@ class DatabaseEngine(object):
         assert tasks[4].id == 9
 
     def test_list_tasks_noresults(self):
-        db_target = self.add_test_target(path=__file__)
         for x in range(5):
-            self.d.add([db_target])
+            add_task(__file__, category="file")
         tasks = self.d.list_tasks(status="reported")
         assert tasks == []
 
@@ -636,7 +596,7 @@ class DatabaseEngine(object):
         os.write(fd, os.urandom(64))
         os.close(fd)
         target = File(sample_path)
-        id = self.add_test_target(fileobj=target, return_id=True)
+        id = add_target(sample_path, category="file")
         db_target = self.d.find_target(id=id)
         db_target = db_target.to_dict()
 
@@ -654,14 +614,15 @@ class DatabaseEngine(object):
 
     def test_task_multiple_targets(self):
         db_targets = []
+        task_id = add_task()
         for x in range(10):
             fd, sample_path = tempfile.mkstemp()
             os.write(fd, os.urandom(64))
             os.close(fd)
-            db_targets.append(self.add_test_target(path=sample_path))
-        taskid = self.d.add(db_targets)
-        task = self.d.view_task(taskid)
-        assert task.id == taskid
+            add_target(sample_path, category="file", task_id=task_id)
+
+        task = self.d.view_task(task_id)
+        assert task.id == task_id
         assert len(task.targets) == 10
 
     # def test_add_group(self):
@@ -867,14 +828,6 @@ class DatabaseMigrationEngine(object):
     URI = None
     SRC = None
 
-    def add_test_url(self, url):
-        url = URL(url)
-        id = self.d.add_target(
-            url.url, "url", url.get_crc32(), url.get_md5(),
-            url.get_sha1(), url.get_sha256(), url.get_sha512()
-        )
-        return self.d.find_target(id=id)
-
     def setup_class(cls):
         set_cwd(tempfile.mkdtemp())
 
@@ -901,24 +854,19 @@ class DatabaseMigrationEngine(object):
         assert version[0][0] == SCHEMA_VERSION
 
     def test_long_error(self):
-        db_target = self.add_test_url("http://example1.com")
-
-        task_id = self.d.add([db_target])
+        task_id = add_task()
         self.d.add_error("A"*1024, task_id)
         err = self.d.view_errors(task_id)
         assert err and len(err[0].message) == 1024
 
     def test_long_options_custom(self):
-        task_id = self.d.add(
-            [self.add_test_url("http://example2.com")],
-            options="A"*1024, custom="B"*1024,
-        )
-        task = self.d.view_task(task_id)
+        task_id = add_task(options="A"*1024, custom="B"*1024)
+        task = self.d.view_task(task_id, details=False)
         assert task._options == "A"*1024
         assert task.custom == "B"*1024
 
     def test_empty_submit_id(self):
-        task_id = self.d.add([self.add_test_url("http://example3.com")])
+        task_id = add_task("http://example3.com", category="url")
         task = self.d.view_task(task_id)
         assert task.submit_id is None
 
