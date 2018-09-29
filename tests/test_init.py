@@ -336,7 +336,10 @@ def test_all_config_written():
     set_cwd(tempfile.mkdtemp())
     mkdir(cwd("conf"))
 
-    lookups = []
+    # Add the force_port entry as it has been deleted from the config files,
+    # but remains in the config.py to prevent errors with users that have it
+    # in their config.
+    lookups = ["cuckoo:resultserver:force_port"]
 
     class LookupDict(dict):
         parents = []

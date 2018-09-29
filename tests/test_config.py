@@ -1166,11 +1166,20 @@ def test_migration_206_210():
 
     Files.create(cwd("conf"), "auxiliary.conf", """
 [replay]
+
+[redsocks]
     """)
+    Files.create(cwd("conf"), "routing.conf", """
+[socks5]
+        """)
     cfg = Config.from_confdir(cwd("conf"), loose=True)
     cfg = migrate(cfg, "2.0.6", "2.1.0")
 
     assert cfg["auxiliary"]["replay"]["certificate"] == "bin/cert.p12"
+    assert cfg["auxiliary"]["redsocks"]["enabled"] is True
+    assert cfg["auxiliary"]["redsocks"]["redsocks"] == "/usr/sbin/redsocks"
+    assert cfg["auxiliary"]["redsocks"]["delete_config"] is False
+    assert cfg["routing"]["socks5"]["dnsport"] == 53
 
 class FullMigration(object):
     DIRPATH = None
