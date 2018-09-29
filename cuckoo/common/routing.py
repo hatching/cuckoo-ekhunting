@@ -32,6 +32,37 @@ class Route(object):
             pass
         elif self.route == "tor":
             pass
+        elif self.route == "socks5":
+            if not config("auxiliary:redsocks:enabled"):
+                log.error(
+                    "Socks5 network routing was specified, but the Redsocks "
+                    "auxiliary module is disabled. This module is required to "
+                    "use socks5 routing",  extra={
+                        "action": "network.route",
+                        "status": "error",
+                        "route": self.route,
+                    }
+                )
+                self.route = "none"
+                self.task.options["route"] = "none"
+                self.interface = None
+                self.rt_table = None
+
+            elif not self.task.options.get("socks5.localport"):
+                log.warning(
+                    "No redsocks instance was configured and started to"
+                    " redirect traffic to a socks5 proxy. Setting route"
+                    " to 'none'", extra={
+                        "action": "network.route",
+                        "status": "error",
+                        "route": self.route,
+                    }
+                )
+                self.route = "none"
+                self.task.options["route"] = "none"
+                self.interface = None
+                self.rt_table = None
+
         elif self.route == "internet":
             if config("routing:routing:internet") == "none":
                 log.warning(
@@ -103,10 +134,18 @@ class Route(object):
 
         if self.route == "tor":
             rooter(
-                "tor_enable", self.machine.ip,
+                "proxy_enable", self.machine.ip,
                 str(config("cuckoo:resultserver:ip")),
                 str(config("routing:tor:dnsport")),
                 str(config("routing:tor:proxyport"))
+            )
+
+        if self.route == "socks5":
+            rooter(
+                "proxy_enable", self.machine.ip,
+                str(config("cuckoo:resultserver:ip")),
+                str(config("routing:socks5:dnsport")),
+                str(self.task.options["socks5.localport"])
             )
 
         if self.interface:
@@ -152,8 +191,16 @@ class Route(object):
 
         if self.route == "tor":
             rooter(
-                "tor_disable", self.machine.ip,
+                "proxy_disable", self.machine.ip,
                 str(config("cuckoo:resultserver:ip")),
                 str(config("routing:tor:dnsport")),
                 str(config("routing:tor:proxyport"))
+            )
+
+        if self.route == "socks5":
+            rooter(
+                "proxy_disable", self.machine.ip,
+                str(config("cuckoo:resultserver:ip")),
+                str(config("routing:socks5:dnsport")),
+                str(self.task.options["socks5.localport"])
             )
