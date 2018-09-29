@@ -36,14 +36,14 @@ class FakeMachine(object):
         self.locked = True
 
 class TestRoute(object):
-    def setup_class(self):
+    def setup(self):
         self.cwd = tempfile.mkdtemp()
         set_cwd(self.cwd)
         cuckoo_create()
         self.db = Database()
         self.db.connect()
 
-    def teardown_class(self):
+    def teardown(self):
         if os.path.isdir(self.cwd):
             shutil.rmtree(self.cwd)
 
@@ -104,7 +104,7 @@ class TestRoute(object):
         assert route.interface is None
         assert route.rt_table is None
         mr.assert_called_once_with(
-            "tor_enable", "192.168.56.10", "192.168.56.1", "5353", "9040"
+            "proxy_enable", "192.168.56.10", "192.168.56.1", "5353", "9040"
         )
 
     @mock.patch("cuckoo.common.routing.rooter")
@@ -118,6 +118,66 @@ class TestRoute(object):
         mr.assert_called_once_with(
             "drop_enable", "192.168.56.10", "192.168.56.1", "2042"
         )
+
+    @mock.patch("cuckoo.common.routing.rooter")
+    def test_route_network_socks5(self, mr):
+        write_cuckoo_conf(cfg={
+            "auxiliary": {
+                "redsocks": {
+                    "enabled": True
+                }
+            }
+        })
+        route = Route(FakeTask(options={
+            "route": "socks5",
+            "socks5.localport": 4242
+        }), FakeMachine())
+        route.route_network()
+        assert route.route == "socks5"
+        assert route.interface is None
+        assert route.rt_table is None
+        mr.assert_called_once_with(
+            "proxy_enable", "192.168.56.10", "192.168.56.1", "53", "4242"
+        )
+
+    @mock.patch("cuckoo.common.routing.rooter")
+    def test_route_network_socks5_disabled(self, mr):
+        write_cuckoo_conf(cfg={
+            "auxiliary": {
+                "redsocks": {
+                    "enabled": False
+                }
+            }
+        })
+        route = Route(FakeTask(options={
+            "route": "socks5",
+            "socks5.localport": 4242
+        }), FakeMachine())
+        route.route_network()
+        assert route.route == "none"
+        assert route.task.options["route"] is "none"
+        assert route.interface is None
+        assert route.rt_table is None
+        mr.assert_not_called()
+
+    @mock.patch("cuckoo.common.routing.rooter")
+    def test_route_network_socks5_noport(self, mr):
+        write_cuckoo_conf(cfg={
+            "auxiliary": {
+                "redsocks": {
+                    "enabled": True
+                }
+            }
+        })
+        route = Route(FakeTask(options={
+            "route": "socks5"
+        }), FakeMachine())
+        route.route_network()
+        assert route.route == "none"
+        assert route.task.options["route"] is "none"
+        assert route.interface is None
+        assert route.rt_table is None
+        mr.assert_not_called()
 
     @mock.patch("cuckoo.common.routing.rooter")
     def test_route_network_vpn(self, mr):
@@ -177,6 +237,21 @@ class TestRoute(object):
 
         mr.assert_has_calls([
             mock.call(
-                "tor_disable", "192.168.56.10", "192.168.56.1", "5353", "9040"
+                "proxy_disable", "192.168.56.10", "192.168.56.1", "5353",
+                "9040"
+            )
+        ])
+
+    @mock.patch("cuckoo.common.routing.rooter")
+    def test_unroute_network_socks5(self, mr):
+        route = Route(FakeTask(), FakeMachine())
+        route.route = "socks5"
+        route.task.options["socks5.localport"] = 4242
+        route.unroute_network()
+
+        mr.assert_has_calls([
+            mock.call(
+                "proxy_disable", "192.168.56.10", "192.168.56.1", "53",
+                "4242",
             )
         ])
