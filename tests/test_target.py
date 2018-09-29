@@ -4,6 +4,7 @@
 
 import os
 import pytest
+import mock
 import shutil
 import tempfile
 
@@ -28,7 +29,7 @@ class TestTarget(object):
         if os.path.isdir(cwd_path):
             shutil.rmtree(cwd_path)
 
-    def create_target_file(self, target=None):
+    def create_target_file(self, target=__file__):
         fileobj = File(target or __file__)
         ses = self.db.Session()
         task_id = Task().add()
@@ -47,7 +48,7 @@ class TestTarget(object):
         ses.close()
         return target_id
 
-    def create_target_file(self, url):
+    def create_target_url(self, url):
         urlobj = URL(url)
         ses = self.db.Session()
         task_id = Task().add()
@@ -80,7 +81,7 @@ class TestTarget(object):
         assert isinstance(self.t.helper, File)
 
     def test_set_target_url(self):
-        id = self.create_target_url()
+        id = self.create_target_url("http://example.com/")
         db_target = self.db.find_target(id=id)
         self.t.set_target(db_target)
         assert self.t.id == id
@@ -117,6 +118,15 @@ class TestTarget(object):
         t1 = self.t.create_url("")
         assert t1 is None
 
+    def test_create_urls(self):
+        urls = ["http://example.com", "example.net", "https://example.org"]
+        dbtargets = self.t.create_urls(urls)
+        assert len(dbtargets) == 3
+        for t in dbtargets:
+            assert isinstance(t, DbTarget)
+            assert t.category == "url"
+            assert t.target == urls[dbtargets.index(t)]
+
     def test_create_file(self):
         dbtarget = self.t.create_file(__file__)
         fileobj = File(__file__)
@@ -133,16 +143,16 @@ class TestTarget(object):
         assert dbtarget.file_size == fileobj.get_size()
         assert os.path.exists(cwd("storage", "binaries", fileobj.get_sha256()))
 
-    def test_create_file_duplicate(self):
+    @mock.patch("cuckoo.core.target.Files.copy")
+    def test_create_file_duplicate(self, mc):
         fd, path = tempfile.mkstemp()
         os.write(fd, os.urandom(8))
         os.close(fd)
-        id1 = self.t.create_file(__file__)
-        id2 = self.t.create_file(__file__)
-        id3 = self.t.create_file(path)
-        assert id1 is not None
-        assert id1 == id2
-        assert id3 != id1
+        f = File(path)
+        shutil.copyfile(path, cwd("storage", "binaries", f.get_sha256()))
+        dbtarget = self.t.create_file(path)
+        dbtarget2 = self.t.create_file(path)
+        mc.assert_not_called()
 
     def test_create_file_invalid(self):
         # Non-existing path
@@ -160,32 +170,30 @@ class TestTarget(object):
 
     def test_create_archive(self):
         archive = "tests/files/pdf0.zip"
-        id = self.t.create_archive(archive)
+        dbtarget = self.t.create_archive(archive)
         fileobj = File(archive)
 
-        assert id == 1
-        assert self.t.target == archive
-        assert self.t.id == 1
-        assert self.t.category == "archive"
-        assert self.t.crc32 == fileobj.get_crc32()
-        assert self.t.md5 == fileobj.get_md5()
-        assert self.t.sha1 == fileobj.get_sha1()
-        assert self.t.sha256 == fileobj.get_sha256()
-        assert self.t.sha512 == fileobj.get_sha512()
-        assert self.t.ssdeep == fileobj.get_ssdeep()
-        assert self.t.file_type == fileobj.get_type()
-        assert self.t.file_size == fileobj.get_size()
+        assert dbtarget.target == archive
+        assert dbtarget.category == "archive"
+        assert dbtarget.crc32 == fileobj.get_crc32()
+        assert dbtarget.md5 == fileobj.get_md5()
+        assert dbtarget.sha1 == fileobj.get_sha1()
+        assert dbtarget.sha256 == fileobj.get_sha256()
+        assert dbtarget.sha512 == fileobj.get_sha512()
+        assert dbtarget.ssdeep == fileobj.get_ssdeep()
+        assert dbtarget.file_type == fileobj.get_type()
+        assert dbtarget.file_size == fileobj.get_size()
         assert os.path.exists(cwd("storage", "binaries", fileobj.get_sha256()))
         assert self.t.is_file
 
-    def test_create_archive_duplicate(self):
+    @mock.patch("cuckoo.core.target.Files.copy")
+    def test_create_archive_duplicate(self, mc):
         archive = "tests/files/pdf0.zip"
-        id1 = self.t.create_archive(archive)
-        id2 = self.t.create_archive(archive)
-        id3 = self.t.create_archive(__file__)
-        assert id1 is not None
-        assert id1 == id2
-        assert id3 != id1
+        f = File(archive)
+        shutil.copyfile(archive, cwd("storage", "binaries", f.get_sha256()))
+        self.t.create_archive(archive)
+        self.t.create_archive(archive)
+        mc.assert_not_called()
 
     def test_create_archive_invalid(self):
         # Non-existing path
@@ -264,9 +272,8 @@ class TestTarget(object):
         assert not os.path.exists(copy_path)
 
     def test_getitem(self):
-        t1 = self.t.create_file(__file__)
+        dbtarget = self.t.create_file(__file__)
         fileobj = File(__file__)
-        assert self.t["id"] == t1
         assert self.t["target"] == __file__
         assert self.t["category"] == "file"
         assert self.t["crc32"] == fileobj.get_crc32()
@@ -277,6 +284,7 @@ class TestTarget(object):
         assert self.t["ssdeep"] == fileobj.get_ssdeep()
         assert self.t["file_size"] == fileobj.get_size()
         assert self.t["file_type"] == fileobj.get_type()
+        assert self.t["task_id"] is None
 
         with pytest.raises(KeyError):
             self.t["n0N3xisting"]
