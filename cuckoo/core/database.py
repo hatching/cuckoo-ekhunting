@@ -802,18 +802,16 @@ class Database(object):
         @return: operation status
         """
         session = self.Session()
+        columns = {
+            "status": status
+        }
+        if status == TASK_RUNNING:
+            columns["started_on"] = datetime.datetime.now()
+        elif status == TASK_COMPLETED:
+            columns["completed_on"] = datetime.datetime.now()
+
         try:
-            row = session.query(Task).get(task_id)
-            if not row:
-                return
-
-            row.status = status
-
-            if status == TASK_RUNNING:
-                row.started_on = datetime.datetime.now()
-            elif status == TASK_COMPLETED:
-                row.completed_on = datetime.datetime.now()
-
+            session.query(Task).filter_by(id=task_id).update(columns)
             session.commit()
         except SQLAlchemyError as e:
             log.exception("Database error setting status: %s", e)
@@ -829,12 +827,9 @@ class Database(object):
         """
         session = self.Session()
         try:
-            row = session.query(Task).get(task_id)
-            if not row:
-                return
-
-            row.machine = machine
-
+            session.query(Task).filter_by(id=task_id).update({
+                "machine": machine
+            })
             session.commit()
         except SQLAlchemyError as e:
             log.exception("Database error setting status: %s", e)
@@ -893,11 +888,9 @@ class Database(object):
         """
         session = self.Session()
         try:
-            row = session.query(Task).get(task_id)
-            if not row:
-                return
-
-            row.route = route
+            session.query(Task).filter_by(id=task_id).update({
+                "route": route
+            })
             session.commit()
         except SQLAlchemyError as e:
             log.exception("Database error setting route: %s", e)
@@ -1097,25 +1090,16 @@ class Database(object):
         @param status: new virtual machine status
         """
         session = self.Session()
+        columns = {
+            "status": status,
+            "status_changed_on": datetime.datetime.now()
+        }
         try:
-            machine = session.query(Machine).filter_by(label=label).first()
+            session.query(Machine).filter_by(label=label).update(columns)
         except SQLAlchemyError as e:
-            log.exception("Database error setting machine status: %s", e)
-            session.close()
-            return
-
-        if machine:
-            machine.status = status
-            machine.status_changed_on = datetime.datetime.now()
-            try:
-                session.commit()
-                session.refresh(machine)
-            except SQLAlchemyError as e:
-                log.exception("Database error setting machine status: %s", e)
-                session.rollback()
-            finally:
-                session.close()
-        else:
+            log.exception("Database error updating machine status: %s", e)
+            session.rollback()
+        finally:
             session.close()
 
     @classlock
@@ -1125,24 +1109,18 @@ class Database(object):
         @param rcparams: dict with keys: protocol, host, port
         """
         session = self.Session()
+        if isinstance(rcparams, dict):
+            rcparams = emit_options(rcparams)
+
         try:
-            machine = session.query(Machine).filter_by(label=label).first()
+            session.query(Machine).filter_by(label=label).update({
+                "_rcparams": rcparams
+            })
+            session.commit()
         except SQLAlchemyError as e:
             log.exception("Database error setting machine rcparams: %s", e)
-            session.close()
-            return
-
-        if machine:
-            machine.rcparams = rcparams
-            try:
-                session.commit()
-                session.refresh(machine)
-            except SQLAlchemyError as e:
-                log.exception("Database error setting machine rcparams: %s", e)
-                session.rollback()
-            finally:
-                session.close()
-        else:
+            session.rollback()
+        finally:
             session.close()
 
     @classlock
@@ -1267,7 +1245,7 @@ class Database(object):
 
             tasklist = search.limit(limit).offset(offset).all()
         except SQLAlchemyError as e:
-            log.error("Database error retrieving a list of tasks: %s", e)
+            log.exception("Database error retrieving a list of tasks: %s", e)
         finally:
             session.close()
         return tasklist
@@ -1778,7 +1756,7 @@ class Database(object):
                 session.expunge(lta)
             return lta
         except SQLAlchemyError as e:
-            log.error("Error retrieving longterm analysis: %s", e)
+            log.exception("Error retrieving longterm analysis: %s", e)
         finally:
             session.close()
 
@@ -1796,7 +1774,7 @@ class Database(object):
             session.commit()
             longterm_id = lta.id
         except SQLAlchemyError as e:
-            log.error("Error creating new longterm analysis")
+            log.exception("Error creating new longterm analysis")
             session.rollback()
             return None
         finally:
@@ -1817,7 +1795,9 @@ class Database(object):
             })
             session.commit()
         except SQLAlchemyError as e:
-            log.error("Error while updating latest task for longterm: %s", e)
+            log.exception(
+                "Error while updating latest task for longterm: %s", e
+            )
         finally:
             session.close()
 
@@ -1833,7 +1813,7 @@ class Database(object):
             })
             session.commit()
         except SQLAlchemyError as e:
-            log.error("Error while updating machine for longterm: %s", e)
+            log.exception("Error while updating machine for longterm: %s", e)
         finally:
             session.close()
 
