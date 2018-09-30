@@ -6,7 +6,6 @@
 import datetime
 import json
 import logging
-import os
 import sys
 import threading
 import operator
@@ -16,11 +15,11 @@ from cuckoo.common.config import config, parse_options, emit_options
 from cuckoo.common.exceptions import CuckooDatabaseError
 from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.exceptions import CuckooDependencyError
-from cuckoo.common.objects import URL, Dictionary
+from cuckoo.common.objects import Dictionary
 from cuckoo.common.utils import Singleton, classlock, json_encode
 from cuckoo.misc import cwd, format_command
 
-from sqlalchemy import create_engine, Column, not_, func, and_
+from sqlalchemy import create_engine, Column, not_, func
 from sqlalchemy import Integer, String, Boolean, DateTime, Enum
 from sqlalchemy import ForeignKey, Text, Index, Table, TypeDecorator
 from sqlalchemy.ext.declarative import declarative_base
@@ -74,16 +73,6 @@ tasks_tags = Table(
     Column("tag_id", Integer, ForeignKey("tags.id"))
 )
 
-# Secondary table used to keep track of what targets belong to what tasks
-# tasks_targets = Table(
-#     "tasks_targets", Base.metadata,
-#     Column("task_id", Integer(), ForeignKey("tasks.id", ondelete="CASCADE")),
-#     Column("target_id", Integer(), ForeignKey("targets.id")),
-#     Column("targetgroup_id", Integer(), ForeignKey("targetgroups.id")),
-#     Index("ix_tasks_targets", "task_id", "target_id", unique=True)
-# )
-
-
 class JsonType(TypeDecorator):
     """Custom JSON type."""
     impl = Text
@@ -103,23 +92,6 @@ class JsonTypeList255(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         return json.loads(value) if value else []
-
-# class TargetTargetgroup(Base):
-#     """Secondary table to manage target and targetgroup relationships"""
-#     __tablename__ = "targets_targetgroups"
-#
-#     target_id = Column(
-#         Integer(), ForeignKey("targets.id", ondelete="CASCADE"),
-#         nullable=False, primary_key=True,
-#     )
-#     targetgroup_id = Column(
-#         Integer(), ForeignKey("targetgroups.id", ondelete="CASCADE"),
-#         nullable=False, primary_key=True
-#     )
-#
-#     __table_args__ = Index(
-#         "ix_targets_targetgroups", "target_id", "targetgroup_id", unique=True
-#     ),
 
 class Machine(Base):
     """Configured virtual machines to be used as guests."""
@@ -236,37 +208,6 @@ class Submit(Base):
         self.submit_type = submit_type
         self.data = data
 
-# class Alert(Base):
-#     """Dashboard alert history"""
-#     __tablename__ = "alerts"
-#
-#     id = Column(Integer(), primary_key=True)
-#     timestamp = Column(DateTime, nullable=False, default=datetime.datetime.now)
-#     level = Column(Integer(), nullable=False, default=1)
-#     title = Column(String(255), nullable=False)
-#     content = Column(Text(), nullable=False)
-#     target = Column(Text(), nullable=True)
-#     targetgroup_name = Column(String(255), nullable=True)
-#     task_id = Column(Integer(), nullable=True)
-#
-#     def __init__(self, level, title, content):
-#         self.level = level
-#         self.title = title
-#         self.content = content
-#
-#     def to_dict(self):
-#         """Turn alert into dict"""
-#         d = {}
-#
-#         for column in self.__table__.columns:
-#             value = getattr(self, column.name)
-#             if isinstance(value, datetime.datetime):
-#                 d[column.name] = value.strftime("%Y-%m-%d %H:%M:%S")
-#             else:
-#                 d[column.name] = value
-#
-#         return d
-
 class Longterm(Base):
     """Longterm analysis details"""
     __tablename__ = "longterms"
@@ -322,10 +263,6 @@ class Target(Base):
     task_id = Column(
         Integer(), ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False
-    )
-    # groups = relationship(
-    #     "TargetGroup", secondary=TargetTargetgroup.__table__, lazy="subquery"
-    # )
 
     __table_args__ = (
         Index(
@@ -367,41 +304,6 @@ class Target(Base):
         self.file_size = file_size
         self.file_type = file_type
         self.task_id = task_id
-
-# class TargetGroup(Base):
-#     """Groups for targets"""
-#     __tablename__ = "targetgroups"
-#
-#     id = Column(Integer(), primary_key=True)
-#     name = Column(String(255), nullable=False, unique=True)
-#     description = Column(Text(), nullable=False)
-#     last_task = Column(Integer(), ForeignKey("tasks.id"), nullable=True)
-#     priority = Column(Integer(), server_default="1", nullable=False)
-#     targets = relationship(
-#         "Target", secondary=TargetTargetgroup.__table__, lazy="noload"
-#     )
-#
-#     def to_dict(self):
-#         """Converts object to dict.
-#         @param dt: encode datetime objects
-#         @return: dict
-#         """
-#         d = Dictionary()
-#         for column in self.__table__.columns:
-#             d[column.name] = getattr(self, column.name)
-#
-#         d["targets"] = [target.to_dict() for target in self.targets]
-#         return d
-#
-#     def to_json(self):
-#         """Converts object to JSON.
-#         @return: JSON data
-#         """
-#         return json_encode(self.to_dict())
-#
-#     def __init__(self, name, description):
-#         self.name = name
-#         self.description = description
 
 class Error(Base):
     """Analysis errors."""
@@ -1494,257 +1396,6 @@ class Database(object):
         finally:
             session.close()
 
-    # def add_group(self, name, desc):
-    #     """Create a new target group
-    #     @param name: The name of the group, should be unique.
-    #     @param desc: A description of this group."""
-    #     session = self.Session()
-    #     group = TargetGroup(name, desc)
-    #     try:
-    #         session.add(group)
-    #         session.commit()
-    #         id = group.id
-    #     except SQLAlchemyError as e:
-    #         log.error("Error while adding new target group: %s", e)
-    #         return None
-    #     finally:
-    #         session.close()
-    #     return id
-    #
-    # def find_group(self, name=None, group_id=None, details=False):
-    #     """Find a group by name
-    #     @param name: Name of the group to find
-    #     @param details: Loads all targets that are members of this group"""
-    #     session = self.Session()
-    #     try:
-    #         group = session.query(TargetGroup)
-    #         if details:
-    #             group = session.query(TargetGroup).options(
-    #                 joinedload("targets")
-    #             )
-    #         if name:
-    #             group = group.filter_by(name=name)
-    #         if group_id:
-    #             group = group.filter_by(id=group_id)
-    #
-    #         group = group.first()
-    #
-    #         if group:
-    #             session.expunge(group)
-    #     except SQLAlchemyError as e:
-    #         log.error("Error find group '%s': %s", name, e)
-    #         return None
-    #     finally:
-    #         session.close()
-    #
-    #     return group
-    #
-    # def mass_group_add(self, urls, group_id):
-    #     """Bulk add a list of url strings to a provided group.
-    #     If no target exists for a provided urls, it will be created.
-    #     @param urls: A list of URLs, may be of existing targets.
-    #     @param group_id: A group identifier to add the targets to."""
-    #     urls = set(urls)
-    #
-    #     # Add helpers around the targets so their hashes etc can be used
-    #     # in lookups and when inserting
-    #     urls = [URL(target) for target in urls]
-    #
-    #     # Retrieve all existing targets to prevent breaking any contraints
-    #     # and so we can add existing ones to a second target group
-    #     session = self.Session()
-    #     try:
-    #         existing = session.query(Target.id, Target.md5).filter(
-    #             Target.md5.in_(set(url.get_md5() for url in urls))
-    #         ).all()
-    #     except SQLAlchemyError as e:
-    #         log.error("Failed to find existing targets: %s", e)
-    #         return False
-    #     finally:
-    #         session.close()
-    #
-    #     # Prepare the new targets to be bulk inserted
-    #     new_targets = []
-    #     existing_md5 = set(t.md5 for t in existing)
-    #     for new in [url for url in urls if url.get_md5() not in existing_md5]:
-    #         new_target = dict(
-    #             target=new.url,
-    #             category="url",
-    #             crc32=new.get_crc32(),
-    #             md5=new.get_md5(),
-    #             sha1=new.get_sha1(),
-    #             sha256=new.get_sha256(),
-    #             sha512=new.get_sha512(),
-    #             ssdeep=new.get_ssdeep()
-    #         )
-    #         new_targets.append(new_target)
-    #
-    #     all_ids = []
-    #     # Bulk insert new targets and retrieve their ids to be used when
-    #     # adding them to the specified group
-    #     if new_targets:
-    #         session = self.Session()
-    #         try:
-    #             self.engine.execute(Target.__table__.insert(), new_targets)
-    #
-    #             new_ids = session.query(Target.id).filter(Target.md5.in_(
-    #                 set(inserted["md5"] for inserted in new_targets)
-    #             )).all()
-    #         except SQLAlchemyError as e:
-    #             log.error(
-    #                 "Failed to add or retrieve newly added targets ids: %s", e
-    #             )
-    #             return False
-    #         finally:
-    #             session.close()
-    #
-    #         all_ids.extend([t.id for t in new_ids])
-    #
-    #     # Retrieve existing target ids that are already in the specified
-    #     # group so we know which ones not to insert with the bulk insert
-    #     session = self.Session()
-    #     existing_ids = [e.id for e in existing]
-    #     try:
-    #         in_group_ids = session.query(TargetTargetgroup.target_id).filter(
-    #             and_(
-    #                 TargetTargetgroup.targetgroup_id == group_id,
-    #                 TargetTargetgroup.target_id.in_(existing_ids)
-    #             )
-    #         ).all()
-    #     except SQLAlchemyError as e:
-    #         log.error(
-    #             "Failed to retrieve target ids that are already"
-    #             " part of the specified group: %s", e
-    #         )
-    #         return False
-    #     finally:
-    #         session.close()
-    #
-    #     # Create the list of ids that will be added to the specified group
-    #     in_group_ids = set(tg.target_id for tg in in_group_ids)
-    #     all_ids.extend([
-    #         target_id for target_id in existing_ids
-    #         if target_id not in in_group_ids
-    #     ])
-    #
-    #     if not all_ids:
-    #         return True
-    #
-    #     groups_info = [
-    #         {"target_id": id, "targetgroup_id": group_id} for id in all_ids
-    #     ]
-    #     try:
-    #         self.engine.execute(
-    #             TargetTargetgroup.__table__.insert(), groups_info
-    #         )
-    #     except SQLAlchemyError as e:
-    #         log.error("Failed to add targets to group: %s", e)
-    #         return False
-    #
-    #     return True
-    #
-    # def delete_url_from_group(self, targets, group_id):
-    #     """Removes the given list of urls from the given group
-    #     @param targets: A list of urls
-    #     @param group_id: The group id to remove the urls from"""
-    #     session = self.Session()
-    #
-    #     try:
-    #         target_ids = session.query(Target.id).filter(
-    #             Target.md5.in_(
-    #                 set(URL(target).get_md5() for target in targets)
-    #             )
-    #         ).all()
-    #         if not target_ids:
-    #             return True
-    #
-    #         session.query(TargetTargetgroup).filter(and_(
-    #             TargetTargetgroup.targetgroup_id==group_id,
-    #             TargetTargetgroup.target_id.in_(set(t.id for t in target_ids))
-    #         )).delete(synchronize_session=False)
-    #         session.commit()
-    #         return True
-    #     except SQLAlchemyError as e:
-    #         log.error("Failed to delete targets from group: %s", e)
-    #         return False
-    #     finally:
-    #         session.close()
-    #
-    # def find_urls_group(self, group_id, limit=1000, offset=0):
-    #     """Retrieve a list of all urls in the specified group
-    #     @param group_id: The id of the group to retrieve urls for
-    #     @param limit: The limit on urls to return
-    #     @param offset: The offset to use when retrieving urls"""
-    #     session = self.Session()
-    #
-    #     try:
-    #         target_ids = session.query(
-    #             TargetTargetgroup.target_id).filter_by(
-    #             targetgroup_id=group_id
-    #         ).limit(limit).offset(offset).all()
-    #         if not target_ids:
-    #             return []
-    #
-    #         targets = session.query(Target.target).filter(
-    #             Target.id.in_(set(t.target_id for t in target_ids))
-    #         ).all()
-    #         return [t.target for t in targets]
-    #     except SQLAlchemyError as e:
-    #         log.error(
-    #             "Error retrieving list of urls for group: '%s'. %s", group_id,
-    #             e
-    #         )
-    #         return []
-    #     finally:
-    #         session.close()
-    #
-    # def delete_group(self, group_id=None, name=None):
-    #     """Remove target group
-    #     @param group_id: Id of a target group
-    #     @param name: Name of a target group"""
-    #     if not group_id and not name:
-    #         return False
-    #
-    #     session = self.Session()
-    #     try:
-    #         group = session.query(TargetGroup)
-    #         if name:
-    #             group = group.filter_by(name=name)
-    #         if group_id:
-    #             group = group.filter_by(id=group_id)
-    #
-    #         group = group.first()
-    #         if not group:
-    #             return False
-    #
-    #         session.delete(group)
-    #         session.commit()
-    #         return True
-    #     except SQLAlchemyError as e:
-    #         log.error("Error deleting target group: %s", e)
-    #         session.rollback()
-    #         return False
-    #     finally:
-    #         session.close()
-    #
-    # def list_groups(self, limit=50, offset=0):
-    #     """Retrieve a list of target groups"""
-    #     groups = []
-    #     session = self.Session()
-    #     try:
-    #         search = session.query(TargetGroup).order_by(TargetGroup.id.desc())
-    #         groups = search.limit(limit).offset(offset).all()
-    #
-    #         if groups:
-    #             for group in groups:
-    #                 session.expunge(group)
-    #     except SQLAlchemyError as e:
-    #         log.error("Failed to retrieve list of target groups. Error: %s", e)
-    #         return []
-    #     finally:
-    #         session.close()
-    #     return groups
-
     def view_longterm(self, longterm_id):
         """Retrieve longterm analysis info by id"""
 
@@ -1817,41 +1468,3 @@ class Database(object):
         finally:
             session.close()
 
-    # def add_alert(self, level, title, content, target=None,
-    #               targetgroup_name=None, task_id=None):
-    #
-    #     session = self.Session()
-    #     alert = Alert(level, title, content)
-    #     alert.target = target
-    #     alert.targetgroup_name = targetgroup_name
-    #     alert.task_id = task_id
-    #
-    #     try:
-    #         session.add(alert)
-    #         session.commit()
-    #     except SQLAlchemyError as e:
-    #         log.error("Failed to add new alert. Error: %s", e)
-    #         session.rollback()
-    #     finally:
-    #         session.close()
-
-    # def list_alerts(self, level=None, target_group=None, limit=100, offset=0):
-    #     session = self.Session()
-    #     alerts = []
-    #     try:
-    #         search = session.query(Alert)
-    #
-    #         if level:
-    #             search = search.filter_by(level=level)
-    #         if target_group:
-    #             search = search.filter_by(target_group=target_group)
-    #
-    #         search = search.order_by(Alert.id.desc())
-    #         alerts = search.limit(limit).offset(offset).all()
-    #     except SQLAlchemyError as e:
-    #         log.error("Failed to retrieve list of alerts: %s", e)
-    #         return None
-    #     finally:
-    #         session.close()
-    #
-    #     return alerts

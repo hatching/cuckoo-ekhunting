@@ -7,9 +7,9 @@ import datetime
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy import Integer, String, Boolean, DateTime, Text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 
-from cuckoo.core.database import Database, Base, Sample
+from cuckoo.core.database import Database, Base
 from cuckoo.common.objects import Dictionary
 from cuckoo.common.utils import json_encode
 from cuckoo.massurl.schedutil import schedule_time_next
@@ -114,8 +114,8 @@ def find_group(name=None, group_id=None, details=False):
     session = db.Session()
     try:
         group = session.query(URLGroup)
-        #if details:
-        #    group = group.options(joinedload("targets"))
+        if details:
+            group = group.options(joinedload("massurl_urls"))
         if name:
             group = group.filter_by(name=name)
         if group_id:
@@ -259,3 +259,18 @@ def add_group(name, description, schedule):
     if exists:
         raise KeyError("Group with name %r exists" % name)
     return group_id
+
+def list_groups(self, limit=50, offset=0):
+    """Retrieve a list of target groups"""
+    groups = []
+    session = self.Session()
+    try:
+        search = session.query(URLGroup).order_by(URLGroup.id.desc())
+        groups = search.limit(limit).offset(offset).all()
+
+        if groups:
+            for group in groups:
+                session.expunge(group)
+    finally:
+        session.close()
+    return groups
