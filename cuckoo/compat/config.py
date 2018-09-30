@@ -711,7 +711,6 @@ def _205_206(c):
     return c
 
 def _206_210(c):
-
     c["auxiliary"]["replay"]["certificate"] = "bin/cert.p12"
     c["routing"]["socks5"] = {
         "dnsport": 53
@@ -721,6 +720,10 @@ def _206_210(c):
         "redsocks": "/usr/sbin/redsocks",
         "delete_config": False,
     }
+    # We'd like to provide a secure default, but let's not inconvenience
+    # upgrading users. TODO Might need to revisited once we write back config.
+    c["cuckoo"]["cuckoo"]["api_token"] = None
+    c["cuckoo"]["cuckoo"]["web_secret"] = None
     return c
 
 migrations = {

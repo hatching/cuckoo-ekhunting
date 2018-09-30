@@ -1164,6 +1164,9 @@ def test_migration_206_210():
     set_cwd(tempfile.mkdtemp())
     Folders.create(cwd(), "conf")
 
+    Files.create(cwd("conf"), "cuckoo.conf", """
+[cuckoo]
+    """)
     Files.create(cwd("conf"), "auxiliary.conf", """
 [replay]
 
@@ -1180,6 +1183,8 @@ def test_migration_206_210():
     assert cfg["auxiliary"]["redsocks"]["redsocks"] == "/usr/sbin/redsocks"
     assert cfg["auxiliary"]["redsocks"]["delete_config"] is False
     assert cfg["routing"]["socks5"]["dnsport"] == 53
+    assert cfg["cuckoo"]["cuckoo"]["api_token"] is None
+    assert cfg["cuckoo"]["cuckoo"]["web_secret"] is None
 
 class FullMigration(object):
     DIRPATH = None
