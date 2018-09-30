@@ -133,12 +133,7 @@ def view_group(group_id=None, name=None):
     if not group_id and not name:
         return json_error(400, "No group_id or name specified to view")
 
-    details = request.args.get("details", False)
-    if details:
-        details = parse_bool(details)
-        details = parse_bool(details)
-
-    group = db.find_group(name=name, group_id=group_id, details=details)
+    group = db.find_group(name=name, group_id=group_id)
     if not group:
         return json_error(404, "Group not found")
 
@@ -191,7 +186,7 @@ def group_delete_url():
     urls = request.form.get("urls", "")
     name = request.form.get("group_name", "")
     group_id = request.form.get("group_id")
-    seperator = request.form.get("seperator", ",")
+    seperator = request.form.get("seperator", "\n")
 
     if not group_id and not name:
         return json_error(400, "No valid group name or id specified")

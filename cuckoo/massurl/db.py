@@ -7,7 +7,7 @@ import datetime
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy import Integer, String, Boolean, DateTime, Text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.orm import relationship
 
 from cuckoo.core.database import Database, Base
 from cuckoo.common.objects import Dictionary
@@ -94,8 +94,6 @@ class URLGroup(Base, ToDict):
     schedule_next = Column(DateTime, nullable=True)
     completed = Column(Boolean(), default=True, nullable=False)
 
-    #priority = Column(Integer(), server_default="1", nullable=False)
-
     urls = relationship(
         "URL", secondary=URLGroupURL.__table__, lazy="dynamic"
     )
@@ -114,8 +112,6 @@ def find_group(name=None, group_id=None, details=False):
     session = db.Session()
     try:
         group = session.query(URLGroup)
-        if details:
-            group = group.options(joinedload("massurl_urls"))
         if name:
             group = group.filter_by(name=name)
         if group_id:
@@ -140,9 +136,9 @@ def mass_group_add(urls, group_name=None, group_id=None):
     session = db.Session()
     try:
         if group_id is None:
-            group = session.query(URLGroup.id).filter_by(name=group_name).first()
+            group = session.query(URLGroup).filter_by(name=group_name).first()
         else:
-            group = session.query(URLGroup.id).get(group_id)
+            group = session.query(URLGroup).get(group_id)
         if not group:
             return
         group_id = group.id
