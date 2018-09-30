@@ -263,6 +263,7 @@ class Target(Base):
     task_id = Column(
         Integer(), ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False
+    )
 
     __table_args__ = (
         Index(
