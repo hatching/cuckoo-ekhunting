@@ -225,6 +225,14 @@ def submit_tasks(target, options, package, custom, owner, timeout, priority,
 
 def process_task(task):
     db = Database()
+    if not task.dir_exists():
+        log.error(
+            "Task #%s directory %s does not exist, cannot process it",
+            task.id, task.path
+        )
+        db.set_status(task.id, TASK_FAILED_PROCESSING)
+        return
+
     task_log_start(task.id)
 
     if task.targets:
@@ -239,15 +247,6 @@ def process_task(task):
         package=task["package"], options=emit_options(task["options"]),
         custom=task["custom"]
     )
-
-    if not task.dir_exists():
-        log.error(
-            "Task #%s directory %s does not exist, cannot process it",
-            task.id, task.path
-        )
-        db.set_status(task.id, TASK_FAILED_PROCESSING)
-        task_log_stop(task.id)
-        return
 
     success = False
     try:

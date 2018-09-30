@@ -200,21 +200,24 @@ class BsonParser(object):
                 sha1 = dec.get("checksum")
                 self.buffer_sha1 = hashlib.sha1(buf).hexdigest()
 
-                # Why do we pass along a sha1 checksum again?
-                if sha1 != self.buffer_sha1:
-                    log.warning("Incorrect sha1 passed along for a buffer.")
+                # TODO Reimplement storing of buffers. This has not been done
+                # yet in the new resultserver
 
-                # If the parent is netlogs ResultHandler then we actually dump
-                # it - this should only be the case during the analysis, any
-                # after processing will then be ignored.
-                from cuckoo.core.resultserver import ResultHandler
-
-                if isinstance(self.fd, ResultHandler):
-                    filepath = os.path.join(
-                        self.fd.storagepath, "buffer", self.buffer_sha1
-                    )
-                    with open(filepath, "wb") as f:
-                        f.write(buf)
+                # # Why do we pass along a sha1 checksum again?
+                # if sha1 != self.buffer_sha1:
+                #     log.warning("Incorrect sha1 passed along for a buffer.")
+                #
+                # # If the parent is netlogs ResultHandler then we actually dump
+                # # it - this should only be the case during the analysis, any
+                # # after processing will then be ignored.
+                # from cuckoo.core.resultserver import ResultHandler
+                #
+                # if isinstance(self.fd, ResultHandler):
+                #     filepath = os.path.join(
+                #         self.fd.storagepath, "buffer", self.buffer_sha1
+                #     )
+                #     with open(filepath, "wb") as f:
+                #         f.write(buf)
 
                 continue
 

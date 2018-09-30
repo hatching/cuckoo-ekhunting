@@ -541,7 +541,7 @@ def dnsserve(ctx, host, port, nxdomain, hardcode, sudo):
 @click.option("--uwsgi", is_flag=True, help="Dump uWSGI configuration")
 @click.option("--nginx", is_flag=True, help="Dump nginx configuration")
 @click.pass_context
-def web(ctx, args, host, port, uwsgi, nginx, massurl):
+def web(ctx, args, host, port, uwsgi, nginx):
     """Operate the Cuckoo Web Interface.
 
     Use "--help" to get this help message and "help" to find Django's
