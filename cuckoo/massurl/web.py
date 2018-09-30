@@ -37,6 +37,22 @@ def json_error(status_code, message, *args):
 def index():
     return render_template("index.html")
 
+@app.route("/url-groups")
+def url_groups():
+    return render_template(
+        "url-groups.html", groups=[
+            g.to_dict() for g in db.list_groups(limit=50)
+        ]
+    )
+
+@app.route("/url-groups/manage")
+def url_groups_manage():
+    return render_template(
+        "url-group-content.html", groups=[
+            g.to_dict() for g in db.list_groups(limit=50)
+        ]
+    )
+
 @app.route("/alerts/list")
 def list_alerts():
     target_group = request.args.get("target_group")
@@ -120,6 +136,7 @@ def view_group(group_id=None, name=None):
     details = request.args.get("details", False)
     if details:
         details = parse_bool(details)
+        details = parse_bool(details)
 
     group = db.find_group(name=name, group_id=group_id, details=details)
     if not group:
@@ -197,6 +214,28 @@ def group_delete_url():
         return jsonify(message="success")
 
     return json_error(500, "Error removing URLs from group")
+
+@app.route("/groups/list")
+def list_groups():
+    intargs = {
+        "limit": request.args.get("limit", 50),
+        "offset": request.args.get("offset", 0)
+    }
+
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
+    return jsonify(
+        [
+            g.to_dict() for g in db.list_groups(
+                limit=intargs["limit"], offset=intargs["offset"]
+            )
+        ]
+    )
 
 def random_string(minimum, maximum=None):
     if maximum is None:
