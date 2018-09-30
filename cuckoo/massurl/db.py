@@ -260,10 +260,10 @@ def add_group(name, description, schedule):
         raise KeyError("Group with name %r exists" % name)
     return group_id
 
-def list_groups(self, limit=50, offset=0):
+def list_groups(limit=50, offset=0):
     """Retrieve a list of target groups"""
     groups = []
-    session = self.Session()
+    session = db.Session()
     try:
         search = session.query(URLGroup).order_by(URLGroup.id.desc())
         groups = search.limit(limit).offset(offset).all()
