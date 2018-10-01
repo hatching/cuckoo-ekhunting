@@ -754,7 +754,7 @@ def server(ctx, host, port, uwsgi, nginx):
 
 @main.command("massurl")
 @click.option("-H", "--host", default="localhost", help="Host to bind the MassURL server on")
-@click.option("-p", "--port", default=9004, help="Port to bind the MassURL server on")
+@click.option("-p", "--port", default=8080, help="Port to bind the MassURL server on")
 @click.pass_context
 def massurl(ctx, host, port):
     """Start the mass URL and event dashboard"""
