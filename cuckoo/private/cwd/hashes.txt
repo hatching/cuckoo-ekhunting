@@ -294,5 +294,5 @@ bbb99b675979ca8d5676eb55c88cde62d88413c9 analyzer/windows/lib/core/startup.py
 c8492c74db400e6300194c1bafd3088a102bdc8e analyzer/windows/modules/auxiliary/human.py
 
 # TBD
-82e5a47cd9a6416a3bd111834e6a5085c95b8613 analyzer/windows/analyzer.py
+7c4cab714379e18f9ea81914741ba5a0ff8ef672 analyzer/windows/analyzer.py
 e86627abeb5ecc0112438ad179e9d0487870785a analyzer/windows/modules/packages/ie.py

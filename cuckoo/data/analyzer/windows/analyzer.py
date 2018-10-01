@@ -525,10 +525,6 @@ class Analyzer(object):
         # Hell yeah.
         log.info("Analysis completed.")
 
-        # Cleanly close remaining connections
-        disconnect_pipes()
-        disconnect_logger()
-
     def run(self):
         """Run analysis.
         @return: operation status.
@@ -837,6 +833,10 @@ if __name__ == "__main__":
             "description": error_exc,
         }
     finally:
+        # Cleanly close open connections
+        disconnect_pipes()
+        disconnect_logger()
+
         # Report that we're finished. First try with the XML RPC thing and
         # if that fails, attempt the new Agent.
         try:
