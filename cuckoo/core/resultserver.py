@@ -15,7 +15,6 @@ import os
 import socket
 import threading
 
-from cuckoo.common.abstracts import ProtocolHandler
 from cuckoo.common.config import config
 from cuckoo.common.exceptions import CuckooCriticalError
 from cuckoo.common.exceptions import CuckooOperationalError
@@ -53,6 +52,28 @@ def netlog_sanitize_fname(path):
         raise CuckooOperationalError("Netlog client requested banned path: %r"
                                      % path)
     return path
+
+class ProtocolHandler(object):
+    """Abstract class for protocol handlers coming out of the analysis."""
+    def __init__(self, task_id, ctx, header=None):
+        self.task_id = task_id
+        self.handler = ctx
+        self.fd = None
+        self.header = header or {}
+
+    def __enter__(self):
+        self.init()
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
+    def close(self):
+        if self.fd:
+            self.fd.close()
+            self.fd = None
+
+    def handle(self):
+        raise NotImplementedError
 
 class HandlerContext(object):
     """Holds context for protocol handlers.
@@ -155,14 +176,15 @@ class FileUpload(ProtocolHandler):
         # Read until newline for file path, e.g.,
         # shots/0001.jpg or files/9498687557/libcurl-4.dll.bin
         self.handler.sock.settimeout(30)
-        dump_path = netlog_sanitize_fname(self.handler.read_newline())
+        dump_path = self.header.get("store_as")
+        if not dump_path:
+            raise CuckooOperationalError(
+                "No dump path specified for file in task #%s" % self.task_id
+            )
+            raise
 
-        if self.version and self.version >= 2:
-            # NB: filepath is only used as metadata
-            filepath = self.handler.read_newline()
-            pids = map(int, self.handler.read_newline().split())
-        else:
-            filepath, pids = None, []
+        path = self.header.get("path")
+        pids = self.header.get("pids", [])
 
         log.debug("Task #%s: File upload for %r", self.task_id, dump_path)
         file_path = os.path.join(self.storagepath, dump_path)
@@ -180,7 +202,7 @@ class FileUpload(ProtocolHandler):
         with open(self.filelog, "a+b") as f:
             print(json.dumps({
                 "path": dump_path,
-                "filepath": filepath,
+                "filepath": path,
                 "pids": pids,
             }), file=f)
 
@@ -215,7 +237,8 @@ class BsonStore(ProtocolHandler):
         # acceptable and backwards compatible (for now). Backwards compatible
         # in the sense that newer Cuckoo Monitor binaries work with older
         # versions of Cuckoo, the other way around doesn't apply here.
-        if self.version is None:
+        pid = self.header.get("pid")
+        if pid is None:
             log.error(
                 "Please update to the latest version of the Cuckoo monitor. "
                 "No behavioral logs are collected with your current version. "
@@ -334,19 +357,29 @@ class GeventResultServerWorker(gevent.server.StreamServer):
             task_log_stop(task_id)
 
     def negotiate_protocol(self, task_id, ctx):
-        header = ctx.read_newline()
-        if " " in header:
-            command, version = header.split()
-            version = int(version)
-        else:
-            command, version = header, None
+        # TODO: implement AUTH connection key
+        header = ctx.read_newline().split(" ", 1)
+        command = header[0]
         klass = self.commands.get(command)
         if not klass:
             log.warning("Task #%s: unknown netlog protocol requested (%r), "
                         "terminating connection.", self.task_id, command)
             return
+        data = {}
+        if len(header) == 2:
+            try:
+                data = json.loads(header[1])
+            except ValueError:
+                log.exception(
+                    "Task #%s: invalid netlog header: %r",
+                    self.task_id, header[1]
+                )
+                return
+            # Backwards compat with monitor; remove this.
+            if command == "BSON" and not header[1].startswith("{"):
+                data = {"pid": data}
         ctx.command = command
-        return klass(task_id, ctx, version)
+        return klass(task_id, ctx, data)
 
 class ResultServer(object):
     """Manager for the ResultServer worker and task state."""
