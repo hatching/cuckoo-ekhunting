@@ -18,9 +18,9 @@ if hasattr(bson, "BSON"):
 elif hasattr(bson, "loads"):
     bson_decode = lambda d: bson.loads(d)
 
-from cuckoo.common.abstracts import ProtocolHandler
-from cuckoo.common.files import Storage
 from cuckoo.common.exceptions import CuckooResultError
+from cuckoo.common.files import Storage
+from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
 
@@ -76,8 +76,9 @@ class BsonParser(object):
         "x": pointer_converter_32bit,
     }
 
-    def __init__(self, fd):
+    def __init__(self, fd, task_id):
         self.fd = fd
+        self.task_id = task_id
         self.infomap = {}
         self.flags_value = {}
         self.flags_bitmask = {}
@@ -203,21 +204,13 @@ class BsonParser(object):
                 # TODO Reimplement storing of buffers. This has not been done
                 # yet in the new resultserver
 
-                # # Why do we pass along a sha1 checksum again?
-                # if sha1 != self.buffer_sha1:
-                #     log.warning("Incorrect sha1 passed along for a buffer.")
-                #
-                # # If the parent is netlogs ResultHandler then we actually dump
-                # # it - this should only be the case during the analysis, any
-                # # after processing will then be ignored.
-                # from cuckoo.core.resultserver import ResultHandler
-                #
-                # if isinstance(self.fd, ResultHandler):
-                #     filepath = os.path.join(
-                #         self.fd.storagepath, "buffer", self.buffer_sha1
-                #     )
-                #     with open(filepath, "wb") as f:
-                #         f.write(buf)
+                # Why do we pass along a sha1 checksum again?
+                if sha1 != self.buffer_sha1:
+                    log.warning("Incorrect sha1 passed along for a buffer.")
+
+                filepath = cwd("buffer", self.buffer_sha1, analysis=self.task_id)
+                with open(filepath, "wb") as f:
+                    f.write(buf)
 
                 continue
 
