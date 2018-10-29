@@ -59,7 +59,7 @@ class ProtocolHandler(object):
         self.task_id = task_id
         self.handler = ctx
         self.fd = None
-        self.header = header or {}
+        self.header = header
 
     def __enter__(self):
         self.init()
@@ -81,9 +81,11 @@ class HandlerContext(object):
     Can safely be cancelled from another thread, though in practice this will
     not occur often -- usually the connection between VM and the ResultServer
     will be reset during shutdown."""
-    def __init__(self, task_id, storagepath, sock):
+    def __init__(self, task_id, storagepath, sock, rt):
         self.task_id = task_id
         self.command = None
+        self.rt = rt
+        self.response_id = None
 
         # The path where artifacts will be stored
         self.storagepath = storagepath
@@ -100,6 +102,9 @@ class HandlerContext(object):
             self.sock.shutdown(socket.SHUT_RD)
         except socket.error:
             pass
+
+    def write(self, data):
+        self.sock.sendall(data)
 
     def read(self):
         try:
@@ -176,12 +181,29 @@ class FileUpload(ProtocolHandler):
         # Read until newline for file path, e.g.,
         # shots/0001.jpg or files/9498687557/libcurl-4.dll.bin
         self.handler.sock.settimeout(30)
+        if self.header is None:
+            # Backwards compatibility, version 1
+            self.header = {
+                "store_as": self.handler.read_newline(),
+            }
+        elif self.header == 2:
+            # Backwards compatibility, version 2
+            self.header = {
+                "store_as": self.handler.read_newline(),
+                "path": self.handler.read_newline(),
+                "pids": map(int, self.handler.read_newline().split(",")),
+            }
+        else:
+            self.response_id = self.header.get("rid")
+
         dump_path = self.header.get("store_as")
         if not dump_path:
             raise CuckooOperationalError(
                 "No dump path specified for file in task #%s" % self.task_id
             )
             raise
+
+        dump_path = dump_path.replace("\\", "/")
 
         path = self.header.get("path")
         pids = self.header.get("pids", [])
@@ -248,7 +270,7 @@ class BsonStore(ProtocolHandler):
             return
 
         self.fd = open(os.path.join(self.handler.storagepath,
-                                    "logs", "%d.bson" % self.version), "wb")
+                                    "logs", "%d.bson" % pid), "wb")
 
     def handle(self):
         """Read a BSON stream, attempting at least basic validation, and
@@ -256,6 +278,28 @@ class BsonStore(ProtocolHandler):
         log.debug("Task #%s is sending a BSON stream", self.task_id)
         if self.fd:
             return self.handler.copy_to_fd(self.fd)
+
+class RealTimeHandler(ProtocolHandler):
+    def init(self):
+        pass
+
+    def handle(self):
+        # Notify that the RT connection has been set up
+        self.rt.start(self.handler)
+
+        # Start receiving things
+        while True:
+            line = self.handler.read_newline()
+            if not line:
+                log.debug("RealTimeHandler: EOF")
+                break
+            log.debug("RealTimeHandler: << %r", line)
+            # Forward responses to RT
+            self.rt.on_message(json.loads(line))
+
+    def cleanup(self):
+        # Remove mapping
+        pass
 
 class GeventResultServerWorker(gevent.server.StreamServer):
     """The new ResultServer, providing a huge performance boost as well as
@@ -275,6 +319,7 @@ class GeventResultServerWorker(gevent.server.StreamServer):
         "BSON": BsonStore,
         "FILE": FileUpload,
         "LOG": LogHandler,
+        "REALTIME": RealTimeHandler,
     }
     task_mgmt_lock = threading.Lock()
 
@@ -283,6 +328,7 @@ class GeventResultServerWorker(gevent.server.StreamServer):
 
         # Store IP address to task_id mapping
         self.tasks = {}
+        self.rthandlers = {}
 
         # Store running handlers for task_id
         self.handlers = {}
@@ -290,9 +336,10 @@ class GeventResultServerWorker(gevent.server.StreamServer):
     def do_run(self):
         self.serve_forever()
 
-    def add_task(self, task_id, ipaddr):
+    def add_task(self, task_id, ipaddr, rt_handler):
         with self.task_mgmt_lock:
             self.tasks[ipaddr] = task_id
+            self.rthandlers[task_id] = rt_handler
 
     def del_task(self, task_id, ipaddr):
         """Delete ResultServer state and abort pending RequestHandlers. Since
@@ -303,6 +350,7 @@ class GeventResultServerWorker(gevent.server.StreamServer):
             if self.tasks.pop(ipaddr, None) is None:
                 log.warning("ResultServer did not have a task with ID %s",
                             task_id)
+            self.rthandlers.pop(task_id)
             ctxs = self.handlers.pop(task_id, set())
             for ctx in ctxs:
                 log.warning("Cancel %s for task %r", ctx, task_id)
@@ -319,9 +367,10 @@ class GeventResultServerWorker(gevent.server.StreamServer):
                 log.warning("ResultServer did not have a task for IP %s",
                             ipaddr)
                 return
+            rt = self.rthandlers.get(task_id)
 
         storagepath = cwd(analysis=task_id)
-        ctx = HandlerContext(task_id, storagepath, sock)
+        ctx = HandlerContext(task_id, storagepath, sock, rt)
         task_log_start(task_id)
         try:
             protocol = self.negotiate_protocol(task_id, ctx)
@@ -344,6 +393,9 @@ class GeventResultServerWorker(gevent.server.StreamServer):
                 with protocol:
                     protocol.handle()
             finally:
+                if ctx.response_id is not None:
+                    self.rt.on_message(protocol.header)
+
                 with self.task_mgmt_lock:
                     s.discard(ctx)
                 ctx.cancel()
@@ -357,7 +409,6 @@ class GeventResultServerWorker(gevent.server.StreamServer):
             task_log_stop(task_id)
 
     def negotiate_protocol(self, task_id, ctx):
-        # TODO: implement AUTH connection key
         header = ctx.read_newline().split(" ", 1)
         command = header[0]
         klass = self.commands.get(command)
@@ -365,7 +416,7 @@ class GeventResultServerWorker(gevent.server.StreamServer):
             log.warning("Task #%s: unknown netlog protocol requested (%r), "
                         "terminating connection.", self.task_id, command)
             return
-        data = {}
+        data = None
         if len(header) == 2:
             try:
                 data = json.loads(header[1])
@@ -426,9 +477,9 @@ class ResultServer(object):
         self.thread.daemon = True
         self.thread.start()
 
-    def add_task(self, task, machine):
+    def add_task(self, task, machine, rt):
         """Register a task/machine with the ResultServer."""
-        self.instance.add_task(task.id, machine.ip)
+        self.instance.add_task(task.id, machine.ip, rt)
 
     def del_task(self, task, machine):
         """Delete running task and cancel existing handlers."""

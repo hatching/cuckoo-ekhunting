@@ -23,7 +23,70 @@ from cuckoo.core.plugins import RunAuxiliary
 from cuckoo.core.resultserver import ResultServer
 from cuckoo.core.target import Target
 
+import gevent
+import json
+
 log = logging.getLogger(__name__)
+
+def ping_test(rt):
+    def result(msg):
+        log.debug("got response: %r", msg)
+
+    for _ in range(3):
+        rt.send_command(result, {"cmd":"ping"})
+        gevent.sleep(3)
+
+class RealTimeHandler:
+    def __init__(self, task_id, am):
+        self.task_id = task_id
+        self.am = am
+        self.msg_id = 1
+        self.commands = {}
+
+        self.sendq = gevent.queue.Queue()
+
+    def stop(self):
+        self.sendq.put(None)
+        # TODO: probably need to close the socket here as well
+
+    def start(self, sock):
+        """RealTime connection has been established"""
+        log.debug("RealTimeHandler start")
+        if self.sock:
+            raise NotImplementedError("RealTime connection reopened")
+        self.sock = sock
+        gevent.spawn(self.send_thread)
+
+    def send_thread(self):
+        while True:
+            msg = self.sendq.get()
+            if msg is None:
+                break
+            # TODO: gracefully deal with socket errors
+            # TODO: think about write timeout
+            self.sock.sendall(msg)
+
+    def on_message(self, msg):
+        response_id = msg.get("rid")
+        if response_id is not None:
+            # This is a response to a previous message
+            func = self.commands.pop(response_id)
+            if func:
+                log.debug("Calling response handler %s -> %r", response_id, func)
+                func(msg)
+        else:
+            # TODO future work: request coming *from* guest
+            pass
+
+    def send_command(self, callback, msg):
+        # TODO with lock {{{
+        id = self.msg_id
+        self.msg_id += 1
+        # }}}
+        msg["id"] = id
+        if callback:
+            self.commands[id] = callback
+        self.sock.write(json.dumps(msg))
 
 class Regular(AnalysisManager):
 
@@ -206,7 +269,11 @@ class Regular(AnalysisManager):
             }
         )
 
-        ResultServer().add_task(self.task.db_task, self.machine)
+        self.rt = RealTimeHandler(self.task.db_task.id, self)
+        ResultServer().add_task(self.task.db_task, self.machine, self.rt)
+
+        # TODO: test realtime handler
+        gevent.spawn(ping_test, self.rt)
 
         # Start auxiliary modules
         self.aux.start()
@@ -394,6 +461,7 @@ class Regular(AnalysisManager):
         # After all this, we can make the ResultServer forget about the
         # internal state for this analysis task.
         ResultServer().del_task(self.task.db_task, self.machine)
+        self.rt.stop()
 
         # Drop the network routing rules if any.
         self.route.unroute_network()

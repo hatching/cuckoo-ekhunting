@@ -3,10 +3,11 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import json
 import logging
 import socket
-import time
 import sys
+import time
 
 from lib.core.config import Config
 
@@ -83,13 +84,12 @@ class NetlogConnection(object):
 
 class NetlogFile(NetlogConnection):
     def init(self, dump_path, filepath=None, pids=[]):
+        header = {"store_as": dump_path.encode("utf8")}
         if filepath:
-            self.proto = "FILE 2\n%s\n%s\n%s\n" % (
-                dump_path.encode("utf8"), filepath.encode("utf8"),
-                " ".join(pids)
-            )
-        else:
-            self.proto = "FILE\n%s\n" % dump_path.encode("utf8")
+            header["path"] = filepath.encode("utf8")
+        if pids:
+            header["pids"] = [int(p) for p in pids]
+        self.proto = "FILE %s\n" % json.dumps(header)
 
         self.connect()
 
