@@ -4,126 +4,39 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import datetime
-import hashlib
+import importlib
 import logging
 import os
 import pkgutil
-import socket
 import struct
 import sys
 import threading
+import time
 import traceback
 import urllib
 import urllib2
-import xmlrpclib
 import zipfile
 
 from lib.api.process import Process
-from lib.common.abstracts import Package, Auxiliary
-from lib.common.constants import SHUTDOWN_MUTEX
+from lib.common.abstracts import Auxiliary
 from lib.common.decide import dump_memory
-from lib.common.defines import KERNEL32
-from lib.common.exceptions import CuckooError, CuckooDisableModule
-from lib.common.hashing import hash_file
+from lib.common.exceptions import (
+    CuckooDisableModule, CuckooError, CuckooPackageError
+)
 from lib.common.rand import random_string
-from lib.common.results import upload_to_host
+from lib.common.results import upload_to_host, Files
+from lib.core.command import MessageClient
 from lib.core.config import Config
 from lib.core.ioctl import zer0m0n
-from lib.core.packages import choose_package
-from lib.core.pipe import PipeServer, PipeForwarder, PipeDispatcher
-from lib.core.pipe import disconnect_pipes
+from lib.core.packages import choose_package, get_package_class
+from lib.core.pipe import (
+    get_pipe_path, disconnect_pipes, PipeServer, PipeForwarder, PipeDispatcher,
+)
 from lib.core.privileges import grant_privilege
-from lib.core.startup import init_logging, disconnect_logger, set_clock
+from lib.core.startup import init_logging, set_clock, disconnect_logger
 from modules import auxiliary
 
 log = logging.getLogger("analyzer")
-
-class Files(object):
-    PROTECTED_NAMES = ()
-
-    def __init__(self):
-        self.files = {}
-        self.files_orig = {}
-        self.dumped = []
-
-    def is_protected_filename(self, file_name):
-        """Do we want to inject into a process with this name?"""
-        return file_name.lower() in self.PROTECTED_NAMES
-
-    def add_pid(self, filepath, pid, verbose=True):
-        """Tracks a process identifier for this file."""
-        if not pid or filepath.lower() not in self.files:
-            return
-
-        if pid not in self.files[filepath.lower()]:
-            self.files[filepath.lower()].append(pid)
-            verbose and log.info("Added pid %s for %r", pid, filepath)
-
-    def add_file(self, filepath, pid=None):
-        """Add filepath to the list of files and track the pid."""
-        if filepath.lower() not in self.files:
-            log.info(
-                "Added new file to list with pid %s and path %s",
-                pid, filepath.encode("utf8")
-            )
-            self.files[filepath.lower()] = []
-            self.files_orig[filepath.lower()] = filepath
-
-        self.add_pid(filepath, pid, verbose=False)
-
-    def dump_file(self, filepath):
-        """Dump a file to the host."""
-        if not os.path.isfile(filepath):
-            log.warning("File at path %r does not exist, skip.", filepath)
-            return False
-
-        # Check whether we've already dumped this file - in that case skip it.
-        try:
-            sha256 = hash_file(hashlib.sha256, filepath)
-            if sha256 in self.dumped:
-                return
-        except IOError as e:
-            log.info("Error dumping file from path \"%s\": %s", filepath, e)
-            return
-
-        filename = "%s_%s" % (sha256[:16], os.path.basename(filepath))
-        upload_path = os.path.join("files", filename)
-
-        try:
-            upload_to_host(
-                # If available use the original filepath, the one that is
-                # not lowercased.
-                self.files_orig.get(filepath.lower(), filepath),
-                upload_path, self.files.get(filepath.lower(), [])
-            )
-            self.dumped.append(sha256)
-        except (IOError, socket.error) as e:
-            log.error(
-                "Unable to upload dropped file at path \"%s\": %s",
-                filepath, e
-            )
-
-    def delete_file(self, filepath, pid=None):
-        """A file is about to removed and thus should be dumped right away."""
-        self.add_pid(filepath, pid)
-        self.dump_file(filepath)
-
-        # Remove the filepath from the files list.
-        self.files.pop(filepath.lower(), None)
-        self.files_orig.pop(filepath.lower(), None)
-
-    def move_file(self, oldfilepath, newfilepath, pid=None):
-        """A file will be moved - track this change."""
-        self.add_pid(oldfilepath, pid)
-        if oldfilepath.lower() in self.files:
-            # Replace the entry with the new filepath.
-            self.files[newfilepath.lower()] = \
-                self.files.pop(oldfilepath.lower(), [])
-
-    def dump_files(self):
-        """Dump all pending files."""
-        while self.files:
-            self.delete_file(self.files.keys()[0])
 
 class ProcessList(object):
     def __init__(self):
@@ -168,6 +81,28 @@ class ProcessList(object):
         if pid in self.pids_notrack:
             self.pids_notrack.remove(pid)
 
+    def untrack_terminated(self):
+        """Search for terminated processes in the tracked pid list and
+        remove them from the pid and pid_notrack list"""
+        terminated = []
+        for pid in self.pids:
+            if not Process(pid=pid).is_alive():
+                terminated.append(pid)
+                log.info("Process with PID %s has terminated", pid)
+
+        for pid in terminated:
+            self.remove_pid(pid)
+
+    def terminate_tracked(self):
+        log.info("Terminating all remaining processes")
+        for pid in self.pids:
+            p = Process(pid=pid)
+            if p.is_alive():
+                try:
+                    p.terminate()
+                except Exception:
+                    continue
+
 class CommandPipeHandler(object):
     """Pipe Handler.
 
@@ -209,9 +144,9 @@ class CommandPipeHandler(object):
                         "skipping it.")
             return
 
-        self.analyzer.process_lock.acquire()
-        self.analyzer.process_list.add_pid(int(pid), track=int(track))
-        self.analyzer.process_lock.release()
+        self.analyzer.plock.acquire()
+        self.analyzer.plist.add_pid(int(pid), track=int(track))
+        self.analyzer.plock.release()
 
         log.debug("Loaded monitor into process with pid %s", pid)
 
@@ -224,7 +159,7 @@ class CommandPipeHandler(object):
         """Helper function for injecting the monitor into a process."""
         # We acquire the process lock in order to prevent the analyzer to
         # terminate the analysis while we are operating on the new process.
-        self.analyzer.process_lock.acquire()
+        self.analyzer.plock.acquire()
 
         # Set the current DLL to the default one provided at submission.
         dll = self.analyzer.default_dll
@@ -234,28 +169,28 @@ class CommandPipeHandler(object):
                 log.warning("Received request to inject Cuckoo processes, "
                             "skipping it.")
                 self.ignore_list["pid"].append(process_id)
-            self.analyzer.process_lock.release()
+            self.analyzer.plock.release()
             return
 
         # We inject the process only if it's not being monitored already,
         # otherwise we would generated polluted logs (if it wouldn't crash
         # horribly to start with).
-        if self.analyzer.process_list.has_pid(process_id):
+        if self.analyzer.plist.has_pid(process_id):
             # This pid is already on the notrack list, move it to the
             # list of tracked pids.
-            if not self.analyzer.process_list.has_pid(process_id, notrack=False):
+            if not self.analyzer.plist.has_pid(process_id, notrack=False):
                 log.debug("Received request to inject pid=%d. It was already "
                           "on our notrack list, moving it to the track list.")
 
-                self.analyzer.process_list.remove_pid(process_id)
-                self.analyzer.process_list.add_pid(process_id)
+                self.analyzer.plist.remove_pid(process_id)
+                self.analyzer.plist.add_pid(process_id)
                 self.ignore_list["pid"].append(process_id)
             # Spit out an error once and just ignore it further on.
             elif process_id not in self.ignore_list["pid"]:
                 self.ignore_list["pid"].append(process_id)
 
             # We're done operating on the processes list, release the lock.
-            self.analyzer.process_lock.release()
+            self.analyzer.plock.release()
             return
 
         # Open the process and inject the DLL. Hope it enjoys it.
@@ -265,11 +200,11 @@ class CommandPipeHandler(object):
 
         if not self.analyzer.files.is_protected_filename(filename):
             # Add the new process ID to the list of monitored processes.
-            self.analyzer.process_list.add_pid(process_id)
+            self.analyzer.plist.add_pid(process_id)
 
             # We're done operating on the processes list,
             # release the lock. Let the injection do its thing.
-            self.analyzer.process_lock.release()
+            self.analyzer.plock.release()
 
             # If we have both pid and tid, then we can use APC to inject.
             if process_id and thread_id:
@@ -348,7 +283,9 @@ class CommandPipeHandler(object):
 
     def _handle_dumpreqs(self, data):
         if not data.isdigit():
-            log.warning("Received DUMPREQS command with an incorrect argument %r.", data)
+            log.warning(
+                "Received DUMPREQS command with an incorrect argument %r.", data
+            )
             return
 
         pid = int(data)
@@ -412,67 +349,47 @@ class CommandPipeHandler(object):
         return response
 
 class Analyzer(object):
-    """Cuckoo Windows Analyzer.
-
-    This class handles the initialization and execution of the analysis
-    procedure, including handling of the pipe server, the auxiliary modules and
-    the analysis packages.
-    """
 
     def __init__(self):
-        self.config = None
-        self.target = None
-        self.do_run = True
-        self.time_counter = 0
+        self.config = Config(cfg="analysis.conf")
+        self.default_dll = self.config.options.get("dll")
+        self.is_running = True
+        self.cleanup_files = []
+        self.pkg_counter = 0
+        self.runtime = 0
+        self.reboot = []
+        self.packages = {}
+        self.aux_enabled = {}
+        self.aux_available = {}
 
-        self.process_lock = threading.Lock()
-        self.default_dll = None
         self.pid = os.getpid()
         self.ppid = Process(pid=self.pid).get_parent_pid()
+        self.path = os.getcwd()
+        self.plock = threading.Lock()
         self.files = Files()
-        self.process_list = ProcessList()
-        self.package = None
+        self.plist = ProcessList()
 
-        self.reboot = []
-
-    def get_pipe_path(self, name):
-        """Returns \\\\.\\PIPE on Windows XP and \\??\\PIPE elsewhere."""
-        version = sys.getwindowsversion()
-        if version.major == 5 and version.minor == 1:
-            return "\\\\.\\PIPE\\%s" % name
-        return "\\??\\PIPE\\%s" % name
+    def initialize(self):
+        Process.set_config(self.config)
+        self.config.logpipe = get_pipe_path(random_string(16, 32))
+        self.config.pipe = self.config.options.get(
+            "pipe", get_pipe_path(random_string(16, 32))
+        )
+        self.msgclient = MessageClient(
+            self.config.ip, self.config.port, self
+        )
 
     def prepare(self):
-        """Prepare env for analysis."""
         # Get SeDebugPrivilege for the Python process. It will be needed in
         # order to perform the injections.
-        grant_privilege("SeDebugPrivilege")
-        grant_privilege("SeLoadDriverPrivilege")
+        for privilege in ("SeDebugPrivilege", "SeLoadDriverPrivilege"):
+            if not grant_privilege(privilege):
+                log.error("Failed to grant '%s' privilege")
 
-        # Initialize logging.
-        init_logging()
-
-        # Parse the analysis configuration file generated by the agent.
-        self.config = Config(cfg="analysis.conf")
-
-        # Pass the configuration through to the Process class.
-        Process.set_config(self.config)
-
-        # Set virtual machine clock.
+        # Set the system's date and time to given values
         set_clock(datetime.datetime.strptime(
             self.config.clock, "%Y%m%dT%H:%M:%S"
         ))
-
-        # Set the default DLL to be used for this analysis.
-        self.default_dll = self.config.options.get("dll")
-
-        # If a pipe name has not set, then generate a random one.
-        self.config.pipe = self.get_pipe_path(
-            self.config.options.get("pipe", random_string(16, 32))
-        )
-
-        # Generate a random name for the logging pipe server.
-        self.config.logpipe = self.get_pipe_path(random_string(16, 32))
 
         # Initialize and start the Command Handler pipe server. This is going
         # to be used for communicating with the monitored processes.
@@ -480,171 +397,156 @@ class Analyzer(object):
             PipeDispatcher, self.config.pipe, message=True,
             dispatcher=CommandPipeHandler(self)
         )
-        self.command_pipe.daemon = True
         self.command_pipe.start()
 
         # Initialize and start the Log Pipe Server - the log pipe server will
         # open up a pipe that monitored processes will use to send logs to
         # before they head off to the host machine.
-        destination = self.config.ip, self.config.port
-        self.log_pipe_server = PipeServer(
-            PipeForwarder, self.config.logpipe, destination=destination
+        self.log_pipe = PipeServer(
+            PipeForwarder, self.config.logpipe,
+            destination=(self.config.ip, self.config.port)
         )
-        self.log_pipe_server.daemon = True
-        self.log_pipe_server.start()
+        self.log_pipe.start()
 
-        # We update the target according to its category. If it's a file, then
-        # we store the target path.
-        if self.config.category == "file":
-            self.target = os.path.join(
-                os.environ["TEMP"], self.config.file_name
-            )
-        elif self.config.category == "archive":
-            zip_path = os.path.join(os.environ["TEMP"], self.config.file_name)
-            zipfile.ZipFile(zip_path).extractall(os.environ["TEMP"])
-            self.target = os.path.join(
-                os.environ["TEMP"], self.config.options["filename"]
-            )
-        # If it's a URL, well.. we store the URL.
-        else:
-            self.target = self.config.target
+        self.msgclient.connect()
+        if not self.msgclient.connected:
+            return False
+        self.msgclient.start()
 
-    def stop(self):
-        """Allows an auxiliary module to stop the analysis."""
-        self.do_run = False
+        return True
 
-    def complete(self):
-        """End analysis."""
-        # Stop the Pipe Servers.
-        self.command_pipe.stop()
-        self.log_pipe_server.stop()
+    def start_package(self, config):
+        """Start an analysis package.
 
-        # Dump all the notified files.
-        self.files.dump_files()
+        @param config: a dictionary containing at least a target category,
+        options dictionary, and target string or list of targets
 
-        # Hell yeah.
-        log.info("Analysis completed.")
-
-    def run(self):
-        """Run analysis.
-        @return: operation status.
+        returns a package id
         """
-        self.prepare()
-        self.path = os.getcwd()
+        pkg = config.get("package")
+        if not pkg:
+            log.info(
+                "No analysis package provided, trying to automatically find a "
+                "matching package"
+            )
+            pkg = choose_package(config)
+        else:
+            pkg = get_package_class(pkg)
 
-        log.debug("Starting analyzer from: %s", self.path)
-        log.debug("Pipe server name: %s", self.config.pipe)
-        log.debug("Log pipe server name: %s", self.config.logpipe)
-
-        # If no analysis package was specified at submission, we try to select
-        # one automatically.
-        if not self.config.package:
-            log.debug(
-                "No analysis package specified, trying to detect "
-                "it automagically."
+        if not pkg:
+            category = config.get("category")
+            raise CuckooPackageError(
+                "No valid analysis package available for target category '%s'."
+                "%s" % (category, category if category == "file" else "")
             )
 
-            # If the analysis target is a file, we choose the package according
-            # to the file format.
-            if self.config.category == "file":
-                package = choose_package(
-                    self.config.file_type, self.config.file_name,
-                    self.config.pe_exports.split(",")
+        log.info("Using analysis package '%s'", pkg.__name__)
+        options = config.get("options", {}) or {}
+        pkg_instance = pkg(options=options, analyzer=self)
+
+        category = config.get("category")
+        if category == "file":
+            target = os.path.join(os.environ["TEMP"], config.get("file_name"))
+            pkg_instance.move_curdir(target)
+
+        elif category == "archive":
+            zippath = os.path.join(os.environ["TEMP"], config.get("file_name"))
+            zipfile.ZipFile(zippath).extractall(os.environ["TEMP"])
+            if not options.get("filename"):
+                raise CuckooPackageError(
+                    "No filename specified to open after unpacking archive"
                 )
-            # If it's an URL, we'll just use the default Internet Explorer
-            # package.
-            else:
-                package = "ie"
 
-            # If we weren't able to automatically determine the proper package,
-            # we need to abort the analysis.
-            if not package:
-                raise CuckooError("No valid package available for file "
-                                  "type: {0}".format(self.config.file_type))
-
-            log.info("Automatically selected analysis package \"%s\"", package)
-        # Otherwise just select the specified package.
+            target = os.path.join(os.environ["TEMP"], options.get("filename"))
+        elif category == "url":
+            target = config.get("target")
         else:
-            package = self.config.package
+            raise CuckooPackageError(
+                "Unknown category '%s' specified" % category
+            )
 
-        # Generate the package path.
-        package_name = "modules.packages.%s" % package
+        pids = pkg_instance.start(target)
+        if pids:
+            self.plist.add_pids(pids)
 
-        # Try to import the analysis package.
-        try:
-            __import__(package_name, globals(), locals(), ["dummy"], -1)
-        # If it fails, we need to abort the analysis.
-        except ImportError:
-            raise CuckooError("Unable to import package \"{0}\", does "
-                              "not exist.".format(package_name))
+        self.pkg_counter += 1
+        pkg_id = str(config.get("pkg_id") or self.pkg_counter)
+        self.packages[pkg_id] = pkg_instance
+        return {"pkg_id": pkg_id}
 
-        # Initialize the package parent abstract.
-        Package()
+    def stop_package(self, pkg_id, procmemdump=False):
+        """Stop the package matching the given package id. Process memory
+        dumps are created if
 
-        # Enumerate the abstract subclasses.
-        try:
-            package_class = Package.__subclasses__()[0]
-        except IndexError as e:
-            raise CuckooError("Unable to select package class "
-                              "(package={0}): {1}".format(package_name, e))
+        @param pkg_id: a string identifier to specify a running analysis
+        package
+        """
+        pkg_id = str(pkg_id)
+        pkg = self.packages.get(pkg_id)
+        if not pkg:
+            raise CuckooPackageError(
+                "Cannot stop package. Package with id '%r' does not "
+                "exist" % pkg_id
+            )
 
-        # Initialize the analysis package.
-        self.package = package_class(self.config.options, analyzer=self)
-
-        # Move the sample to the current working directory as provided by the
-        # task - one is able to override the starting path of the sample.
-        # E.g., for some samples it might be useful to run from %APPDATA%
-        # instead of %TEMP%.
-        if self.config.category == "file":
-            self.target = self.package.move_curdir(self.target)
-
-        # Initialize Auxiliary modules
-        Auxiliary()
-        prefix = auxiliary.__name__ + "."
-        for loader, name, ispkg in pkgutil.iter_modules(auxiliary.__path__, prefix):
-            if ispkg:
-                continue
-
-            # Import the auxiliary module.
+        if procmemdump or pkg.options.get("procmemdump"):
             try:
-                __import__(name, globals(), locals(), ["dummy"], -1)
-            except ImportError as e:
-                log.warning("Unable to import the auxiliary module "
-                            "\"%s\": %s", name, e)
-
-        # Walk through the available auxiliary modules.
-        aux_enabled, aux_avail = [], []
-        for module in Auxiliary.__subclasses__():
-            # Try to start the auxiliary module.
-            try:
-                aux = module(options=self.config.options, analyzer=self)
-                aux_avail.append(aux)
-                aux.init()
-                aux.start()
-            except (NotImplementedError, AttributeError):
-                log.exception(
-                    "Auxiliary module %s was not implemented", module.__name__
-                )
-            except CuckooDisableModule:
-                continue
+                pkg.dump_procmem()
             except Exception as e:
                 log.exception(
-                    "Cannot execute auxiliary module %s: %s",
-                    module.__name__, e
+                    "Error while creating process memory dumps for "
+                    "package '%s'. %s", pkg.__class__.__name__, e
                 )
-            else:
-                log.debug("Started auxiliary module %s",
-                          module.__name__)
-                aux_enabled.append(aux)
 
+        try:
+            pkg.finish()
+        except Exception as e:
+            log.exception(
+                "Error during analysis package '%s' finishing. %s",
+                pkg.__class__.__name__, e
+            )
+
+        try:
+            # Upload files the package created to package_files in the
+            # results folder.
+            for path, name in pkg.package_files() or []:
+                upload_to_host(path, os.path.join("package_files", name))
+        except Exception as e:
+            log.warning(
+                "The package '%s' package_files function raised an "
+                "exception: %s", pkg.__class__.__name__, e
+            )
+
+        pkg.stop()
+        self.packages.pop(pkg_id)
+        return {"pkg_id": pkg_id}
+
+    def list_packages(self):
+        """Return a dict of package identifiers and the package name
+        that is running"""
+        return {
+            pkg_id: pkg.__class__.__name__
+            for pkg_id, pkg in self.packages.iteritems()
+        }
+
+    def dump_memory(self, pid):
+        """Dump the memory of the specified PID"""
+        dump_memory(pid)
+
+    def list_tracked_pids(self):
+        """Return a list of all tracked pids"""
+        return self.plist.pids
+
+    def prepare_zer0m0n(self):
+        """Communicate settings to zer0m0n and request actions"""
         # Inform zer0m0n of the ResultServer address.
         zer0m0n.resultserver(self.config.ip, self.config.port)
 
-        # Forward the command pipe and logpipe names on to zer0m0n.
+        # Inform zer0m0n of the command and logpipe names
         zer0m0n.cmdpipe(self.config.pipe)
         zer0m0n.channel(self.config.logpipe)
 
-        # Hide the Cuckoo Analyzer & Cuckoo Agent.
+        # Hide the analyzer and agent pids
         zer0m0n.hidepid(self.pid)
         zer0m0n.hidepid(self.ppid)
 
@@ -654,194 +556,229 @@ class Analyzer(object):
         # Propagate the requested dump interval, if set.
         zer0m0n.dumpint(int(self.config.options.get("dumpint", "0")))
 
-        # Start analysis package. If for any reason, the execution of the
-        # analysis package fails, we have to abort the analysis.
-        pids = self.package.start(self.target)
-
-        # If the analysis package returned a list of process identifiers, we
-        # add them to the list of monitored processes and enable the process monitor.
-        if pids:
-            self.process_list.add_pids(pids)
-            pid_check = True
-
-        # If the package didn't return any process ID (for example in the case
-        # where the package isn't enabling any behavioral analysis), we don't
-        # enable the process monitor.
-        else:
-            log.info("No process IDs returned by the package, running "
-                     "for the full timeout.")
-            pid_check = False
-
-        # Check in the options if the user toggled the timeout enforce. If so,
-        # we need to override pid_check and disable process monitor.
-        if self.config.enforce_timeout:
-            log.info("Enabled timeout enforce, running for the full timeout.")
-            pid_check = False
-
-        while self.do_run:
-            self.time_counter += 1
-            if self.time_counter == int(self.config.timeout):
-                log.info("Analysis timeout hit, terminating analysis.")
-                break
-
-            # If the process lock is locked, it means that something is
-            # operating on the list of monitored processes. Therefore we
-            # cannot proceed with the checks until the lock is released.
-            if self.process_lock.locked():
-                KERNEL32.Sleep(1000)
+    def start_auxiliaries(self):
+        Auxiliary()
+        iter_aux_modules = pkgutil.iter_modules(
+            auxiliary.__path__, "%s." % auxiliary.__name__
+        )
+        for loader, name, ispkg in iter_aux_modules:
+            if ispkg:
                 continue
 
             try:
-                # If the process monitor is enabled we start checking whether
-                # the monitored processes are still alive.
-                if pid_check:
-                    # We also track the PIDs provided by zer0m0n.
-                    self.process_list.add_pids(zer0m0n.getpids())
+                importlib.import_module(name)
+            except ImportError as e:
+                log.exception(
+                    "Failed to import Auxiliary module: '%s'. %s", name, e
+                )
 
-                    for pid in self.process_list.pids:
-                        if not Process(pid=pid).is_alive():
-                            log.info("Process with pid %s has terminated", pid)
-                            self.process_list.remove_pid(pid)
+        for aux_module in Auxiliary.__subclasses__():
+            try:
+                aux = aux_module(options=self.config.options, analyzer=self)
+                self.aux_available[aux_module.__name__.lower()] = aux
+                if not aux.enabled():
+                    log.debug(
+                        "Auxiliary module '%s' disabled", aux_module.__name__
+                    )
+                    raise CuckooDisableModule
 
-                    # If none of the monitored processes are still alive, we
-                    # can terminate the analysis.
-                    if not self.process_list.pids:
-                        log.info("Process list is empty, "
-                                 "terminating analysis.")
-                        break
+                aux.init()
+                aux.start()
+            except (NotImplementedError, AttributeError) as e:
+                log.exception(
+                    "Auxiliary module '%s' could not be started. Missing "
+                    "attributes or functions. %s", aux_module.__name__, e
+                )
+            except CuckooDisableModule:
+                continue
+            except Exception as e:
+                log.exception(
+                    "Error while starting auxiliary module '%s'. %s",
+                    aux_module.__name__, e
+                )
+            else:
+                self.aux_enabled[aux_module.__name__.lower()] = aux
+                log.debug("Started auxiliary module %s", aux_module.__name__)
 
-                    # Update the list of monitored processes available to the
-                    # analysis package. It could be used for internal
-                    # operations within the module.
-                    self.package.set_pids(self.process_list.pids)
+    def stop(self):
+        """Stop the analyzer and all running modules."""
+        log.info("Stopping analysis")
+        for pkg_id, package in self.packages.iteritems():
 
+            if package.options.get("procmemdump"):
                 try:
-                    # The analysis packages are provided with a function that
-                    # is executed at every loop's iteration. If such function
-                    # returns False, it means that it requested the analysis
-                    # to be terminate.
-                    if not self.package.check():
-                        log.info("The analysis package requested the "
-                                 "termination of the analysis.")
-                        break
-
-                # If the check() function of the package raised some exception
-                # we don't care, we can still proceed with the analysis but we
-                # throw a warning.
+                    package.dump_procmem()
                 except Exception as e:
-                    log.warning("The package \"%s\" check function raised "
-                                "an exception: %s", package_name, e)
-            finally:
-                # Zzz.
-                KERNEL32.Sleep(1000)
+                    log.exception(
+                        "Error during the creation of a memory dump for"
+                        " package '%s'. %s", package.__class__.__name__, e
+                    )
 
-        if not self.do_run:
-            log.debug("The analyzer has been stopped on request by an "
-                      "auxiliary module.")
+            try:
+                # Perform final operations for all analysis packages
+                package.finish()
+            except Exception as e:
+                log.exception(
+                    "The analysis package '%s' raised an exception in its "
+                    "finish method. %s", package.__class__.__name__, e
+                )
 
-        # Create the shutdown mutex.
-        KERNEL32.CreateMutexA(None, False, SHUTDOWN_MUTEX)
+            try:
+                # Upload files the package created to package_files in the
+                # results folder.
+                for path, name in package.package_files() or []:
+                    upload_to_host(path, os.path.join("package_files", name))
+            except Exception as e:
+                log.exception(
+                    "The package '%s' package_files function raised an "
+                    "exception: %s", package.__class__.__name__, e
+                )
 
-        try:
-            # Before shutting down the analysis, the package can perform some
-            # final operations through the finish() function.
-            self.package.finish()
-        except Exception as e:
-            log.warning("The package \"%s\" finish function raised an "
-                        "exception: %s", package_name, e)
-
-        try:
-            # Upload files the package created to package_files in the
-            # results folder.
-            for path, name in self.package.package_files() or []:
-                upload_to_host(path, os.path.join("package_files", name))
-        except Exception as e:
-            log.warning("The package \"%s\" package_files function raised an "
-                        "exception: %s", package_name, e)
-
-        # Terminate the Auxiliary modules.
-        for aux in aux_enabled:
+        for aux_name, aux in self.aux_enabled.iteritems():
             try:
                 aux.stop()
             except (NotImplementedError, AttributeError):
                 continue
             except Exception as e:
-                log.warning("Cannot terminate auxiliary module %s: %s",
-                            aux.__class__.__name__, e)
+                log.exception(
+                    "Failed to terminate auxiliary module: %s. %s",
+                    aux_name, e
+                )
 
         if self.config.terminate_processes:
-            # Try to terminate remaining active processes.
-            log.info("Terminating remaining processes before shutdown.")
+            self.plist.terminate_tracked()
 
-            for pid in self.process_list.pids:
-                proc = Process(pid=pid)
-                if proc.is_alive():
-                    try:
-                        proc.terminate()
-                    except:
-                        continue
-
-        # Run the finish callback of every available Auxiliary module.
-        for aux in aux_avail:
+        for aux_name, aux in self.aux_enabled.iteritems():
             try:
                 aux.finish()
             except (NotImplementedError, AttributeError):
                 continue
             except Exception as e:
-                log.warning("Exception running finish callback of auxiliary "
-                            "module %s: %s", aux.__class__.__name__, e)
+                log.exception(
+                    "Failed to terminate auxiliary module: %s. %s", aux_name, e
+                )
 
-        # Let's invoke the completion procedure.
-        self.complete()
+        # Stop the pipe for commands to be sent to the analyzer.
+        self.command_pipe.stop()
+
+        # Upload all pending files before ending the analysis
+        self.files.dump_files()
         return True
 
-if __name__ == "__main__":
-    success = False
-    error = ""
+    def request_stop(self):
+        """Can be called outside of the analyzer to cause it to go through
+        the proper stopping routine"""
+        self.is_running = False
 
-    try:
-        # Initialize the main analyzer class.
-        analyzer = Analyzer()
+    def do_run(self):
+        if not self.is_running:
+            log.info(
+                "Analyzer was requested to stop running, terminating analysis"
+            )
+            return False
 
-        # Run it and wait for the response.
-        success = analyzer.run()
+        if self.runtime >= int(self.config.timeout):
+            log.info("Analysis timeout hit, terminating analysis")
+            self.is_running = False
+            return False
 
-        data = {
-            "status": "complete",
-            "description": success,
-        }
-    # This is not likely to happen.
-    except KeyboardInterrupt:
-        error = "Keyboard Interrupt"
+        if not self.plist.pids and not self.config.enforce_timeout:
+            log.info(
+                "Process list is empty and timeout enforcing is disabled, "
+                "terminating analysis."
+            )
+            self.is_running = False
+            return False
 
-    # If the analysis process encountered a critical error, it will raise a
-    # CuckooError exception, which will force the termination of the analysis.
-    # Notify the agent of the failure. Also catch unexpected exceptions.
-    except Exception as e:
-        # Store the error.
-        error_exc = traceback.format_exc()
-        error = "%s\n%s" % (e, error_exc)
+        return True
 
-        # Just to be paranoid.
-        if len(log.handlers):
-            log.exception(error_exc)
-        else:
-            sys.stderr.write("{0}\n".format(error_exc))
-
-        data = {
-            "status": "exception",
-            "description": error_exc,
-        }
-    finally:
-        # Cleanly close open connections
+    def finalize(self):
+        """Close connections, close pipes etc. Steps that are performed
+        just before posting the result to the agent. Nothing can be logged
+        here"""
+        self.log_pipe.stop()
+        self.msgclient.stop()
         disconnect_pipes()
         disconnect_logger()
 
-        # Report that we're finished. First try with the XML RPC thing and
-        # if that fails, attempt the new Agent.
+    def start(self):
+        """Start the analyzer"""
+        log.debug(
+            "Starting analyzer from: '%s'. Command pipe: '%s'. Log pipe: '%s'",
+            self.path, self.config.pipe, self.config.logpipe
+        )
+
+        self.start_auxiliaries()
+        self.prepare_zer0m0n()
+        self.start_package(self.config)
+
+        while self.do_run():
+            self.runtime += 1
+
+            if self.plock.locked():
+                time.sleep(1)
+                continue
+
+            self.plock.acquire()
+            try:
+                self.plist.add_pids(zer0m0n.getpids())
+
+                for pkg_cnt, pkg in self.packages.iteritems():
+                    pkg.set_pids(self.plist.pids)
+
+                try:
+                    pkg.check()
+                except Exception as e:
+                    log.exception(
+                        "The analysis package '%s' raised an exception. "
+                        "Error: %s. %s", pkg.__class__.__name__, e
+                    )
+
+            finally:
+                self.plock.release()
+                time.sleep(1)
+
+        return True
+
+if __name__ == "__main__":
+    init_logging()
+    analyzer = Analyzer()
+    data = {
+        "status": "",
+        "description": ""
+    }
+
+    try:
+        analyzer.initialize()
+
+        # Prepare for analysis, if it fails, stop the analysis
+        if not analyzer.prepare():
+            raise CuckooError("Analyzer preparation failed")
+
+        start = analyzer.start()
+        stop = analyzer.stop()
+
+        log.info("Analysis complete")
+        data["status"] = "complete"
+        data["description"] = start and stop
+    except KeyboardInterrupt:
+        log.warning("CTRL+C detected!")
+        data["status"] = "exception"
+        data["description"] = "Analyzer stopped by keyboard interrupt"
+    except Exception as e:
+        excp = traceback.format_exc()
+
+        if len(log.handlers):
+            log.exception("Analyzer exception: %s", e)
+        else:
+            sys.stderr.write("%s\n" % excp)
+
+        data["status"] = "exception"
+        data["description"] = excp
+    finally:
         try:
-            server = xmlrpclib.Server("http://127.0.0.1:8000")
-            server.complete(success, error, "unused_path")
-        except xmlrpclib.ProtocolError:
-            urllib2.urlopen("http://127.0.0.1:8000/status",
-                            urllib.urlencode(data)).read()
+            analyzer.finalize()
+        finally:
+            urllib2.urlopen(
+                "http://127.0.0.1:8000/status", urllib.urlencode(data)
+            )
