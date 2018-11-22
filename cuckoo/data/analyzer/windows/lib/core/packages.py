@@ -3,6 +3,14 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import importlib
+import logging
+
+from lib.common.abstracts import Package
+from lib.common.exceptions import CuckooPackageError
+
+log = logging.getLogger(__name__)
+
 def has_com_exports(exports):
     com_exports = [
         "DllInstall",
@@ -17,66 +25,175 @@ def has_com_exports(exports):
             return False
     return True
 
-def choose_package(file_type, file_name, exports):
-    """Choose analysis package due to file type and file extension.
-    @param file_type: file type.
-    @param file_name: file name.
-    @return: package name or None.
-    """
-    if not file_type:
+def get_package_class(package):
+    """Import given analysis package name and return a class object
+    @param package: A lowercase string name of an analysis package"""
+
+    package_name = "modules.packages.%s" % package
+    try:
+        importlib.import_module(package_name)
+    except ImportError as e:
+        log.exception(
+            "Failed to import analysis package: %s. %s", package_name, e
+        )
         return None
 
-    file_name = file_name.lower()
+    for sub in Package.__subclasses__():
+        if package == sub.__name__.lower():
+            return sub
+    return None
 
-    if "DLL" in file_type:
-        if file_name.endswith(".cpl"):
-            return "cpl"
-        elif has_com_exports(exports):
-            return "com"
-        else:
-            return "dll"
-    elif "PE32" in file_type or "MS-DOS" in file_type:
-        return "exe"
-    elif "PDF" in file_type or file_name.endswith(".pdf"):
-        return "pdf"
-    elif file_name.endswith(".pub"):
-        return "pub"
-    elif "Hangul (Korean) Word Processor File 5.x" in file_type or file_name.endswith(".hwp"):
-        return "hwp"
-    elif "Rich Text Format" in file_type or \
-            "Microsoft Word" in file_type or \
-            "Microsoft Office Word" in file_type or \
-            file_name.endswith((".doc", ".docx", ".rtf", ".docm")):
-        return "doc"
-    elif "Microsoft Office Excel" in file_type or \
-            "Microsoft Excel" in file_type or \
-            file_name.endswith((".xls", ".xlsx", ".xlt", ".xlsm", ".iqy", ".slk")):
-        return "xls"
-    elif "Microsoft Office PowerPoint" in file_type or \
-            "Microsoft PowerPoint" in file_type or \
-            file_name.endswith((".ppt", ".pptx", ".pps", ".ppsx", ".pptm", ".potm", ".potx", ".ppsm")):
-        return "ppt"
-    elif file_name.endswith(".jar"):
-        return "jar"
-    elif file_name.endswith(".hta"):
-        return "hta"
-    elif "Zip" in file_type:
-        return "zip"
-    elif file_name.endswith((".py", ".pyc")) or "Python script" in file_type:
-        return "python"
-    elif file_name.endswith(".vbs"):
-        return "vbs"
-    elif file_name.endswith(".js"):
-        return "js"
-    elif file_name.endswith(".jse"):
-        return "jse"
-    elif file_name.endswith(".msi"):
-        return "msi"
-    elif file_name.endswith(".ps1"):
-        return "ps1"
-    elif file_name.endswith((".wsf", ".wsc")):
-        return "wsf"
-    elif "HTML" in file_type or file_name.endswith((".htm", ".html", ".hta", ".mht", ".mhtml", ".url")):
-        return "ie"
+def choose_package(config):
+    """Try to automatically select an analysis package using
+    the category and filename, type if available.
+    @param config: Analyzer config object or dict containing: category,
+    file_name, and file_type.
+    """
+    category = config.get("category")
+    filename = config.get("file_name", "")
+    package = None
+
+    # TODO ability to configure default URL analysis package?
+    if category == "url":
+        # The default analysis package for the URL category is ie.
+        package = "ie"
+
+    # Try to find a matching analysis package for a file.
+    elif category == "file":
+        for pkg, search in packages.iteritems():
+
+            # First search for file extensions. These have precedence over
+            # the file type
+            if filename.lower().endswith(search.get("extension", ())):
+                package = pkg
+                break
+
+            for ftype in search.get("file_types", ()):
+                if ftype.lower() in config.get("file_type", "").lower():
+                    package = pkg
+
+                    # Custom handlers can exist if more selection criteria
+                    # is required when a matching analysis package is
+                    # found
+                    custom_handler = search.get("custom")
+                    if custom_handler:
+                        package = custom_handler(config)
+                    break
+
+            if package:
+                break
+
+        # If no matching analysis package was found, use the generic one
+        package = "generic" if package is None else package
+
     else:
-        return "generic"
+        raise CuckooPackageError("Unsupported category: '%s'" % category)
+
+    return get_package_class(package)
+
+def _handle_dll(config):
+    if config.get("file_name", "").lower().endswith(".cpl"):
+        return "cpl"
+    elif has_com_exports(config.get("pe_exports").split(",")):
+        return "com"
+    else:
+        return "dll"
+
+# Dict where the key is the package that should be selected if
+# the a string from file_types matches or extension matches extension from
+# extension. Custom is optional and can contain a function object. It can be
+# used to provide further package selection logic and should return the string
+# name of an existing analysis package.
+packages = {
+    "dll": {
+        "file_types": ("DLL"),
+        "extension": (".dll"),
+        "custom": _handle_dll
+    },
+    "cpl": {
+        "file_types": (),
+        "extension": (".cpl")
+    },
+    "exe": {
+        "file_types": ("PE32", "MS-DOS"),
+        "extension": (".exe")
+    },
+    "pdf": {
+        "file_types": ("PDF"),
+        "extension": (".pdf")
+    },
+    "pub": {
+        "file_types": (),
+        "extension": (".pub")
+    },
+    "hwp": {
+        "file_types": ("Hangul (Korean) Word Processor File 5.x"),
+        "extension": (".hwp")
+    },
+    "doc": {
+        "file_types": (
+            "Rich Text Format", "Microsoft Word", "Microsoft Office Word",
+            "Microsoft OOXML"
+        ),
+        "extension": (".doc", ".docx", ".rtf", ".docm")
+    },
+    "xls": {
+        "file_types": (
+            "Microsoft Excel", "Microsoft Office Excel",
+        ),
+        "extension": (".xls", ".xlsx", ".xlt", ".xlsm", ".iqy", ".slk")
+    },
+    "ppt": {
+        "file_types": (
+            "Microsoft PowerPoint", "Microsoft Office PowerPoint",
+        ),
+        "extension": (
+            ".ppt", ".pptx", ".pps", ".ppsx", ".pptm", ".potm", ".potx",
+            ".ppsm"
+        )
+    },
+    "jar": {
+        "file_types": ("Java archive data"),
+        "extension": (".jar")
+    },
+    "hta": {
+        "file_types": (),
+        "extension": (".hta")
+    },
+    "zip": {
+        "file_types": ("Zip"),
+        "extension": (".zip")
+    },
+    "python": {
+        "file_types": ("Python script"),
+        "extension": (".py", ".pyc")
+    },
+    "vbs": {
+        "file_types": (),
+        "extension": (".vbs")
+    },
+    "js": {
+        "file_types": (),
+        "extension": (".js")
+    },
+    "jse": {
+        "file_types": (),
+        "extension": (".jse")
+    },
+    "msi": {
+        "file_types": ("MSI Installer"),
+        "extension": (".msi")
+    },
+    "ps1": {
+        "file_types": (),
+        "extension": (".ps1")
+    },
+    "wsf": {
+        "file_types": (),
+        "extension": (".wsf,", ".wsc")
+    },
+    "ie": {
+        "file_types": ("HTML"),
+        "extension": (".htm", ".html", ".mht", ".mhtml", ".url", "swf")
+    }
+}
