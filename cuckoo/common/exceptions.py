@@ -56,3 +56,12 @@ class CuckooFeedbackError(CuckooOperationalError):
 
 class CuckooApiError(CuckooOperationalError):
     """Error during API usage."""
+
+class RealtimeError(CuckooOperationalError):
+    """Error during realtime protocol communicaton"""
+
+class RealtimeCommandFailed(RealtimeError):
+    """Error if a requested command fails to execute for some reason"""
+
+class RealtimeBlockingExpired(RealtimeError):
+    """Error if requested blocking time is exceeded for a realtime command"""

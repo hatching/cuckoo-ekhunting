@@ -524,7 +524,6 @@ class GuestManager(object):
 
         while self.analysis.status == Analysis.RUNNING:
             log.debug("%s: analysis still processing", self.vmid)
-
             time.sleep(1)
 
             # If the analysis hits the critical timeout, just return straight
