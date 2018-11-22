@@ -11,7 +11,6 @@ from lib.common.defines import TOKEN_ALL_ACCESS, LUID_AND_ATTRIBUTES
 
 def grant_privilege(privilege):
     """Grant debug privileges.
-    @param pid: PID.
     @return: operation status.
     """
     ADVAPI32.OpenProcessToken.argtypes = (wintypes.HANDLE,
