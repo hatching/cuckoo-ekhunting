@@ -1,4 +1,4 @@
-# Copyright (C) 2017 Cuckoo Foundation.
+# Copyright (C) 2018 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -20,6 +20,7 @@ from cuckoo.core.database import (
 from cuckoo.core.guest import GuestManager
 from cuckoo.core.log import task_log_start, task_log_stop, logger
 from cuckoo.core.plugins import RunAuxiliary
+from cuckoo.core.realtime import RealTimeHandler
 from cuckoo.core.resultserver import ResultServer
 from cuckoo.core.target import Target
 
@@ -51,6 +52,8 @@ class Regular(AnalysisManager):
         self.aux = RunAuxiliary(
             self.task.task_dict, self.machine, self.guest_manager
         )
+
+        self.rt = RealTimeHandler()
 
         # Check if the current task has remotecontrol
         # enabled before starting the machine.
@@ -206,7 +209,7 @@ class Regular(AnalysisManager):
             }
         )
 
-        ResultServer().add_task(self.task.db_task, self.machine)
+        ResultServer().add_task(self.task.db_task, self.machine, self.rt)
 
         # Start auxiliary modules
         self.aux.start()
