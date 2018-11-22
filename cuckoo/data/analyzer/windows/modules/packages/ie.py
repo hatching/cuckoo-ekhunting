@@ -117,12 +117,25 @@ class IE(Package):
 
         # If it's a HTML file, force an extension, or otherwise Internet
         # Explorer will open it as a text file or something else non-html.
-        if os.path.exists(target) and not target.endswith((".htm", ".html", ".mht", ".mhtml", ".url", ".swf")):
-            os.rename(target, target + ".html")
-            target += ".html"
-            log.info("Submitted file is missing extension, adding .html")
+        if isinstance(target, (basestring, str)):
+            if os.path.exists(target) and not target.endswith(
+                    (".htm", ".html", ".mht", ".mhtml", ".url", ".swf")
+            ):
+                os.rename(target, target + ".html")
+                target += ".html"
+                log.info("Submitted file is missing extension, adding .html")
+
+        if not isinstance(target, (list, tuple)):
+            target = [target]
 
         iexplore = self.get_path("Internet Explorer")
-        return self.execute(
-            iexplore, args=[target], maximize=True, mode="iexplore"
-        )
+
+        pids = []
+        for url in target:
+            pid = self.execute(
+                iexplore, args=[url], maximize=True, mode="iexplore"
+            )
+            if pid:
+                pids.append(pid)
+
+        return pids
