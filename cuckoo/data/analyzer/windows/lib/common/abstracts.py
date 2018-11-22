@@ -5,7 +5,6 @@
 
 import glob
 import os
-
 from _winreg import CreateKey, SetValueEx, CloseKey, REG_DWORD, REG_SZ
 
 from lib.api.process import Process
@@ -22,6 +21,7 @@ class Package(object):
         self.options = options
         self.analyzer = analyzer
         self.pids = []
+        self.set_regkeys = True
 
         # Fetch the current working directory, defaults to $TEMP.
         if "curdir" in options:
@@ -156,7 +156,9 @@ class Package(object):
                 trigger = "file:%s" % path
 
         # Setup pre-defined registry keys.
-        self.init_regkeys(self.REGKEYS)
+        if self.set_regkeys:
+            self.init_regkeys(self.REGKEYS)
+            self.set_regkeys = False
 
         p = Process()
         if not p.execute(path=path, args=args, dll=dll, free=free,
@@ -170,26 +172,44 @@ class Package(object):
 
     def package_files(self):
         """A list of files to upload to host.
-        The list should be a list of tuples (<path on guest>, <name of file in package_files folder>).
-        (package_files is a folder that will be created in analysis folder).
+        The list should be a list of tuples (<path on guest>, <name of file in
+         package_files folder>). (package_files is a folder that will be
+         created in analysis folder).
         """
         return None
+
+    def stop(self):
+        """Stop all pids of this analysis package"""
+        for pid in self.pids:
+            p = Process(pid=pid)
+            if p.is_alive():
+                try:
+                    p.terminate()
+                except Exception:
+                    continue
+
+    def dump_procmem(self):
+        """Create a memory dump for each running process"""
+        for pid in self.pids:
+            dump_memory(pid)
+        return True
 
     def finish(self):
         """Finish run.
         If specified to do so, this method dumps the memory of
         all running processes.
         """
-        if self.options.get("procmemdump"):
-            for pid in self.pids:
-                dump_memory(pid)
-
         return True
 
 class Auxiliary(object):
+
     def __init__(self, options={}, analyzer=None):
         self.options = options
         self.analyzer = analyzer
+
+    def enabled(self):
+        val = self.options.get(self.__class__.__name__.lower())
+        return val not in (0, "no", "off", "false", "0")
 
     def init(self):
         pass
@@ -198,4 +218,7 @@ class Auxiliary(object):
         pass
 
     def stop(self):
+        pass
+
+    def finish(self):
         pass
