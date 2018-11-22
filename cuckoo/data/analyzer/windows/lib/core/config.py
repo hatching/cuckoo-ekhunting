@@ -1,5 +1,5 @@
 # Copyright (C) 2010-2013 Claudio Guarnieri.
-# Copyright (C) 2014-2016 Cuckoo Foundation.
+# Copyright (C) 2014-2018 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -46,3 +46,9 @@ class Config:
             key, value = field.split("=", 1)
             ret[key.strip()] = value.strip()
         return ret
+
+    def get(self, key, default=None):
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            return default
