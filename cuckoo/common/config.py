@@ -319,15 +319,15 @@ class Config(object):
                 ),
             },
             "replay": {
-                "enabled": Boolean(True),
+                "enabled": Boolean(True, required=False),
                 "mitmdump": Path(
-                    "/usr/local/bin/mitmdump",
-                    exists=False, writable=False, readable=True
+                    "/usr/local/bin/mitmdump", exists=False,
+                    writable=False, readable=True, required=False
                 ),
-                "port_base": Int(51000),
+                "port_base": Int(51000, required=False),
                 "certificate": Path(
-                    "bin/cert.p12",
-                    exists=False, writable=False, readable=True
+                    "bin/cert.p12", exists=False,
+                    writable=False, readable=True, required=False
                 ),
             },
             "services": {
@@ -663,6 +663,7 @@ class Config(object):
                 "scan": Boolean(False),
                 "force": Boolean(False),
                 "url": String(),
+                "probes": String(required=False),
             },
         },
         "qemu": {
