@@ -5,6 +5,7 @@
 
 import logging
 import socket
+import sys
 import threading
 
 from ctypes import create_string_buffer, c_uint, byref, sizeof
@@ -158,6 +159,7 @@ class PipeServer(threading.Thread):
         self.message = message
         self.kwargs = kwargs
         self.do_run = True
+        self.daemon = True
 
     def run(self):
         while self.do_run:
@@ -196,3 +198,10 @@ def disconnect_pipes():
             sock.close()
         except:
             log.exception("Could not close socket")
+
+def get_pipe_path(name):
+    """Returns \\\\.\\PIPE on Windows XP and \\??\\PIPE elsewhere."""
+    version = sys.getwindowsversion()
+    if version.major == 5 and version.minor == 1:
+        return "\\\\.\\PIPE\\%s" % name
+    return "\\??\\PIPE\\%s" % name
