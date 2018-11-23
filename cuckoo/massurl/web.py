@@ -11,6 +11,7 @@ import json
 import logging
 import random
 import string
+import uuid
 
 from flask import Flask, request, jsonify, render_template
 from gevent.lock import BoundedSemaphore
@@ -232,12 +233,93 @@ def list_groups():
         ]
     )
 
+@app.route("/diary/url/<int:url_id>")
+def get_diaries_url(url_id):
+    limit = int(request.args.get("limit", 50))
+    offset = request.args.get("offset", 0)
+    return jsonify([
+        {
+            "version": random.randint(1, 150),
+            "datetime": str(random_date(
+                datetime.datetime.strptime(
+                    "1-11-2018 21:55:22", "%d-%m-%Y %H:%M:%S"
+                ),
+                datetime.datetime.strptime(
+                    "23-11-2018 23:17:18", "%d-%m-%Y %H:%M:%S"
+                )
+            )),
+            "id": str(uuid.uuid4())
+        }
+        for x in range(limit)
+    ])
+
+@app.route("/diary/search/<item>")
+def search_diaries(item):
+    limit = int(request.args.get("limit", 50))
+    offset = request.args.get("offset", 0)
+    return jsonify([
+        {
+            "version": random.randint(1, 150),
+            "datetime": str(random_date(
+                datetime.datetime.strptime(
+                    "1-11-2018 21:55:22", "%d-%m-%Y %H:%M:%S"
+                ),
+                datetime.datetime.strptime(
+                    "23-11-2018 23:17:18", "%d-%m-%Y %H:%M:%S"
+                )
+            )),
+            "id": str(uuid.uuid4()),
+            "url": "http://%s" % random_string(10, 60),
+            "match": ["%s%s" % (item, random_string(5, 200)) for x in range(random.randint(0, 10))]
+        }
+        for x in range(limit)
+    ])
+
+@app.route("/diary/<uuid>")
+def get_diary(uuid):
+    return jsonify({
+        "url": "http://%s" % random_string(10, 60),
+        "datetime": str(random_date(
+                datetime.datetime.strptime(
+                    "1-11-2018 21:55:22", "%d-%m-%Y %H:%M:%S"
+                ),
+                datetime.datetime.strptime(
+                    "23-11-2018 23:17:18", "%d-%m-%Y %H:%M:%S"
+                )
+            )),
+        "signatures": rand_sig(),
+        "javascript": [random_string(22, 6000) for x in range(
+            random.randint(0, 40)
+        )],
+        "requested_urls": [
+            {"url": "http://%s" % random_string(10, 60), "len": 55} for x in range(random.randint(0, 100))
+            ],
+        "version": random.randint(1, 150),
+        "id": uuid
+    })
+
 def random_string(minimum, maximum=None):
     if maximum is None:
         maximum = minimum
 
     count = random.randint(minimum, maximum)
     return "".join(random.choice(string.ascii_letters) for x in xrange(count))
+
+def random_date(start, end):
+    delta = end - start
+    int_delta = (delta.days * 24 * 60 * 60) + delta.seconds
+    random_second = random.randrange(int_delta)
+    return start + datetime.timedelta(seconds=random_second)
+
+def rand_sig(c=None):
+    s = ["JS eval()", "Suspicious JS", "JS iframe", "Flash file loaded",
+         "New URL detected", "Suspicious URL domain name", "JS in PDF",
+         "TOR url", "TOR gateway URL", "IE11 Exploit", "Edge Exploit",
+         "Firefox exploit", "Suspicious process created", "Browser exploited",
+         "Suspicious Java applet"]
+    s.extend([random_string(8, 17) for x in range(random.randint(4, 20))])
+    random.shuffle(s)
+    return [random.choice(s) for x in range(c or random.randint(0, 18))]
 
 @app.route("/genalert")
 def gen_alerts():
