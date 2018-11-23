@@ -54,7 +54,7 @@ def url_groups_manage():
         ]
     )
 
-@app.route("/alerts/list")
+@app.route("/api/alerts/list")
 def list_alerts():
     target_group = request.args.get("target_group")
 
@@ -78,7 +78,7 @@ def list_alerts():
 
     return jsonify([a.to_dict() for a in alerts])
 
-@app.route("/group/add", methods=["POST"])
+@app.route("/api/group/add", methods=["POST"])
 def add_group():
     name = request.form.get("name", "")
     description = request.form.get("description", "")
@@ -100,7 +100,7 @@ def add_group():
 
     return jsonify(group_id=group_id)
 
-@app.route("/group/add/url", methods=["POST"])
+@app.route("/api/group/add/url", methods=["POST"])
 def group_add_url():
     urls = request.form.get("urls", "")
     name = request.form.get("group_name", "")
@@ -128,8 +128,8 @@ def group_add_url():
         )
     return json_error(404, "Specified group does not exist")
 
-@app.route("/group/view/<int:group_id>")
-@app.route("/group/view/<name>")
+@app.route("/api/group/view/<int:group_id>")
+@app.route("/api/group/view/<name>")
 def view_group(group_id=None, name=None):
     if not group_id and not name:
         return json_error(400, "No group_id or name specified to view")
@@ -140,8 +140,8 @@ def view_group(group_id=None, name=None):
 
     return jsonify(group.to_dict())
 
-@app.route("/group/view/<int:group_id>/urls")
-@app.route("/group/view/<name>/urls")
+@app.route("/api/group/view/<int:group_id>/urls")
+@app.route("/api/group/view/<name>/urls")
 def view_group_urls(group_id=None, name=None):
     if not group_id and not name:
         return json_error(400, "No group_id or name specified to view")
@@ -164,7 +164,7 @@ def view_group_urls(group_id=None, name=None):
 
     return jsonify(name=group.name, group_id=group.id, urls=urls)
 
-@app.route("/group/delete", methods=["POST"])
+@app.route("/api/group/delete", methods=["POST"])
 def delete_group():
     name = request.form.get("group_name", "")
     group_id = request.form.get("group_id")
@@ -182,7 +182,7 @@ def delete_group():
         return jsonify(message="success")
     return json_error(404, "Specified group does not exist")
 
-@app.route("/group/delete/url", methods=["POST"])
+@app.route("/api/group/delete/url", methods=["POST"])
 def group_delete_url():
     urls = request.form.get("urls", "")
     name = request.form.get("group_name", "")
@@ -211,7 +211,7 @@ def group_delete_url():
 
     return json_error(500, "Error removing URLs from group")
 
-@app.route("/groups/list")
+@app.route("/api/groups/list")
 def list_groups():
     intargs = {
         "limit": request.args.get("limit", 50),
@@ -233,7 +233,7 @@ def list_groups():
         ]
     )
 
-@app.route("/diary/url/<int:url_id>")
+@app.route("/api/diary/url/<int:url_id>")
 def get_diaries_url(url_id):
     limit = int(request.args.get("limit", 50))
     offset = request.args.get("offset", 0)
@@ -253,7 +253,7 @@ def get_diaries_url(url_id):
         for x in range(limit)
     ])
 
-@app.route("/diary/search/<item>")
+@app.route("/api/diary/search/<item>")
 def search_diaries(item):
     limit = int(request.args.get("limit", 50))
     offset = request.args.get("offset", 0)
@@ -275,7 +275,7 @@ def search_diaries(item):
         for x in range(limit)
     ])
 
-@app.route("/diary/<uuid>")
+@app.route("/api/diary/<uuid>")
 def get_diary(uuid):
     return jsonify({
         "url": "http://%s" % random_string(10, 60),
@@ -321,7 +321,7 @@ def rand_sig(c=None):
     random.shuffle(s)
     return [random.choice(s) for x in range(c or random.randint(0, 18))]
 
-@app.route("/genalert")
+@app.route("/api/genalert")
 def gen_alerts():
     notify = request.args.get("notify", False)
     int_args = {
