@@ -1,11 +1,13 @@
 import $ from 'jquery';
 import Templates from './templates';
 
+const APIUrl = (endpoint=false) => `/api/group/${endpoint ? endpoint : '/'}`;
+
 const urls = {
-  add: () => '/group/add',
-  add_url: () => '/group/add/url',
-  view: (id, d = 0) => `/group/view/${id}?details=${d}`,
-  delete: () => '/group/delete'
+  add: () => APIUrl(`add`),
+  add_url: () => APIUrl('add/url'),
+  view: (id, d = 0) => APIUrl(`view/${id}?details=${d}`),
+  delete: () => APIUrl('delete')
 }
 
 // displays an error in the form above the input

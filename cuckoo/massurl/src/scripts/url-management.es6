@@ -2,11 +2,13 @@ import $ from 'jquery';
 import autosize from 'autosize';
 import Templates from './templates';
 
+const APIUrl = (endpoint=false) => `/api/group/${endpoint ? endpoint : '/'}`;
+
 const urls = {
-  view_groups: (group_id, l = 1000, o = 0) => `/group/view/${group_id}?limit=${l}&offset=${o}`,
-  view_urls: group_id => `/group/view/${group_id}/urls`,
-  save_urls: () => `/group/add/url`,
-  delete_urls: () => '/group/delete/url'
+  view_groups: (group_id, l = 1000, o = 0) => APIUrl(`view/${group_id}?limit=${l}&offset=${o}`),
+  view_urls: group_id => APIUrl(`view/${group_id}/urls`),
+  save_urls: () => APIUrl(`add/url`),
+  delete_urls: () => APIUrl('group/delete/url')
 }
 
 // returns all the urls for a specific group

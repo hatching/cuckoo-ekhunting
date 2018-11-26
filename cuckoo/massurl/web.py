@@ -34,6 +34,9 @@ def json_error(status_code, message, *args):
     r.status_code = status_code
     return r
 
+#
+# WEB VIEW ROUTES
+#
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -409,6 +412,7 @@ ws_routes = {
 }
 
 def run_server(host, port):
+
     """Run the server. This handles websocket and HTTP requests"""
     log.info("Starting server for %r on %s:%s", app, host, port)
     gevent.spawn(handle_alerts)

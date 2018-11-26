@@ -3,7 +3,7 @@ import Templates from './templates';
 import stream from './socket-handler';
 import sound from './sounds';
 
-const baseUrl = `${window.location.origin}/alerts/list`;
+const baseUrl = `${window.location.origin}/api/alerts/list`;
 const socketBase = `ws://${window.location.host}/alerts`;
 const urls = {
   alerts: (limit, offset) => `${baseUrl}?limit=${limit}&offset=${offset}`
