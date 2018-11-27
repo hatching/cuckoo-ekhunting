@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+
+<main class="viewport" id="url-diaries">
+  <div class="foreground app">
+    {% include 'partials/header.html' %}
+    <section class="app__body">
+      <div class="split-view editor-ui">
+        <div class="split-view-container one-third editor-ui-left">
+          <p>A</p>
+        </div>
+        <div class="split-view-container">
+          <p>2</p>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="background pattern-small-steps" id="app-background"></div>
+</main>
+
+{% endblock %}

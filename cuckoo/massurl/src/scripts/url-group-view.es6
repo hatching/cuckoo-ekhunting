@@ -14,27 +14,30 @@ function loadUrlsForGroup(groupId) {
   });
 }
 
-function openDiaryForUrl() {
-
+// opens a diary for a specific url
+function openDiaryForUrl(el, id) {
+  window.location = `/diary/${id}`;
 }
 
 // populates urls for a certain group
 function populateUrls(u,el) {
   el.empty();
+  let rand = mp => Math.floor(Math.random() * mp);
   if(u.length) {
     u.map(e => {
       let li = $(document.createElement('li'));
-      let a  = $(document.createElement('textarea'));
+      let ta  = $(document.createElement('textarea'));
       let icon = $("<i class='far fa-atlas'></i>");
-      a.val(e);
-      a.attr('disabled', true);
-      li.append(icon, a);
+      li.attr('data-url-id', rand(9999)); // MOCK ID
+      ta.val(e);
+      ta.attr('disabled', true);
+      li.append(icon, ta);
       return li;
     }).forEach(e => {
       el.append(e);
       e.on('click', e => {
         e.preventDefault();
-        openDiaryForUrl(e.currentTarget.value);
+        openDiaryForUrl(e.currentTarget, parseInt(e.currentTarget.getAttribute('data-url-id')));
       })
     });
   } else {
