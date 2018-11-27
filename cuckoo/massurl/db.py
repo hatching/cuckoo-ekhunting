@@ -174,7 +174,7 @@ def delete_url_from_group(targets, group_id):
     finally:
         session.close()
 
-def find_urls_group(group_id, limit=1000, offset=0):
+def find_urls_group(group_id, limit=1000, offset=0, include_id=False):
     """Retrieve a list of all urls in the specified group
     @param group_id: The id of the group to retrieve urls for
     @param limit: The limit on urls to return
@@ -186,7 +186,10 @@ def find_urls_group(group_id, limit=1000, offset=0):
         if not group:
             return False
         targets = group.urls.limit(limit).offset(offset).all()
-        return [t.target for t in targets]
+        if include_id:
+            return [{"id": t.id, "url": t.target} for t in targets]
+        else:
+            return [t.target for t in targets]
     finally:
         session.close()
 

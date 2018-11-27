@@ -182,7 +182,9 @@ def view_group_urls(group_id=None, name=None):
     if not group:
         return json_error(404, "Specified group does not exist")
 
-    urls = db.find_urls_group(group.id, limit=limit, offset=offset)
+    urls = db.find_urls_group(
+        group.id, limit=limit, offset=offset, include_id=True
+    )
 
     return jsonify(name=group.name, group_id=group.id, urls=urls)
 
@@ -292,7 +294,10 @@ def search_diaries(item):
             )),
             "id": str(uuid.uuid4()),
             "url": "http://%s" % random_string(10, 60),
-            "match": ["%s%s" % (item, random_string(5, 200)) for x in range(random.randint(0, 10))]
+            "match": [
+                "%s%s" % (item, random_string(5, 200))
+                for x in range(random.randint(0, 10))
+            ]
         }
         for x in range(limit)
     ])
@@ -314,7 +319,8 @@ def get_diary(uuid):
             random.randint(0, 40)
         )],
         "requested_urls": [
-            {"url": "http://%s" % random_string(10, 60), "len": 55} for x in range(random.randint(0, 100))
+                {"url": "http://%s" % random_string(10, 60), "len": 55}
+                for x in range(random.randint(0, 100))
             ],
         "version": random.randint(1, 150),
         "id": uuid
@@ -431,7 +437,6 @@ ws_routes = {
 }
 
 def run_server(host, port):
-
     """Run the server. This handles websocket and HTTP requests"""
     log.info("Starting server for %r on %s:%s", app, host, port)
     gevent.spawn(handle_alerts)
