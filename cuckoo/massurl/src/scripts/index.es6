@@ -3,6 +3,7 @@ import Fullscreen from './fullscreen';
 import { initAlerts } from './alerts';
 import { initUrlGroups } from './url-groups';
 import { initUrlManagement } from './url-management';
+import { initUrlGroupView } from './url-group-view';
 
 // util - string bool to bool
 function stringToBoolean(val){
@@ -119,6 +120,13 @@ $(function() {
   // specific inits for url-management
   if($("main#url-management").length) {
     initUrlManagement($("#url-management")).then(data => {
+
+    });
+  }
+
+  // specific inits for url-group-view
+  if($("main#url-group-view").length) {
+    initUrlGroupView($("#url-group-view")).then(data => {
 
     });
   }

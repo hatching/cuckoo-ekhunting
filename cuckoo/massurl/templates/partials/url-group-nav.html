@@ -6,5 +6,8 @@
     <li>
       <a {% if request.endpoint == "url_groups_manage" %}class="active"{% endif %} href="/url-groups/manage">Manage</a>
     </li>
+    <li>
+      <a {% if request.endpoint == "url_groups_view" %}class="active"{% endif %} href="/url-groups/view">View</a>
+    </li>
   </ul>
 </nav>

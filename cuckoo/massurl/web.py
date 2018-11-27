@@ -57,6 +57,24 @@ def url_groups_manage():
         ]
     )
 
+@app.route("/url-groups/view")
+def url_groups_view():
+    return render_template(
+        "url-group-view.html", groups=[
+            g.to_dict() for g in db.list_groups(limit=50)
+        ]
+    )
+
+@app.route("/diary/<uuid>")
+def diary_view(uuid):
+    return render_template(
+        "url-diaries.html",
+        diaries=[]
+    )
+
+#
+# API routes
+#
 @app.route("/api/alerts/list")
 def list_alerts():
     target_group = request.args.get("target_group")
