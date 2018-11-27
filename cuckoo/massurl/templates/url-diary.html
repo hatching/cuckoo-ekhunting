@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 
-<main class="viewport" id="url-diaries">
+<main class="viewport" id="url-diary" data-url-id="{{uuid}}">
   <div class="foreground app">
     {% include 'partials/header.html' %}
     <section class="app__body">
       <div class="split-view editor-ui">
         <div class="split-view-container one-third editor-ui-left">
-          <p>A</p>
+          <h3><i class="far fa-atlas"></i> Diary</h3>
+          <p>2</p>
         </div>
         <div class="split-view-container">
           <p>2</p>

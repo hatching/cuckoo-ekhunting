@@ -68,7 +68,8 @@ def url_groups_view():
 @app.route("/diary/<uuid>")
 def diary_view(uuid):
     return render_template(
-        "url-diaries.html",
+        "url-diary.html",
+        uuid=uuid,
         diaries=[]
     )
 

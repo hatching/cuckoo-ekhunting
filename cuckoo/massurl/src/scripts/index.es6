@@ -4,6 +4,7 @@ import { initAlerts } from './alerts';
 import { initUrlGroups } from './url-groups';
 import { initUrlManagement } from './url-management';
 import { initUrlGroupView } from './url-group-view';
+import { initDiary } from './diary';
 
 // util - string bool to bool
 function stringToBoolean(val){
@@ -128,6 +129,13 @@ $(function() {
   if($("main#url-group-view").length) {
     initUrlGroupView($("#url-group-view")).then(data => {
 
+    });
+  }
+
+  // specific inits for diary
+  if($("main#url-diary").length) {
+    initDiary($("#url-diary"), parseInt($("#url-diary").data('urlId'))).then(data => {
+      
     });
   }
 
