@@ -1,8 +1,18 @@
 import $ from 'jquery';
+import moment from 'moment';
+import Paginator from './paginator';
 const APIUrl = (endpoint=false) => `/api${endpoint ? endpoint : '/'}`;
 
 const urls = {
-  groupUrls: gid => APIUrl(`/group/view/${gid}/urls`)
+  groups: () => APIUrl(`/groups/list`),
+  groupUrls: gid => APIUrl(`/group/view/${gid}/urls`),
+  diaries: id => APIUrl(`/diary/url/${id}`)
+}
+
+function loadGroups() {
+  return new Promise((resolve, reject) => {
+    $.get(urls.groups(), res => resolve(res), rej => reject(rej), "json");
+  });
 }
 
 // loads up the urls for a group
@@ -19,28 +29,70 @@ function openDiaryForUrl(el, id) {
   window.location = `/diary/${id}`;
 }
 
+// returns a list of diaries for a url
+function getDiariesForUrl(id) {
+  return new Promise((resolve, reject) => {
+    $.get(urls.diaries(id), res => resolve(res), err => reject(err), "json")
+  });
+}
+
 // populates urls for a certain group
 function populateUrls(u,el) {
+
   el.empty();
-  let rand = mp => Math.floor(Math.random() * mp);
+
+  // creates a url button
+  let createUrlButton = e => {
+    let li = $("<li />");
+    let ta  = $("<textarea />");
+    let ic = $("<i class='far fa-atlas'></i>");
+    let ar = $("<i class='far fa-angle-right'></i>");
+    li.attr('data-url-id', e.id); // MOCK ID
+    ta.val(e.url);
+    ta.attr('disabled', true);
+    li.append(ic, ta, ar);
+    return li;
+  };
+
+  // creates a list of diaries
+  let createDiaryList = diaries => {
+    let ul = $("<ul class='data-list' />");
+    diaries.forEach(diary => {
+      let { version, datetime, id } = diary;
+      let an = $("<a />");
+      let li = $("<li />");
+      let sp = $("<span />");
+      an.data('diary', diary);
+      an.text(moment(datetime).format('LLL'));
+      an.attr('href',`/diary/${id}`);
+      sp.attr('title',version);
+      an.prepend(sp);
+      li.append(an);
+      ul.append(li);
+    });
+    return ul;
+  };
+
   if(u.length) {
-    u.map(e => {
-      let li = $(document.createElement('li'));
-      let ta  = $(document.createElement('textarea'));
-      let icon = $("<i class='far fa-atlas'></i>");
-      li.attr('data-url-id', rand(9999)); // MOCK ID
-      ta.val(e);
-      ta.attr('disabled', true);
-      li.append(icon, ta);
-      return li;
-    }).forEach(e => {
+    u.map(e => createUrlButton(e)).forEach(e => {
       el.append(e);
+      // creates a dropdown list for that group, opens on click
       e.on('click', e => {
         e.preventDefault();
-        openDiaryForUrl(e.currentTarget, parseInt(e.currentTarget.getAttribute('data-url-id')));
-      })
+        let el = $(e.currentTarget);
+        getDiariesForUrl(el.data('urlId')).then(diaries => {
+          if(!el.hasClass('open')) {
+            el.after(createDiaryList(diaries));
+            el.addClass('open');
+          } else {
+            el.removeClass('open');
+            el.next('.data-list').remove();
+          }
+        });
+      });
     });
   } else {
+    // display a message that the list is empty
     let li = $(document.createElement('li'));
     li.text('There are no urls in this group.');
     el.append(li);
@@ -49,26 +101,38 @@ function populateUrls(u,el) {
 
 function initUrlGroupView($el) {
 
-  let $groups = $el.find('.url-groups a[href^="open:"]');
+  const pre = [];
+  let $groups = $el.find('.url-groups');
   let $urls = $el.find('.url-list');
+
+  pre.push(loadGroups());
 
   return new Promise((resolve, reject) => {
 
-    $el.find('.url-groups a[href^="open:"]').on('click', e => {
-      $groups.removeClass('active');
-      $(e.currentTarget).addClass('active');
-      e.preventDefault();
-      let id = parseInt(e.currentTarget.getAttribute('href').split(':')[1]);
-      // hello world
-      loadUrlsForGroup(id).then(d => {
-        console.log(d);
-        populateUrls(d.urls, $urls);
-      }).catch(err => console.log(err))
+    Promise.all(pre).then(responses => {
+      const groups = responses[0];
+      groups.forEach(g => {
+        let { name } = g;
+        $groups.append(`<li><a href="open:${name}">${name}</a></li>`)
+      });
+
+      $el.find('.url-groups a[href^="open:"]').on('click', e => {
+        $groups.find('a').removeClass('active');
+        $(e.currentTarget).addClass('active');
+        e.preventDefault();
+        let id = e.currentTarget.getAttribute('href').split(':')[1];
+
+        loadUrlsForGroup(id).then(d => {
+          populateUrls(d.urls, $urls);
+        }).catch(err => console.log(err));
+
+      });
+
+      $el.find('.url-groups a[href^="open:"]').eq(0).click();
+      resolve();
+
     });
 
-    $el.find('.url-groups a[href^="open:"]').eq(0).click();
-
-    resolve();
   });
 }
 

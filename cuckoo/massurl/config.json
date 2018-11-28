@@ -8,6 +8,8 @@
     },
     "babel": {
       "plugins": [
+        "@babel/plugin-proposal-object-rest-spread",
+        "@babel/plugin-transform-destructuring",
         "transform-custom-element-classes",
         "transform-es2015-classes"
       ],

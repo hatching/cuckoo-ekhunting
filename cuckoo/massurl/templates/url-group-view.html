@@ -7,11 +7,7 @@
         {% include 'partials/url-group-nav.html' %}
         <div class="split-view editor-ui">
           <div class="split-view-container one-third editor-ui-left">
-            <ul class="url-groups">
-            {% for group in groups %}
-              <li><a href="open:{{group.id}}">{{group.name}}</a></li>
-            {% endfor %}
-            </ul>
+            <ul class="url-groups"></ul>
           </div>
           <div class="split-view-container editor ready">
             <ul class="url-list"></ul>

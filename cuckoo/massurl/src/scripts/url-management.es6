@@ -23,7 +23,11 @@ function loadGroup(id) {
   return new Promise((resolve, reject) => {
     $.get(urls.view_groups(id), group => {
       loadUrlsForGroup(group.id).then((u = {urls:null}) => {
-        group.urls = u.urls || [];
+        // group.urls = u.urls || [];
+        group.urls = [];
+        if(u.urls) {
+          group.urls = u.urls.map(url => url.url);
+        }
         resolve({
           group,
           template: $(Templates.editor(group))
