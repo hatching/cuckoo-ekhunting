@@ -1,0 +1,25 @@
+{
+    "mappings": {
+         "related": {
+             "properties": {
+                 "parent": {"type": "keyword"},
+                 "url": {"type": "text"},
+                 "datetime": {
+                     "type": "date",
+                     "format": "epoch_millis"
+                 },
+                 "log": {
+                     "type": "nested",
+                     "properties": {
+                         "request": {"type": "text"},
+                         "respone": {"type": "integer"},
+                         "datetime": {
+                              "type": "date",
+                              "format": "epoch_millis"
+                         }
+                     }
+                 }
+             }
+         }
+    }
+}

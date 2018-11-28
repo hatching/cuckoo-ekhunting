@@ -1,0 +1,25 @@
+{
+    "mappings": {
+	     "urldiary": {
+		     "properties": {
+			     "url": {"type": "keyword"},
+                 "url_id": {"type": "integer"},
+                 "datetime": {
+                     "type": "date",
+                     "format" "epoch_second"
+                 },
+				 "version": {"type": "integer"},
+				 "requested_urls": {
+                     "type": "nested",
+                     "properties": {
+                         "url": {"type": "text"},
+                         "len": {"type": "integer"}
+                     }
+                 },
+				 "javascript": {"type": "text"},
+                 "related_documents": {"type": "text"},
+                 "signatures": {"type": "text"}
+			 }
+		 }
+	}
+}
