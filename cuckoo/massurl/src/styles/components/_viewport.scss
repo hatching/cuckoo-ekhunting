@@ -10,9 +10,24 @@
 
   & > &-container {
     flex-basis: 100%;
-
-    &.one-third {
-      flex-basis: percentage(1/3);
-    }
+    &.one-third { flex-basis: percentage(1/3); }
   }
+
+  &--vertical {
+    @extend .split-view;
+    flex-direction: column;
+
+    & > * {
+      box-sizing: border-box;
+      &:not(header) { flex-basis: 100%; }
+    }
+
+  }
+
+  .columns {
+    margin: 0 15px;
+    & > * { padding: 0 7px; }
+    .scroll-y { overflow-y: auto; }
+  }
+
 }

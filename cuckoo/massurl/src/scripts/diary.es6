@@ -1,3 +1,4 @@
+import moment from 'moment';
 import $ from 'jquery';
 
 const APIUrl = (endpoint=false) => `/api/diary/${endpoint ? endpoint : '/'}`;
@@ -5,6 +6,54 @@ const APIUrl = (endpoint=false) => `/api/diary/${endpoint ? endpoint : '/'}`;
 const api = {
   get: id => APIUrl(id)
 };
+
+let generateList = (arr=[],key=false) => {
+  let ul = $("<ul />");
+  arr.forEach(item => {
+    let li = $("<li />");
+    if(key !== false)
+      item = item[key];
+    li.text(item);
+    ul.append(li);
+  });
+  return ul;
+}
+
+// transforms li content into disabled text fields
+let textareafy = ul => {
+
+  ul.find('li').each((i, li) => {
+    let content = $(li).html();
+    let ta = $("<textarea></textarea>");
+    ta.val(content);
+    // ta.attr('disabled', true);
+    $(li).html(ta);
+  });
+
+  return {
+    list: ul,
+    // call this function on render of the areas
+    // sel = ALL(<textarea>)
+    render: sel => {
+      let open = s => {
+        s.style.height = '1px';
+        s.style.height = `${(25+s.scrollHeight)}px`;
+      }
+      sel.each((i,s)=>{
+        s.addEventListener('click', e => {
+          if(s.classList.contains('open')) {
+            s.classList.remove('open');
+            s.style.height = 'auto';
+          } else {
+            open(s);
+            s.classList.add('open');
+          }
+        });
+      });
+    }
+  };
+
+}
 
 // loads a diary from the api
 function loadDiary(id) {
@@ -14,8 +63,30 @@ function loadDiary(id) {
 }
 
 // populates a diary
-function populateDiary(data={}) {
+function populateDiary(data={},el) {
+  let setHolder = (label,value) => el.find(`[data-placeholder=${label}]`).text(value);
   return new Promise((resolve, reject) => {
+    let { url, datetime, version, requested_urls, signatures, javascript } = data;
+    let requestsContainer = el.find('#diary-requests');
+    let signaturesContainer = el.find('#diary-signatures');
+    let javascriptContainer = el.find('#diary-javascript');
+    // fills up placeholders
+    setHolder('url', url);
+    setHolder('datetime', moment(datetime).format('LLL'));
+    setHolder('version', version);
+    // creates data fields
+    let requestsList = textareafy(generateList(requested_urls, "url"));
+    let signaturesList = textareafy(generateList(signatures));
+    let javascriptList = textareafy(generateList(javascript));
+
+    requestsContainer.append(requestsList.list);
+    signaturesContainer.append(signaturesList.list);
+    javascriptContainer.append(javascriptList.list);
+    requestsList.render(requestsList.list.find('textarea'));
+    signaturesList.render(signaturesList.list.find('textarea'));
+    javascriptList.render(javascriptList.list.find('textarea'));
+
+
     resolve();
   });
 }
@@ -23,9 +94,10 @@ function populateDiary(data={}) {
 // initializes the diary
 function initDiary(el, id) {
   return new Promise((resolve, reject) => {
-    loadDiary(parseInt(id)).then(data => {
-      populateDiary().then()
-      resolve();
+    loadDiary(id).then(data => {
+      populateDiary(data,el).then(() => {
+        resolve();
+      });
     });
   });
 }

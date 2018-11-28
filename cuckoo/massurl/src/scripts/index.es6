@@ -134,8 +134,8 @@ $(function() {
 
   // specific inits for diary
   if($("main#url-diary").length) {
-    initDiary($("#url-diary"), parseInt($("#url-diary").data('urlId'))).then(data => {
-
+    initDiary($("#url-diary"), $("#url-diary").data('urlId')).then(data => {
+      
     });
   }
 

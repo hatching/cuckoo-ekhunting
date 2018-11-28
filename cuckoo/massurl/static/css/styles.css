@@ -38,6 +38,30 @@
   border: 0;
   box-shadow: 0; }
 
+.editor-ui .editor .url-list > li textarea, .diary-ui .columns > * > div ul textarea,
+.disabled-text-field {
+  display: block;
+  border-radius: 4px;
+  background: #eee;
+  border: 1px solid #d5d5d5;
+  padding: 10px 15px;
+  height: 45px;
+  overflow: hidden;
+  box-sizing: border-box;
+  resize: none;
+  user-select: none; }
+  .editor-ui .editor .url-list > li textarea:hover, .diary-ui .columns > * > div ul textarea:hover,
+  .disabled-text-field:hover {
+    cursor: pointer;
+    background-color: #fff;
+    border-color: #d5d5d5; }
+  .editor-ui .editor .url-list > li textarea:focus, .diary-ui .columns > * > div ul textarea:focus,
+  .disabled-text-field:focus {
+    outline: none; }
+  .editor-ui .editor .url-list > li textarea::selection, .diary-ui .columns > * > div ul textarea::selection,
+  .disabled-text-field::selection {
+    background: transparent; }
+
 /*! normalize-scss | MIT/GPLv2 License | bit.ly/normalize-scss */
 /* Document
        ========================================================================== */
@@ -4956,12 +4980,24 @@ body {
   height: 100vh;
   overflow: hidden; }
 
-.split-view {
+.split-view, .split-view--vertical {
   display: flex; }
-  .split-view > .split-view-container {
+  .split-view > .split-view-container, .split-view--vertical > .split-view-container {
     flex-basis: 100%; }
-    .split-view > .split-view-container.one-third {
+    .split-view > .split-view-container.one-third, .split-view--vertical > .split-view-container.one-third {
       flex-basis: 33.33333%; }
+  .split-view--vertical {
+    flex-direction: column; }
+    .split-view--vertical > * {
+      box-sizing: border-box; }
+      .split-view--vertical > *:not(header) {
+        flex-basis: 100%; }
+  .split-view .columns, .split-view--vertical .columns {
+    margin: 0 15px; }
+    .split-view .columns > *, .split-view--vertical .columns > * {
+      padding: 0 7px; }
+    .split-view .columns .scroll-y, .split-view--vertical .columns .scroll-y {
+      overflow-y: auto; }
 
 /*
   Defines a 100%x100% container (fluid to its parent) that will
@@ -5528,7 +5564,7 @@ table.table {
 .editor-ui {
   background-color: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
-  min-height: 500px;
+  height: 100%;
   overflow: hidden; }
   .editor-ui-left {
     border-right: 1px solid #ccc;
@@ -5550,6 +5586,25 @@ table.table {
         .editor-ui .url-groups > li a.active {
           background-color: #4A6FA5;
           color: #fff; }
+  .editor-ui > header {
+    padding: 0 20px;
+    border-bottom: 1px solid #ccc; }
+    .editor-ui > header h3 {
+      color: #444;
+      margin-bottom: 0; }
+      .editor-ui > header h3 i {
+        margin-right: 10px;
+        font-size: 1.1em; }
+    .editor-ui > header .split-view, .editor-ui > header .split-view--vertical {
+      justify-content: space-between; }
+    .editor-ui > header p {
+      color: #444; }
+      .editor-ui > header p span {
+        font-weight: 500;
+        color: #4287EB; }
+  .editor-ui [data-placeholder]:not(.silent):empty:before {
+    content: "Loading...";
+    color: #ccc; }
   .editor-ui .editor {
     overflow-y: auto; }
     .editor-ui .editor.loading, .editor-ui .editor.idle {
@@ -5613,20 +5668,6 @@ table.table {
           margin-left: 15px;
           min-width: 15px;
           text-align: right; }
-        .editor-ui .editor .url-list > li textarea {
-          display: block;
-          border-radius: 4px;
-          background: #eee;
-          border: 1px solid #d5d5d5;
-          padding: 10px 15px;
-          height: 45px;
-          overflow: hidden; }
-          .editor-ui .editor .url-list > li textarea:hover {
-            cursor: pointer;
-            background-color: #fff;
-            border-color: #d5d5d5; }
-          .editor-ui .editor .url-list > li textarea::selection {
-            background: transparent; }
         .editor-ui .editor .url-list > li.open {
           margin-bottom: 0; }
           .editor-ui .editor .url-list > li.open .fa-angle-right:before {
@@ -5680,5 +5721,36 @@ table.table {
             padding: 2px 10px; }
         .editor-ui .editor .data-list li.paginate {
           padding: 10px; }
+
+.diary-ui .columns {
+  margin: 0; }
+  .diary-ui .columns > * {
+    padding: 0 20px;
+    width: 33.33333%;
+    border-color: #ccc;
+    border-style: solid;
+    border-width: 0 0 1px 1px; }
+    .diary-ui .columns > *:first-child {
+      border-left-width: 0; }
+    .diary-ui .columns > * > div {
+      flex-grow: 0; }
+      .diary-ui .columns > * > div ul {
+        list-style: none;
+        padding: 0; }
+        .diary-ui .columns > * > div ul li {
+          margin-bottom: 10px; }
+          .diary-ui .columns > * > div ul li:last-child {
+            margin-bottom: 0; }
+        .diary-ui .columns > * > div ul textarea {
+          font-family: monospace;
+          overflow-y: scroll;
+          width: 100%;
+          height: auto; }
+  .diary-ui .columns header h4 {
+    text-align: center;
+    font-weight: 400;
+    margin: 30px 0 10px 0; }
+    .diary-ui .columns header h4 i {
+      margin-right: 5px; }
 
 /*# sourceMappingURL=styles.css.map */

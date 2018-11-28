@@ -52,3 +52,26 @@
   border: 0;
   box-shadow: 0;
 }
+
+%disabled-text-field,
+.disabled-text-field {
+  display: block;
+  border-radius: 4px;
+  background: #eee;
+  border: 1px solid #d5d5d5;
+  padding: 10px 15px;
+  height: 45px;
+  overflow: hidden;
+  box-sizing: border-box;
+  resize: none;
+  user-select: none;
+
+  &:hover {
+    cursor: pointer;
+    background-color: #fff;
+    border-color: #d5d5d5;
+  }
+  
+  &:focus { outline: none; }
+  &::selection { background: transparent; }
+}

@@ -5,13 +5,33 @@
   <div class="foreground app">
     {% include 'partials/header.html' %}
     <section class="app__body">
-      <div class="split-view editor-ui">
-        <div class="split-view-container one-third editor-ui-left">
-          <h3><i class="far fa-atlas"></i> Diary</h3>
-          <p>{{url}}</p>
-        </div>
-        <div class="split-view-container">
-          <p>2</p>
+      <div class="split-view--vertical editor-ui diary-ui">
+        <header class="editor-header">
+          <h3><i class="far fa-atlas"></i><span data-placeholder="url"></span></h3>
+          <div class="split-view">
+            <p>No. <span data-placeholder="version"></span></p>
+            <p>Created: <span data-placeholder="datetime"></span></p>
+          </div>
+        </header>
+        <div class="split-view columns">
+          <div class="split-view-container split-view--vertical">
+            <header>
+              <h4><i class="fas fa-server"></i> Requests</h4>
+            </header>
+            <div class="scroll-y" id="diary-requests"></div>
+          </div>
+          <div class="split-view-container split-view--vertical">
+            <header>
+              <h4><i class="fas fa-barcode-read"></i> Signatures</h4>
+            </header>
+            <div class="scroll-y" id="diary-signatures"></div>
+          </div>
+          <div class="split-view-container split-view--vertical">
+            <header>
+              <h4><i class="fas fa-terminal"></i> Executed</h4>
+            </header>
+            <div class="scroll-y" id="diary-javascript"></div>
+          </div>
         </div>
       </div>
     </section>
