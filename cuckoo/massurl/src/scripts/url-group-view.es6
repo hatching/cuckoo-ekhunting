@@ -61,7 +61,7 @@ function populateUrls(u,el) {
       let { version, datetime, id } = diary;
       let an = $("<a />");
       let li = $("<li />");
-      let sp = $("<span />");
+      let sp = $("<span data-label-prefix='No.' />");
       an.data('diary', diary);
       an.text(moment(datetime).format('LLL'));
       an.attr('href',`/diary/${id}`);
@@ -79,11 +79,41 @@ function populateUrls(u,el) {
       // creates a dropdown list for that group, opens on click
       e.on('click', e => {
         e.preventDefault();
+        e.stopPropagation();
         let el = $(e.currentTarget);
         getDiariesForUrl(el.data('urlId')).then(diaries => {
           if(!el.hasClass('open')) {
-            el.after(createDiaryList(diaries));
+
+            let ul = createDiaryList(diaries);
+            el.after(ul);
             el.addClass('open');
+
+            // add paginator
+            const paginator = new Paginator({
+              url: urls.diaries(el.data('urlId')),
+              limit: 50,
+              offset: 1
+            });
+
+            let button = $(`
+              <li class="paginate"><button class="button">More</button></li>
+            `);
+
+            ul.append(button);
+
+            button.find('button').on('click', e => {
+              e.preventDefault();
+              e.stopPropagation();
+              paginator.next();
+            });
+
+            paginator.on('payload', data => {
+              let list = createDiaryList(data.response);
+              list.find('li').each((i,li)=>{
+                button.before(li);
+              });
+            });
+
           } else {
             el.removeClass('open');
             el.next('.data-list').remove();
