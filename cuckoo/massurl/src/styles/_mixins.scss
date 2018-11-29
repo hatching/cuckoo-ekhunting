@@ -71,7 +71,11 @@
     background-color: #fff;
     border-color: #d5d5d5;
   }
-  
+
   &:focus { outline: none; }
   &::selection { background: transparent; }
+}
+
+.clear-padding {
+  padding: 0 !important;
 }

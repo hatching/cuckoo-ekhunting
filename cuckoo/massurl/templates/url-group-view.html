@@ -5,12 +5,15 @@
       {% include 'partials/header.html' %}
       <section class="app__body editor-body">
         {% include 'partials/url-group-nav.html' %}
-        <div class="split-view editor-ui">
-          <div class="split-view-container one-third editor-ui-left">
-            <ul class="url-groups"></ul>
-          </div>
-          <div class="split-view-container editor ready">
-            <ul class="url-list"></ul>
+        <div class="split-view--vertical editor-ui">
+          <header class="clear-padding">{% include "partials/search-bar.html" %}</header>
+          <div class="split-view">
+            <div class="split-view-container one-third editor-ui-left">
+              <ul class="url-groups"></ul>
+            </div>
+            <div class="split-view-container editor ready">
+              <ul class="url-list"></ul>
+            </div>
           </div>
         </div>
       </section>

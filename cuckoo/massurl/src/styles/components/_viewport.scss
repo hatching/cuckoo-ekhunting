@@ -15,6 +15,7 @@
 
   &--vertical {
     @extend .split-view;
+    height: 100%;
     flex-direction: column;
 
     & > * {

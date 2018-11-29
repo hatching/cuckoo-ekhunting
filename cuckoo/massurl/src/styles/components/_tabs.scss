@@ -1,6 +1,7 @@
 .tabs {
 
   margin-bottom: 15px;
+  padding-left: 10px;
 
   & > ul {
     @extend %flex-list;
