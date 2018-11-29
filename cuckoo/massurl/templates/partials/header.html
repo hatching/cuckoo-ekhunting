@@ -11,7 +11,7 @@
         <a {% if request.endpoint == "index" %}class="active"{% endif %} href="/">Events</a>
       </li>
       <li>
-        <a {% if request.endpoint == "url_groups" or request.endpoint == "url_groups_manage" %}class="active"{% endif %} href="/url-groups">URL Groups</a>
+        <a {% if request.endpoint == "url_groups" or request.endpoint == "url_groups_manage" or request.endpoint == "url_groups_view" %}class="active"{% endif %} href="/url-groups">URL Groups</a>
       </li>
       <li>
         <a {% if request.endpoint == "diary_search" or request.endpoint == "diary_view" %}class="active"{% endif %} href="/diary">Diary</a>
@@ -20,11 +20,11 @@
   </nav>
   <div class="right">
     <ul class="controls">
-      <li>
+      <!-- <li>
         <div class="system-indicator" data-online="true">
           <span class="system-indicator--inner"></span>
         </div>
-      </li>
+      </li> -->
       <li class="with-options">
         <button id="toggle-audio" class="control-audio">
           <i class="fal fa-volume-mute"></i>
