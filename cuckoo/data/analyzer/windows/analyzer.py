@@ -721,6 +721,9 @@ class Analyzer(object):
 
             self.plock.acquire()
             try:
+                # See if all running processing are still alive and remove
+                # them from the tracked list if they are not.
+                self.plist.untrack_terminated()
                 self.plist.add_pids(zer0m0n.getpids())
 
                 for pkg_cnt, pkg in self.packages.iteritems():
@@ -733,7 +736,6 @@ class Analyzer(object):
                         "The analysis package '%s' raised an exception. "
                         "Error: %s. %s", pkg.__class__.__name__, e
                     )
-
             finally:
                 self.plock.release()
                 time.sleep(1)

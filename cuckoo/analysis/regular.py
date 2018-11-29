@@ -397,7 +397,6 @@ class Regular(AnalysisManager):
         # After all this, we can make the ResultServer forget about the
         # internal state for this analysis task.
         ResultServer().del_task(self.task.db_task, self.machine)
-        self.rt.stop()
 
         # Drop the network routing rules if any.
         self.route.unroute_network()
