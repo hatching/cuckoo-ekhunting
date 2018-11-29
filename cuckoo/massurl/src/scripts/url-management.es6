@@ -8,7 +8,7 @@ const urls = {
   view_groups: (group_id, l = 1000, o = 0) => APIUrl(`view/${group_id}?limit=${l}&offset=${o}`),
   view_urls: group_id => APIUrl(`view/${group_id}/urls`),
   save_urls: () => APIUrl(`add/url`),
-  delete_urls: () => APIUrl('group/delete/url')
+  delete_urls: () => APIUrl('delete/url')
 }
 
 // returns all the urls for a specific group

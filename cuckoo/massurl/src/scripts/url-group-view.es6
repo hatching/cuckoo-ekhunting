@@ -56,12 +56,12 @@ function populateUrls(u,el) {
 
   // creates a list of diaries
   let createDiaryList = diaries => {
-    let ul = $("<ul class='data-list' />");
+    let ul = $("<ul class='data-list scroll-context' />");
     diaries.forEach(diary => {
       let { version, datetime, id } = diary;
       let an = $("<a />");
       let li = $("<li />");
-      let sp = $("<span data-label-prefix='No.' />");
+      let sp = $("<span class='tag' data-label-prefix='No.' />");
       an.data('diary', diary);
       an.text(moment(datetime).format('LLL'));
       an.attr('href',`/diary/${id}`);
@@ -92,7 +92,7 @@ function populateUrls(u,el) {
             const paginator = new Paginator({
               url: urls.diaries(el.data('urlId')),
               limit: 50,
-              offset: 1
+              offset: 0
             });
 
             let button = $(`

@@ -45,14 +45,14 @@ export default class Paginator extends EventEmitter {
     let { offset, limit } = this.props;
     this.request().then(response => {
       this.emit('payload', { offset, response });
-    }).catch(err => this.emit('error'))
+    }).catch(err => this.emit('error', err));
   }
 
   increment() { this.props.current += 1; }
 
   get current() { return this.props.current; }
-  get limit() { return this.props.limit; }
-  get offset() { return this.props.offset; }
-  get url() { return `${this.props.url}?offset=${this.offset}&limit=${this.limit}`; }
+  get limit()   { return this.props.limit; }
+  get offset()  { return this.props.offset; }
+  get url()     { return `${this.props.url}?offset=${this.offset}&limit=${this.limit}`; }
 
 }

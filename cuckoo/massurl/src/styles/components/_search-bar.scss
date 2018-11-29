@@ -11,7 +11,7 @@
       display: flex;
       align-items: center;
       padding: 0 10px;
-     }
+    }
     & > input { flex-basis: 100%; }
   }
 
@@ -26,7 +26,6 @@
 
     position: relative;
     left: -1px;
-    // width: calc(100% + 2px);
     transition: box-shadow .3s;
 
     &:focus {
@@ -42,11 +41,13 @@
     font-family: "Roboto";
     font-weight: 500;
     padding: 5px 50px;
+    flex-shrink: 0;
     &:hover {
       background-color: #e5e5e5;
       border-color: #eee;
       cursor: pointer;
     }
+    &:focus { outline: none; }
   }
 
 }

@@ -5,6 +5,7 @@ import { initUrlGroups } from './url-groups';
 import { initUrlManagement } from './url-management';
 import { initUrlGroupView } from './url-group-view';
 import { initDiary } from './diary';
+import { initSearch } from './search';
 
 // util - string bool to bool
 function stringToBoolean(val){
@@ -135,6 +136,13 @@ $(function() {
   // specific inits for diary
   if($("main#url-diary").length) {
     initDiary($("#url-diary"), $("#url-diary").data('urlId')).then(data => {
+
+    });
+  }
+
+  // specific inits for search
+  if($("#search-content").length) {
+    initSearch($("#search-content"), $("#result-container")).then(data => {
       
     });
   }

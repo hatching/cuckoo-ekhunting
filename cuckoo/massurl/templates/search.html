@@ -1,13 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 
-<main class="viewport" id="search" data-url-id="{{uuid}}">
+<main class="viewport" id="url-group-view">
   <div class="foreground app">
     {% include 'partials/header.html' %}
-    <section class="app__body">
-      
+    <section class="app__body editor-body">
+      <div class="split-view--vertical editor-ui">
+        <header class="clear-padding">{% include "partials/search-bar.html" %}</header>
+        <div class="split-view">
+          <div class="split-view-container editor ready" id="result-container">
+            <ul class="url-list"></ul>
+          </div>
+        </div>
+      </div>
     </section>
   </div>
+  <div class="background pattern-small-steps" id="app-background"></div>
 </main>
 
 {% endblock %}
