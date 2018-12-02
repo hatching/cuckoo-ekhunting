@@ -67,13 +67,13 @@ def url_groups_view():
         ]
     )
 
+@app.route("/diary")
+def diaries_search():
+    return render_template("search.html")
+
 @app.route("/diary/<uuid>")
 def diary_view(uuid):
-    return render_template(
-        "url-diary.html",
-        uuid=uuid,
-        diaries=[]
-    )
+    return render_template("url-diary.html", uuid=uuid)
 
 #
 # API routes
