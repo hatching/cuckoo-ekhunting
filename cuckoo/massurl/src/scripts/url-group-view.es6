@@ -115,8 +115,10 @@ function populateUrls(u,el) {
             });
 
           } else {
+
             el.removeClass('open');
             el.next('.data-list').remove();
+            
           }
         });
       });

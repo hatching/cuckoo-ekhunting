@@ -5005,6 +5005,22 @@ body {
       padding: 0 7px; }
     .split-view .columns .scroll-y, .split-view--vertical .columns .scroll-y {
       overflow-y: auto; }
+    .split-view .columns .split-view-container, .split-view--vertical .columns .split-view-container {
+      order: 1; }
+      .split-view .columns .split-view-container.closed, .split-view--vertical .columns .split-view-container.closed {
+        flex-basis: 45px;
+        overflow: hidden;
+        order: 0; }
+        .split-view .columns .split-view-container.closed header, .split-view--vertical .columns .split-view-container.closed header {
+          font-size: 0;
+          text-align: center; }
+          .split-view .columns .split-view-container.closed header i, .split-view--vertical .columns .split-view-container.closed header i {
+            font-size: 16px; }
+        .split-view .columns .split-view-container.closed > div > *, .split-view--vertical .columns .split-view-container.closed > div > * {
+          visibility: hidden; }
+        .split-view .columns .split-view-container.closed:hover, .split-view--vertical .columns .split-view-container.closed:hover {
+          cursor: pointer;
+          background-color: #e5e5e5; }
 
 /*
   Defines a 100%x100% container (fluid to its parent) that will
@@ -5782,8 +5798,8 @@ table.table {
     border-color: #ccc;
     border-style: solid;
     border-width: 0 0 1px 1px; }
-    .diary-ui .columns > *:first-child {
-      border-left-width: 0; }
+    .diary-ui .columns > *:last-child {
+      border-right-width: 1px; }
     .diary-ui .columns > * > div {
       flex-grow: 0; }
       .diary-ui .columns > * > div ul {

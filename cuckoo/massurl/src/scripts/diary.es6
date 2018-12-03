@@ -7,8 +7,8 @@ const api = {
   get: id => APIUrl(id)
 };
 
-let generateList = (arr=[],key=false) => {
-  let ul = $("<ul />");
+let generateList = (arr=[],key=false,dataList=true) => {
+  let ul = $(`<ul ${dataList ? 'class="data-list"' : ''} />`);
   arr.forEach(item => {
     let li = $("<li />");
     if(key !== false)
@@ -66,26 +66,35 @@ function loadDiary(id) {
 function populateDiary(data={},el) {
   let setHolder = (label,value) => el.find(`[data-placeholder=${label}]`).text(value);
   return new Promise((resolve, reject) => {
+
     let { url, datetime, version, requested_urls, signatures, javascript } = data;
+
     let requestsContainer = el.find('#diary-requests');
     let signaturesContainer = el.find('#diary-signatures');
     let javascriptContainer = el.find('#diary-javascript');
+
     // fills up placeholders
     setHolder('url', url);
     setHolder('datetime', moment(datetime).format('LLL'));
     setHolder('version', version);
+
     // creates data fields
     let requestsList = textareafy(generateList(requested_urls, "url"));
-    let signaturesList = textareafy(generateList(signatures));
+    let signaturesList = generateList(signatures);
     let javascriptList = textareafy(generateList(javascript));
 
     requestsContainer.append(requestsList.list);
-    signaturesContainer.append(signaturesList.list);
+    signaturesContainer.append(signaturesList);
     javascriptContainer.append(javascriptList.list);
+
     requestsList.render(requestsList.list.find('textarea'));
-    signaturesList.render(signaturesList.list.find('textarea'));
     javascriptList.render(javascriptList.list.find('textarea'));
 
+    let togglePane = e => e.currentTarget.parentNode.classList.toggle('closed');
+
+    requestsContainer.parent().find('header').on('click', togglePane);
+    signaturesContainer.parent().find('header').on('click', togglePane);
+    javascriptContainer.parent().find('header').on('click', togglePane);
 
     resolve();
   });
