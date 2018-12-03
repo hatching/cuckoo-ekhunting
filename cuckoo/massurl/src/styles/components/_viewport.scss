@@ -6,6 +6,7 @@
 }
 
 .split-view {
+
   display: flex;
 
   & > &-container {
@@ -26,9 +27,34 @@
   }
 
   .columns {
+
     margin: 0 15px;
+
     & > * { padding: 0 7px; }
+
     .scroll-y { overflow-y: auto; }
+
+    .split-view-container {
+      order: 1;
+
+      &.closed {
+        flex-basis: 45px;
+        overflow: hidden;
+        order: 0;
+        header {
+          font-size: 0;
+          text-align: center;
+          i { font-size: 16px; }
+        }
+        & > div > * { visibility: hidden; }
+        &:hover {
+          cursor: pointer;
+          background-color: #e5e5e5;
+        }
+      }
+
+    }
+
   }
 
 }

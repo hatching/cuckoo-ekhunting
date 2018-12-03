@@ -11,8 +11,11 @@ import json
 import logging
 import random
 import string
+<<<<<<< Updated upstream
 import sys
 import time
+=======
+>>>>>>> Stashed changes
 import uuid
 
 from flask import Flask, request, jsonify, render_template
@@ -57,17 +60,22 @@ def url_groups():
 @app.route("/url-groups/manage")
 def url_groups_manage():
     return render_template(
-        "url-group-content.html", groups=[
-            g.to_dict() for g in db.list_groups(limit=50)
-        ]
+        "url-group-content.html",
+        groups=[g.to_dict() for g in db.list_groups(limit=50)]
     )
 
 @app.route("/url-groups/view")
 def url_groups_view():
     return render_template(
-        "url-group-view.html", groups=[
-            g.to_dict() for g in db.list_groups(limit=50)
-        ]
+        "url-group-view.html",
+        groups=[g.to_dict() for g in db.list_groups(limit=50)]
+    )
+
+@app.route("/diary")
+def diary_search():
+    return render_template(
+        "search.html",
+        payload=[]
     )
 
 @app.route("/diary")
@@ -264,6 +272,26 @@ def list_groups():
 
 @app.route("/api/diary/url/<int:url_id>")
 def get_diaries_url(url_id):
+
+    # limit = int(request.args.get("limit", 50))
+    # offset = request.args.get("offset", 0)
+    #
+    # return jsonify([
+    #     {
+    #         "version": random.randint(1, 150),
+    #         "datetime": str(random_date(
+    #             datetime.datetime.strptime(
+    #                 "1-11-2018 21:55:22", "%d-%m-%Y %H:%M:%S"
+    #             ),
+    #             datetime.datetime.strptime(
+    #                 "23-11-2018 23:17:18", "%d-%m-%Y %H:%M:%S"
+    #             )
+    #         )),
+    #         "id": str(uuid.uuid4())
+    #     }
+    #     for x in range(limit)
+    # ])
+
     intargs = {
         "limit": request.args.get("limit", 20),
         "offset": request.args.get("offset", 0)
@@ -283,6 +311,29 @@ def get_diaries_url(url_id):
 
 @app.route("/api/diary/search/<item>")
 def search_diaries(item):
+
+    # - mock code
+    # limit = int(request.args.get("limit", 20))
+    # offset = int(request.args.get("offset", 0))
+
+    # return jsonify([
+    #      {
+    #          "version": random.randint(1, 150),
+    #          "datetime": str(random_date(
+    #              datetime.datetime.strptime(
+    #                  "1-11-2018 21:55:22", "%d-%m-%Y %H:%M:%S"
+    #              ),
+    #              datetime.datetime.strptime(
+    #                  "23-11-2018 23:17:18", "%d-%m-%Y %H:%M:%S"
+    #              )
+    #          )),
+    #          "id": str(uuid.uuid4()),
+    #          "url": "http://%s" % random_string(10, 60),
+    #          "match": ["%s%s" % (item, random_string(5, 200)) for x in range(random.randint(0, 10))]
+    #      }
+    #     for x in range(limit)
+    # ])
+
     intargs = {
         "limit": request.args.get("limit", 20),
         "offset": request.args.get("offset", 0)
@@ -302,6 +353,27 @@ def get_diary(diary_id):
         return json_error(404, "Specified URL diary does not exist")
 
     return jsonify(diary)
+
+    # return jsonify({
+    #     "url": "http://%s" % random_string(10, 60),
+    #      "datetime": str(random_date(
+    #              datetime.datetime.strptime(
+    #                  "1-11-2018 21:55:22", "%d-%m-%Y %H:%M:%S"
+    #              ),
+    #              datetime.datetime.strptime(
+    #                  "23-11-2018 23:17:18", "%d-%m-%Y %H:%M:%S"
+    #              )
+    #          )),
+    #      "signatures": rand_sig(),
+    #      "javascript": [random_string(22, 6000) for x in range(
+    #          random.randint(0, 40)
+    #      )],
+    #      "requested_urls": [
+    #          {"url": "http://%s" % random_string(10, 60), "len": 55} for x in range(random.randint(0, 100))
+    #          ],
+    #      "version": random.randint(1, 150),
+    #      "id": diary_id
+    #  })
 
 def random_string(minimum, maximum=None):
     if maximum is None:
