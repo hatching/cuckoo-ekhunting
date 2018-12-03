@@ -448,7 +448,7 @@ def handle_alerts():
             lock.release()
 
 ws_routes = {
-    "/alerts": ws_connect
+    "/ws/alerts": ws_connect
 }
 
 def run_server(host, port):
