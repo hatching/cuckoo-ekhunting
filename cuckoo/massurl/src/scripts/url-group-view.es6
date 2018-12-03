@@ -15,6 +15,16 @@ function loadGroups() {
   });
 }
 
+// detects a ?view={id} item to pre-open url editors
+function detectTarget() {
+  let tgt = window.location.search.replace('?','').split('=');
+  if(tgt.length == 2) {
+    return parseInt(tgt[1]);
+  } else {
+    return false;
+  }
+}
+
 // loads up the urls for a group
 function loadUrlsForGroup(groupId) {
   return new Promise((resolve, reject) => {
@@ -118,7 +128,7 @@ function populateUrls(u,el) {
 
             el.removeClass('open');
             el.next('.data-list').remove();
-            
+
           }
         });
       });
@@ -160,7 +170,15 @@ function initUrlGroupView($el) {
 
       });
 
-      $el.find('.url-groups a[href^="open:"]').eq(0).click();
+      let show = detectTarget();
+      if(show) {
+        loadUrlsForGroup(show).then(d => {
+          populateUrls(d.urls, $urls);
+        }).catch(err => console.log(err));
+      } else {
+        $el.find('.url-groups a[href^="open:"]').eq(0).click();
+      }
+
       resolve();
 
     });

@@ -84,6 +84,7 @@ function rowHandler($el = null, $form) {
   let row = $e => {
 
     let rmButton = $e.find('button[data-remove]');
+    let edButton = $e.find('button[data-edit]');
 
     rmButton.on('click', e => {
       e.stopPropagation();
@@ -103,10 +104,17 @@ function rowHandler($el = null, $form) {
     });
 
     // redirects to the url-groups page with the target id as a param
-    $e.on('click', e => {
-      let id = $(e.currentTarget).data('groupId');
+    edButton.on('click', e => {
+      e.stopPropagation();
+      let id = $(e.currentTarget).parents('tr').data('groupId');
       if(id)
         window.location = `${window.location.origin}/url-groups/manage?mng=${id}`;
+    });
+
+    $e.on('click', e => {
+      let id = $(e.currentTarget).data('groupName');
+      if(id)
+        window.location = `${window.location.origin}/url-groups/view?v=${id}`;
     });
 
   }

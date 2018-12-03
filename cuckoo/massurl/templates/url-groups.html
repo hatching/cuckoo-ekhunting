@@ -36,13 +36,16 @@
                 </td>
               </tr>
               {% for group in groups %}
-                <tr data-group-id="{{group.id}}">
+                <tr data-group-id="{{group.id}}" data-group-name="{{group.name}}">
                   <td class="centerize">{{group.id}}</td>
                   <td>{{group.name}}</td>
                   <td>{{group.description}}</td>
-                  <td>
+                  <td class="centerize">
                     <button type="button" class="button icon-button" data-remove>
                       <i class="far fa-trash-alt"></i>
+                    </button>
+                    <button type="button" class="button icon-button" data-edit>
+                      <i class="far fa-marker"></i>
                     </button>
                   </td>
                 </tr>

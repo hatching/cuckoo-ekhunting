@@ -152,7 +152,7 @@ function initUrlManagement($editor) {
     });
 
     $editor.find('.editor').removeClass('loading');
-    
+
     if(openAt) {
       $editor.find(`.url-groups a[href="open:${openAt}"]`).trigger('click');
     } else {
