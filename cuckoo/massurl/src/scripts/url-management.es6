@@ -133,6 +133,7 @@ function initUrlManagement($editor) {
 
   let openAt = detectTarget();
   let $links = $editor.find('.url-groups a[href^="open:"]');
+  let detailID = window.EK_Group_ID || false;
 
   return new Promise((resolve, reject) => {
 
@@ -151,6 +152,7 @@ function initUrlManagement($editor) {
     });
 
     $editor.find('.editor').removeClass('loading');
+    
     if(openAt) {
       $editor.find(`.url-groups a[href="open:${openAt}"]`).trigger('click');
     } else {
