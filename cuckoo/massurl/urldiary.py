@@ -2,17 +2,13 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
-import json
 import logging
-import os
 import uuid
 
 from elasticsearch import helpers
 from elasticsearch.exceptions import TransportError
 
 from cuckoo.common.elastic import elastic
-from cuckoo.common.exceptions import CuckooStartupError
-from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
 
@@ -27,37 +23,6 @@ class URLDiaries(object):
     def init(cls):
         elastic.init()
         elastic.connect()
-        cls.create_mappings()
-
-    @classmethod
-    def create_mappings(cls):
-        mappings = {
-            cls.DIARY_MAPPING: "diary-mapping.json",
-            cls.RELATED_MAPPING: "related-request-mapping.json"
-        }
-        for name, mapping_file in mappings.iteritems():
-            mapping_path = cwd("elasticsearch", mapping_file)
-
-            if elastic.client.indices.exists_type(index=name, doc_type=name):
-                continue
-
-            if not os.path.exists(mapping_path):
-                raise CuckooStartupError(
-                    "Missing required Elasticsearch mapping file: '%s'" %
-                    mapping_path
-                )
-
-            try:
-                with open(mapping_path, "rb") as fp:
-                    mapping = json.loads(fp.read())
-            except ValueError as e:
-                raise CuckooStartupError(
-                    "Failed to load Elasticsearch mapping '%s'."
-                    " Invalid JSON. %s" % (mapping_path, e)
-                )
-
-            log.info("Creating index and mapping for '%s'", name)
-            elastic.client.indices.create(name, body=mapping)
 
     @classmethod
     def store_diary(cls, diary, diary_id):
@@ -91,48 +56,18 @@ class URLDiaries(object):
         return URLDiaries.get_values(res, return_empty=None, listed=False)
 
     @classmethod
-    def get_latest_diary(cls, url_id, return_fields="version"):
+    def list_diary_url_id(cls, url_id, size=50, return_fields=""):
+        """Find all URL diaries for a url id"""
+        # TODO implement offsets
         try:
             res = elastic.client.search(
-                index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, size=1,
-                sort="datetime:desc", _source_include=return_fields or None,
+                index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, size=size,
+                sort="datetime:desc", _source_include=return_fields,
                 body={
                     "query": {
                         "match": {"url_id": url_id}
                     }
                 }
-            )
-        except TransportError as e:
-            log.exception("Error during diary lookup. %s", e)
-            return None
-
-        return URLDiaries.get_values(res, return_empty=None, listed=False)
-
-    @classmethod
-    def list_diary_url_id(cls, url_id, size=50, return_fields="", offset=0):
-        """Find all URL diaries for a url id
-        @param offset: search for smaller than the provided the millisecond
-        time stamp"""
-        query = {
-            "query": {
-                "bool": {
-                    "must": {
-                        "match": {"url_id": url_id}
-                    }
-                }
-            }
-        }
-        if offset:
-            query["query"]["bool"]["filter"] = {
-                "range": {
-                    "datetime": {"lt": offset}
-                }
-            }
-        try:
-            res = elastic.client.search(
-                index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, size=size,
-                sort="datetime:desc", _source_include=return_fields,
-                body=query
             )
         except TransportError as e:
             log.exception("Error during diary lookup. %s", e)
@@ -206,30 +141,19 @@ class URLDiaries(object):
 
     @classmethod
     def search_diaries(cls, needle, return_fields="datetime,url,version",
-                       size=50, offset=0):
+                       size=50):
         """Search all URL diaries for needle and return a list objs
-        containing return_fields
-        @param offset: search for smaller than the provided the millisecond
-        time stamp
-        """
-        query = {
-            "query": {
-                "bool": {
-                    "must": {
-                        "query_string": {"query": "%s" % needle[:128]}
-                    }
-                }
-            }
-        }
-        if offset:
-            query["query"]["bool"]["filter"] = {
-                "range": {"datetime": {"lt": offset}}
-        }
+        containing return_fields"""
+        # TODO implement offsets
         try:
             res = elastic.client.search(
                 timeout="60s", index=cls.DIARY_INDEX,
                 _source_include=return_fields, sort="datetime:desc", size=size,
-                doc_type=cls.DIARY_MAPPING, body=query
+                doc_type=cls.DIARY_MAPPING, body={
+                    "query": {
+                        "query_string": {"query": "%s" % needle[:128]}
+                    }
+                }
             )
         except TransportError as e:
             log.exception("Error while searching diaries. %s", e)
@@ -244,7 +168,7 @@ class URLDiaries(object):
         if hits.get("total", 0) < 1:
             return return_empty
 
-        if len(hits.get("hits", [])) == 1 and not listed:
+        if hits.get("total", 0) == 1 and listed:
             return hits.get("hits", [{}])[0].get("_source", {})
 
         if addid:
