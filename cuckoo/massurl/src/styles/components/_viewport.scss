@@ -39,6 +39,7 @@
 
       &.closed {
         flex-basis: 45px;
+        flex-shrink: 0;
         overflow: hidden;
         order: 0;
         header {

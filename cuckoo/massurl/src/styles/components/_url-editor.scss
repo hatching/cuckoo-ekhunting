@@ -177,7 +177,8 @@
 
     }
 
-    .data-list {
+    .data-list,
+    .default-list {
 
       list-style: none;
       padding: 5px 0;
@@ -246,6 +247,7 @@
         }
 
       }
+
     }
 
   }

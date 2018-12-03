@@ -56,7 +56,7 @@ class URLDiaries(object):
         return URLDiaries.get_values(res, return_empty=None, listed=False)
 
     @classmethod
-    def list_diary_url_id(cls, url_id, size=50, return_fields=""):
+    def list_diary_url_id(cls, url_id, size=50, return_fields="", offset=0):
         """Find all URL diaries for a url id"""
         # TODO implement offsets
         try:

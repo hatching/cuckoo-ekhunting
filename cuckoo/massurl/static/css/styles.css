@@ -48,8 +48,7 @@
   height: 45px;
   overflow: hidden;
   box-sizing: border-box;
-  resize: none;
-  user-select: none; }
+  resize: none; }
   .editor-ui .editor .url-list > li textarea:hover, .diary-ui .columns > * > div ul textarea:hover,
   .disabled-text-field:hover {
     cursor: pointer;
@@ -58,9 +57,6 @@
   .editor-ui .editor .url-list > li textarea:focus, .diary-ui .columns > * > div ul textarea:focus,
   .disabled-text-field:focus {
     outline: none; }
-  .editor-ui .editor .url-list > li textarea::selection, .diary-ui .columns > * > div ul textarea::selection,
-  .disabled-text-field::selection {
-    background: transparent; }
 
 .clear-padding {
   padding: 0 !important; }
@@ -5009,6 +5005,7 @@ body {
       order: 1; }
       .split-view .columns .split-view-container.closed, .split-view--vertical .columns .split-view-container.closed {
         flex-basis: 45px;
+        flex-shrink: 0;
         overflow: hidden;
         order: 0; }
         .split-view .columns .split-view-container.closed header, .split-view--vertical .columns .split-view-container.closed header {
@@ -5738,7 +5735,8 @@ table.table {
           .editor-ui .editor .url-list > li.open textarea {
             border-bottom-left-radius: 0;
             border-bottom-right-radius: 0; }
-    .editor-ui .editor .data-list {
+    .editor-ui .editor .data-list,
+    .editor-ui .editor .default-list {
       list-style: none;
       padding: 5px 0;
       margin-bottom: 15px;
@@ -5746,54 +5744,64 @@ table.table {
       border: 1px solid #d5d5d5;
       border-top-width: 0;
       margin: 0 30px 15px; }
-      .editor-ui .editor .data-list.scroll-context {
+      .editor-ui .editor .data-list.scroll-context,
+      .editor-ui .editor .default-list.scroll-context {
         max-height: 500px;
         overflow-y: auto; }
-      .editor-ui .editor .data-list li {
+      .editor-ui .editor .data-list li,
+      .editor-ui .editor .default-list li {
         width: 100%;
         border-bottom: 1px solid #d5d5d5;
         background-color: #fff; }
-        .editor-ui .editor .data-list li:first-child {
+        .editor-ui .editor .data-list li:first-child,
+        .editor-ui .editor .default-list li:first-child {
           border-top: 1px solid #d5d5d5; }
-        .editor-ui .editor .data-list li a {
+        .editor-ui .editor .data-list li a,
+        .editor-ui .editor .default-list li a {
           display: block;
           padding: 10px 10px;
           color: #666;
           font-weight: 500;
           text-decoration: none; }
-          .editor-ui .editor .data-list li a:hover {
+          .editor-ui .editor .data-list li a:hover,
+          .editor-ui .editor .default-list li a:hover {
             cursor: pointer;
             background-color: #f9f9f9; }
-        .editor-ui .editor .data-list li .spread {
+        .editor-ui .editor .data-list li .spread,
+        .editor-ui .editor .default-list li .spread {
           display: flex;
           justify-content: space-between;
           align-items: center; }
-        .editor-ui .editor .data-list li .tag {
+        .editor-ui .editor .data-list li .tag,
+        .editor-ui .editor .default-list li .tag {
           display: inline-flex;
           justify-content: space-between;
           align-self: flex-end;
           width: 75px;
           padding-right: 10px; }
-          .editor-ui .editor .data-list li .tag:before {
+          .editor-ui .editor .data-list li .tag:before,
+          .editor-ui .editor .default-list li .tag:before {
             content: attr(data-label-prefix);
             align-self: center;
             font-weight: 900;
             font-size: .8em;
             opacity: .5; }
-          .editor-ui .editor .data-list li .tag:after {
+          .editor-ui .editor .data-list li .tag:after,
+          .editor-ui .editor .default-list li .tag:after {
             content: attr(title);
             background-color: #ccc;
             font-weight: 500;
             color: #444;
             border-radius: 10px;
             padding: 2px 10px; }
-        .editor-ui .editor .data-list li.paginate {
+        .editor-ui .editor .data-list li.paginate,
+        .editor-ui .editor .default-list li.paginate {
           padding: 10px; }
 
 .diary-ui .columns {
   margin: 0; }
   .diary-ui .columns > * {
-    padding: 0 10px;
+    padding: 0;
     width: 33.33333%;
     border-color: #ccc;
     border-style: solid;
@@ -5801,7 +5809,8 @@ table.table {
     .diary-ui .columns > *:last-child {
       border-right-width: 1px; }
     .diary-ui .columns > * > div {
-      flex-grow: 0; }
+      flex-grow: 0;
+      padding: 0 10px; }
       .diary-ui .columns > * > div ul {
         list-style: none;
         margin-top: 0;
@@ -5815,10 +5824,19 @@ table.table {
           overflow-y: scroll;
           width: 100%;
           height: auto; }
-  .diary-ui .columns header h4 {
-    font-weight: 400;
-    margin: 15px 0 10px 0; }
-    .diary-ui .columns header h4 i {
-      margin-right: 5px; }
+  .diary-ui .columns header {
+    height: 52px;
+    padding: 0 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #ccc; }
+    .diary-ui .columns header h4 {
+      font-weight: 400;
+      margin: 15px 0 10px 0; }
+      .diary-ui .columns header h4 i {
+        margin-right: 5px; }
+
+.diary-ui .default-list li {
+  border-bottom: 1px solid #ccc;
+  padding: 5px 10px; }
 
 /*# sourceMappingURL=styles.css.map */

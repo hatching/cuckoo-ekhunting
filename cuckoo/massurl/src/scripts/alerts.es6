@@ -4,9 +4,7 @@ import stream from './socket-handler';
 import sound from './sounds';
 
 const baseUrl = `${window.location.origin}/api/alerts/list`;
-const socketBase = `ws://${window.location.host}/alerts`;
-
-console.log(socketBase);
+const socketBase = `ws://${window.location.host}/ws/alerts`;
 
 const urls = {
   alerts: (limit, offset) => `${baseUrl}?limit=${limit}&offset=${offset}`

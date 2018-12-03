@@ -23,8 +23,9 @@ function search(el, val) {
     if(val.length) {
       resolve(new Paginator({
         url: urls.search(val),
+        autoIncrement: false,
         limit: 20,
-        offset: 0
+        offset: 0,
       }));
     } else {
       reject('empty');
@@ -44,19 +45,25 @@ function initSearch(el, result) {
 
         paginator.on('payload', payload => {
 
+          // set the pagination offset to the next / last datetime (unix ms)
+          let nextOffset = payload.response[payload.response.length-1];
+          if(nextOffset)
+            paginator.offset = nextOffset.datetime;
+
           let list = createList(payload.response, (li, part) => {
             let { datetime, version, url, id } = part;
-            let date = moment(datetime).format('LLL');
+            let date = moment.utc(datetime).format('LLL');
             let a = $(`<a href="/diary/${id}" />`);
             a.append(`
               <p class="url">${url}</p>
               <div class="spread">
-                <span>${version}</span>
-                <span>${datetime}</span>
+                <span>No. ${version}</span>
+                <span>${date}</span>
               </div>
             `);
             li.append(a);
             return li;
+
           }, "url");
 
           if(firstPayload) {

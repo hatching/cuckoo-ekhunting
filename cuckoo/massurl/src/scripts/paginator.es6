@@ -11,6 +11,7 @@ export default class Paginator extends EventEmitter {
       url: null,
       limit: 0,
       offset: 0,
+      autoIncrement: true,
       ...props
     }
 
@@ -24,13 +25,12 @@ export default class Paginator extends EventEmitter {
 
   // makes a request
   request() {
-    let { url, current, limit, offset } = this.props;
+    let { url, limit, offset } = this.props;
     return new Promise((resolve, reject) => {
       $.get(
         this.url,
         response => {
           resolve(response);
-          this.increment();
         },
         error => {
           reject(error);
@@ -41,18 +41,20 @@ export default class Paginator extends EventEmitter {
   }
 
   next() {
-    this.props.offset += 1;
     let { offset, limit } = this.props;
     this.request().then(response => {
       this.emit('payload', { offset, response });
+      if(this.props.autoIncrement)
+        this.increment();
     }).catch(err => this.emit('error', err));
   }
 
-  increment() { this.props.current += 1; }
+  increment() { this.props.offset += 1; }
 
-  get current() { return this.props.current; }
   get limit()   { return this.props.limit; }
   get offset()  { return this.props.offset; }
   get url()     { return `${this.props.url}?offset=${this.offset}&limit=${this.limit}`; }
+
+  set offset(v) { this.props.offset = v; }
 
 }

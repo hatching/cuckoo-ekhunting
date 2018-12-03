@@ -7,8 +7,8 @@ const api = {
   get: id => APIUrl(id)
 };
 
-let generateList = (arr=[],key=false,dataList=true) => {
-  let ul = $(`<ul ${dataList ? 'class="data-list"' : ''} />`);
+let generateList = (arr=[],key=false,listClass="data-list") => {
+  let ul = $(`<ul class="${listClass}" />`);
   arr.forEach(item => {
     let li = $("<li />");
     if(key !== false)
@@ -80,8 +80,10 @@ function populateDiary(data={},el) {
 
     // creates data fields
     let requestsList = textareafy(generateList(requested_urls, "url"));
-    let signaturesList = generateList(signatures);
+    let signaturesList = generateList(signatures, false, "default-list");
     let javascriptList = textareafy(generateList(javascript));
+
+    console.log(signaturesList);
 
     requestsContainer.append(requestsList.list);
     signaturesContainer.append(signaturesList);
