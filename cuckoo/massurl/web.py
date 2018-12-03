@@ -11,6 +11,9 @@ import json
 import logging
 import random
 import string
+import sys
+import time
+import uuid
 
 from flask import Flask, request, jsonify, render_template
 from gevent.lock import BoundedSemaphore
@@ -19,16 +22,16 @@ from gevent.queue import Queue
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 
+from cuckoo.common.config import config
+from cuckoo.common.utils import parse_bool
 from cuckoo.massurl import db
 from cuckoo.massurl.urldiary import URLDiaries
-from cuckoo.common.utils import parse_bool
 
+log = logging.getLogger(__name__)
 
-URLDiaries.init()
 alert_queue = Queue()
 app = Flask(__name__)
 lock = BoundedSemaphore(1)
-log = logging.getLogger(__name__)
 sockets = set()
 
 def json_error(status_code, message, *args):
@@ -274,7 +277,8 @@ def get_diaries_url(url_id):
                 return json_error(400, "%s should be an integer" % key)
 
     return jsonify(URLDiaries.list_diary_url_id(
-        url_id, size=intargs.get("limit"), return_fields="version,datetime"
+        url_id, size=intargs.get("limit"), return_fields="version,datetime",
+        offset=intargs.get("offset")
     ))
 
 @app.route("/api/diary/search/<item>")
@@ -287,7 +291,7 @@ def search_diaries(item):
     return jsonify(
         URLDiaries.search_diaries(
             item, return_fields="datetime,url,version",
-            size=intargs.get("limit")
+            size=intargs.get("limit"), offset=intargs.get("offset")
         )
     )
 
@@ -367,6 +371,44 @@ def gen_alerts():
 
     return jsonify(message="OK")
 
+@app.route("/api/gendiaries/<group_id>")
+def gen_diaries(group_id):
+    urls = db.find_urls_group(group_id=group_id, include_id=True)
+    if not urls:
+        return json_error(404, "Group with specified ID does not exist")
+
+    def gen_diary(url, url_id):
+        gen_urls = []
+        for x in range(random.randint(0, 100)):
+            u = "http://%s" % random_string(10, 60)
+            gen_urls.append({"url": u, "len": len(u)})
+
+        latest = URLDiaries.get_latest_diary(
+            url_id=url_id, return_fields="version"
+        ) or {}
+        return {
+            "url": url,
+            "url_id": url_id,
+            "datetime": int(time.time() * 1000),
+            "signatures": rand_sig(),
+            "javascript": [random_string(22, 6000) for x in range(
+                random.randint(0, 40)
+            )],
+            "requested_urls": gen_urls,
+            "related_documents": [],
+            "version": (latest.get("version") or 0) + 1
+        }
+
+    ids = []
+    for url in urls:
+        uid = uuid.uuid1()
+        URLDiaries.store_diary(
+            gen_diary(url.get("url"), url.get("id")), uid
+        )
+        ids.append(uid)
+
+    return jsonify(ids=ids)
+
 def ws_connect(ws):
     """Websocket connections for alerts are handled here. When a connection
     is closed. It is removed from the tracked websockets automatically"""
@@ -411,8 +453,19 @@ ws_routes = {
 
 def run_server(host, port):
     """Run the server. This handles websocket and HTTP requests"""
+    if not config("reporting:elasticsearch:enabled"):
+        log.error(
+            "Elasticsearch is not enabled. The mass url dashboard requires "
+            "Elasticsearch to operate. Please enable it in your "
+            "reporting.conf"
+        )
+        sys.exit(1)
+
     log.info("Starting server for %r on %s:%s", app, host, port)
     gevent.spawn(handle_alerts)
+
+    # Initiate Elasticsearch client
+    URLDiaries.init()
 
     # Determines what handler should be u
     def xapp(environ, start_response):
