@@ -4,7 +4,10 @@ import stream from './socket-handler';
 import sound from './sounds';
 
 const baseUrl = `${window.location.origin}/api/alerts/list`;
-const socketBase = `ws://${window.location.host}/api/alerts`;
+const socketBase = `ws://${window.location.host}/alerts`;
+
+console.log(socketBase);
+
 const urls = {
   alerts: (limit, offset) => `${baseUrl}?limit=${limit}&offset=${offset}`
 }
@@ -41,10 +44,11 @@ function loopSocket() {
 
 function connectSocket(cb) {
   return new Promise((resolve, reject) => {
+    let iv = 3000;
     let str = stream(socketBase, {
       onmessage: r => cb ? cb(JSON.parse(r)) : null,
       onerror: () => reject('Websocket returned an error')
-    });
+    }, iv, false);
     resolve(str);
   });
 }
