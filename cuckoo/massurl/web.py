@@ -288,6 +288,13 @@ def search_diaries(item):
         "offset": request.args.get("offset", 0)
     }
 
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
     return jsonify(
         URLDiaries.search_diaries(
             item, return_fields="datetime,url,version",
