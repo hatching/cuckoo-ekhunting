@@ -766,7 +766,6 @@ def massurl(ctx, host, port):
         cuckoo_create()
         sys.exit(0)
 
-    #cuckoo_init(ctx.parent.level, ctx.parent)
     init_logging(ctx.parent.level)
     Database().connect()
 

@@ -6,7 +6,7 @@
                  "url_id": {"type": "integer"},
                  "datetime": {
                      "type": "date",
-                     "format" "epoch_second"
+                     "format": "epoch_millis"
                  },
 				 "version": {"type": "integer"},
 				 "requested_urls": {
@@ -17,7 +17,7 @@
                      }
                  },
 				 "javascript": {"type": "text"},
-                 "related_documents": {"type": "text"},
+                 "related_documents": {"type": "keyword"},
                  "signatures": {"type": "text"}
 			 }
 		 }
