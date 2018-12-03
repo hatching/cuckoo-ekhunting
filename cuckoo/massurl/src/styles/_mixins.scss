@@ -64,7 +64,6 @@
   overflow: hidden;
   box-sizing: border-box;
   resize: none;
-  user-select: none;
 
   &:hover {
     cursor: pointer;
@@ -73,7 +72,6 @@
   }
 
   &:focus { outline: none; }
-  &::selection { background: transparent; }
 }
 
 .clear-padding {
