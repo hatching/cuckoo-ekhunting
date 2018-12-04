@@ -302,3 +302,15 @@ cb3a77d8dd7edf46de54545ca7b0c5b201f85917 analyzer/windows/bin/execsc.exe
 93727e778dadc13d83cea61a9ea88bf6b5906686 analyzer/windows/modules/auxiliary/human.py
 6e6680e26bf1cf41909a4efcbd86917cf4b14603 analyzer/windows/modules/packages/pub.py
 d8fce614d615f6bdb3117e92bfa6e4ae2b48ea52 analyzer/windows/modules/packages/vbs.py
+40c43a73282d0ecf7a83424412ed766307c0797d cuckoo/data/analyzer/windows/analyzer.py
+2edf5cf0cc177aa546e5c37fc0429abd039c9659 cuckoo/data/analyzer/windows/lib/common/abstracts.py
+69b069de833745621d6ff8690bec8aa976687a05 cuckoo/data/analyzer/windows/lib/common/hashing.py
+2120e0012db1c61dd7f6b11e89b03f0810c71e8d cuckoo/data/analyzer/windows/lib/common/results.py
+826c0379650fe6f4fe7194edcab8bedab1a4aac5 cuckoo/data/analyzer/windows/lib/core/command.py
+a226203586ec912424df197b1cca99e6e0963fdb cuckoo/data/analyzer/windows/lib/core/config.py
+3f7333a91ff61c43e75b040a70219368cf8febb5 cuckoo/data/analyzer/windows/lib/core/packages.py
+3d91afea10312cc9a948cb4c292d6b0465e64402 cuckoo/data/analyzer/windows/lib/core/pipe.py
+e6ebc011fdfe169de45f8ca789e3e3060228eeba cuckoo/data/analyzer/windows/lib/core/privileges.py
+cf95ee4f22bea00c11d588cde739e25bba73dbf8 cuckoo/data/analyzer/windows/modules/packages/ie.py
+3c7f391e9ad22dd088ef8525f96201eea142d5b1 cuckoo/data/elasticsearch/diary-mapping.json
+b546605753f504a7ea6cc01e01c62fbb2f50deab cuckoo/data/elasticsearch/related-request-mapping.json
