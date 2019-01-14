@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Cuckoo Foundation.
+# Copyright (C) 2018-2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -8,6 +8,7 @@ import threading
 import time
 import socket
 import select
+import errno
 
 from cuckoo.common.exceptions import (
     RealtimeCommandFailed, RealtimeBlockingExpired
@@ -262,10 +263,9 @@ class EventMessageServer(object):
     def finalize(self):
         """Stop the handling of clients and messages, sent out a shutdown
         event, try to close all connections and stops the listen socket"""
-        shutdown_message = {
-            "type": "control",
-            "event": "shutdown"
-        }
+        shutdown_message = EventClient.event_message(
+            "control", {"action": "shutdown"}
+        )
         self.queue_message(shutdown_message, "", broadcast=True)
         self.relay_messages(outsocks=self.outsocks)
         for mes_handler in self.all_meshandlers:
@@ -289,18 +289,20 @@ class EventMessageServer(object):
             return
 
         mes_body = message.get("body")
-        if not mes_body:
-            log.error("Received message without a body, ignoring")
+        if not mes_body or not isinstance(mes_body, dict):
+            log.error("Received message without or an invalid body, ignoring")
             return
 
         if mes_type == "protocol":
-            if not mes_body.get("action", {}) or None:
+            protaction = message.get("action")
+            if not protaction or not isinstance(protaction, basestring):
                 log.error(
-                    "Received protocol message without an action, ignoring"
+                    "Received protocol message without or invalid action,"
+                    " ignoring"
                 )
                 return
 
-            handler = self.protaction_handlers.get(mes_body.get("action"))
+            handler = self.protaction_handlers.get(protaction)
             if not handler:
                 log.debug("Unknown protocol action specified")
                 return
@@ -390,14 +392,13 @@ class EventMessageServer(object):
         """
         for c in range(len(self.mesqueue)):
             message, sender, broadcast = self.mesqueue.pop(0)
-            str_message = json.dumps(message) + "\n"
 
             receivers = set()
             # Send a message to all client sockets on broadcast
             if broadcast:
                 receivers = self.all_meshandlers
             else:
-                receivers = self.subscriptions.get(message.get("type"))
+                receivers = self.subscriptions.get(message.get("event"))
 
             if not receivers:
                 return
@@ -405,7 +406,7 @@ class EventMessageServer(object):
             for mes_handler in receivers:
                 if mes_handler.sock in outsocks:
                     try:
-                        mes_handler.send_message(str_message)
+                        mes_handler.send_json_message(message)
                     except socket.error as e:
                         log.error(
                             "Failed to send message to: %r. Error: %s",
@@ -456,7 +457,7 @@ class MessageHandler(object):
     # 5 MB JSON blob
     MAX_INFO_BUF = 5 * 1024 * 1024
 
-    def __init__(self, clientsock, address):
+    def __init__(self, clientsock, address=""):
         self.sock = clientsock
         self.address = address
         self.rcvbuf = ""
@@ -509,6 +510,9 @@ class MessageHandler(object):
 
         return message
 
+    def send_json_message(self, mes_dict):
+        self.send_message(json.dumps(mes_dict) + "\n")
+
     def send_message(self, message):
         # Try to send a message over the socket. Handle socket errors.
         # or handle them were send method is used?
@@ -520,6 +524,216 @@ class MessageHandler(object):
         except socket.error:
             pass
 
-# TODO small client that connects to the event server and can
-# be easily imported
-# TODO for the client, send the subscribed types on connect
+class EventClient(object):
+    """Client that connects to a Cuckoo event messaging server and allows for
+    the sending of events. The client can subscribe to and unsubscribe from
+    events. When subscribing to an event, a callback method must be given.
+    This callback will be called for each received event of the
+    subscribed types."""
+
+    def __init__(self, eventserver_ip="127.0.0.1", eventserver_port=4237):
+        self.ip = eventserver_ip
+        self.port = eventserver_port
+        self.sock = None
+        self.subscribed = {}
+        self.connected = False
+        self.do_run = False
+        self.mesqueue = []
+        self.mes_handler = None
+        self.sublock = threading.Lock()
+        self.queuelock = threading.Lock()
+
+    def connect(self):
+        """Connect to the given Cuckoo event server until successful"""
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        self.sock.settimeout(30)
+        self.connected = False
+
+        log.debug("Connecting to event message server")
+        while self.do_run and True:
+            try:
+                self.sock.connect((self.ip, self.port))
+                self.connected = True
+                self.mes_handler = MessageHandler(self.sock)
+                break
+            except socket.error as e:
+                log.error("Failed to connect to event message server. %s", e)
+                time.sleep(3)
+
+    def queue_message(self, message):
+        """Queues the given message
+        @param message: A dictionary containing a message type and a body field
+        containing another dictionary.
+        """
+        try:
+            self.queuelock.acquire(True)
+            self.mesqueue.append(message)
+        finally:
+            self.queuelock.release()
+
+    def subscribe(self, callback_method, event_types):
+        """Subscribe the given callback method to the specified event type(s).
+        For each received of the given type, this method will be called with
+        the event message as its only parameter."""
+        if not isinstance(event_types, (list, tuple, set)):
+            event_types = set([event_types])
+
+        subto = []
+        try:
+            self.sublock.acquire(True)
+            for event_type in event_types:
+                if event_type not in self.subscribed:
+                    self.subscribed[event_type] = set()
+                    subto.append(event_type)
+
+                self.subscribed[event_type].add(callback_method)
+        finally:
+            self.sublock.release()
+
+        self.queue_message(EventClient.protmes_subscribe(subto))
+
+    def unsubscribe(self, callback_method, event_types):
+        """Unsubscribe the given callback method from the given event
+        type(s)."""
+        if not isinstance(event_types, (list, tuple, set)):
+            event_types = set([event_types])
+
+        unsubfrom = []
+        try:
+            self.sublock.acquire(True)
+            for event_type in event_types:
+                if event_type not in self.subscribed:
+                    continue
+
+                self.subscribed[event_type].remove(callback_method)
+
+                if not self.subscribed[event_type]:
+                    del self.subscribed[event_type]
+                    unsubfrom.append(event_type)
+        finally:
+            self.sublock.release()
+
+        self.queue_message(EventClient.protmes_unsubscribe(unsubfrom))
+
+    def send_event(self, event_type, body={}):
+        """Queues an event in the correct event sending format"""
+        self.queue_message(self.event_message(event_type, body))
+
+    def handle_incoming(self):
+        """Read incoming event messages and call the callbacks that
+        are subscribed to this event type."""
+        while True:
+            event = self.mes_handler.get_json_message()
+            if not event:
+                break
+
+            event_type = event.get("event")
+            if not event_type:
+                break
+
+            try:
+                self.sublock.acquire(True)
+                for subscribe_callback in self.subscribed.get(event_type, []):
+                    try:
+                        subscribe_callback(event)
+                    except Exception as e:
+                        log.exception(
+                            "Error in event subscription callback for"
+                            " event %r. %s", event_type, e
+                        )
+            finally:
+                self.sublock.release()
+
+            if not self.mes_handler.buffered_message():
+                break
+
+    def handle_outgoing(self):
+        """Send out all queued messages"""
+        try:
+            self.queuelock.acquire(True)
+            for c in range(len(self.mesqueue)):
+                message = self.mesqueue.pop(0)
+                try:
+                    self.mes_handler.send_json_message(message)
+                except ValueError:
+                    pass
+        finally:
+            self.queuelock.release()
+
+    def finalize(self):
+        try:
+            self.sock.close()
+        except socket.error:
+            pass
+
+    def _run(self):
+        """Handle incoming messages and send out queued messages"""
+        try:
+            while self.do_run:
+                if not self.connected:
+                    self.connect()
+
+                try:
+                    insock, outsock, err = select.select(
+                        [self.sock], [self.sock], [], 5
+                    )
+
+                    if insock:
+                        self.handle_incoming()
+                    if outsock and self.mesqueue:
+                        self.handle_outgoing()
+
+                except socket.error as e:
+                    log.error("Failed to read or send a message: %s", e)
+                    if e.errno in (errno.ECONNRESET, errno.ECONNABORTED, errno.EC):
+                        self.connected = False
+                        self.mes_handler.close()
+
+        finally:
+            self.finalize()
+
+    def start(self):
+        """Start the messaging client. It is automatically started in a new
+        thread. It can be stopped using the 'stop' method."""
+        if self.do_run:
+            return
+
+        self.do_run = True
+        self.connect()
+        threading.Thread(target=self._run).start()
+
+    def stop(self):
+        self.do_run = False
+
+    @staticmethod
+    def _protmes(action, body={}):
+        return {
+            "type": "protocol",
+            "action": action,
+            "body": body
+        }
+
+    @staticmethod
+    def event_message(event_type, body={}):
+         return {
+            "type": "event",
+            "body": {
+                "event": event_type,
+                "body": body
+            }
+        }
+
+    @staticmethod
+    def protmes_subscribe(event_types):
+        if not isinstance(event_types, (list, tuple)):
+            event_types = [event_types]
+
+        return EventClient._protmes("subscribe", {"events": event_types})
+
+    @staticmethod
+    def protmes_unsubscribe(event_types):
+        if not isinstance(event_types, (list, tuple)):
+            event_types = [event_types]
+
+        return EventClient._protmes("subscribe", {"events": event_types})
