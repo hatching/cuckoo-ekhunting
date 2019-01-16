@@ -589,9 +589,9 @@ class EventClient(object):
     This callback will be called for each received event of the
     subscribed types."""
 
-    def __init__(self, eventserver_ip="127.0.0.1", eventserver_port=4237):
-        self.ip = eventserver_ip
-        self.port = eventserver_port
+    def __init__(self, eventserver_ip=None, eventserver_port=None):
+        self.ip = eventserver_ip or config("cuckoo:eventserver:ip")
+        self.port = eventserver_port or config("cuckoo:eventserver:port")
         self.sock = None
         self.subscribed = {}
         self.connected = False
