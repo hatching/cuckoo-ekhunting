@@ -4,18 +4,18 @@
 
 import json
 import logging
-import queue
+import Queue
 import select
 import socket
 import threading
 import time
 
+from cuckoo.common.config import config
 from cuckoo.common.exceptions import (
     RealtimeCommandFailed, RealtimeBlockingExpired
 )
 
 log = logging.getLogger(__name__)
-
 
 class RealTimeHandler(object):
     def __init__(self):
@@ -230,15 +230,17 @@ class EventMessageServer(object):
     All communication is in the form of JSON messages.
     """
 
-    def __init__(self):
+    def __init__(self, listen_ip, listen_port):
+        self.ip = listen_ip
+        self.port = listen_port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.do_run = True
         self.insocks = [self.sock]
         self.outsocks = []
         self.mes_handlers = {}
-        self.mesqueue = queue.PriorityQueue()
+        self.mesqueue = Queue.PriorityQueue()
         self.subscriptions = {}
-        self.whitelist = ["127.0.0.1"]
+        self.whitelist = config("cuckoo:eventserver:whitelist")
         self.protaction_handlers = {
             "subscribe": self._handle_subscribe,
             "unsubscribe": self._handle_unsubscribe
@@ -252,9 +254,10 @@ class EventMessageServer(object):
         ]
 
     def start(self):
-        # TODO get IP + port from config
-        self.sock.bind(('', 1337))
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind((self.ip, self.port))
         self.sock.listen(5)
+        self._handle()
 
     def stop(self):
         """Stop the server loop"""
@@ -263,14 +266,17 @@ class EventMessageServer(object):
     def finalize(self):
         """Stop the handling of clients and messages, sent out a shutdown
         event, try to close all connections and stops the listen socket"""
-        shutdown_message = EventClient.event_message(
-            "control", {"action": "shutdown"}
-        )
+        # Broadcast a message to all connected clients to tell them the server
+        # is closing.
+        shutdown_message = EventClient._protmes("serverclose")
         self.queue_message(shutdown_message, broadcast=True)
         self.relay_messages(outsocks=self.outsocks)
+
+        # Close the connections to all clients
         for mes_handler in self.all_meshandlers:
             mes_handler.close()
 
+        # Stop the listen socket
         try:
             self.sock.close()
         except socket.error as e:
@@ -311,12 +317,12 @@ class EventMessageServer(object):
             handler(mes_body, mes_handler)
 
         elif mes_type == "event":
-            if not isinstance(mes_body, dict):
-                log.debug("Received message body for event must be a dict")
+            event = mes_body.get("event")
+            if not event or not isinstance(event, basestring):
                 return
 
             if mes_handler.address in self.whitelist:
-                self.queue_message(mes_body, mes_handler.address)
+                self.queue_message(message)
 
         else:
             log.debug("Received unknown message type '%r', ignoring", mes_type)
@@ -414,7 +420,9 @@ class EventMessageServer(object):
             elif brdcast:
                 receivers = self.all_meshandlers
             else:
-                receivers = self.subscriptions.get(message.get("event"))
+                receivers = self.subscriptions.get(
+                    message.get("body", {}).get("event")
+                )
 
             if not receivers:
                 return
@@ -431,80 +439,73 @@ class EventMessageServer(object):
                     if disconn:
                         self.cleanup_client(mes_handler.sock)
 
-    def handle(self):
+    def _handle(self):
         """Handles incoming and outgoing messages"""
-        try:
-            while self.do_run:
-                insocks, _o, _e = select.select(
-                    self.insocks, [], [], 1
-                )
-                if not self.mesqueue.empty():
-                    _i, outsocks, _e = select.select([], self.outsocks, [])
-                    self.relay_messages(outsocks)
+        while self.do_run:
+            insocks, _o, _e = select.select(
+                self.insocks, [], [], 1
+            )
+            if not self.mesqueue.empty():
+                _i, outsocks, _e = select.select([], self.outsocks, [], 1)
+                self.relay_messages(outsocks)
 
-                for sock in insocks:
-                    if sock is self.sock:
-                        # Accept new connection from client
-                        insock, address = sock.accept()
-                        ip, port = address
-                        mes_handler = MessageHandler(insock, ip)
+            for sock in insocks:
+                if sock is self.sock:
+                    # Accept new connection from client
+                    insock, address = sock.accept()
+                    ip, port = address
+                    mes_handler = MessageHandler(insock, ip)
 
-                        self.outsocks.append(insock)
+                    self.outsocks.append(insock)
 
-                        # Only start storing settings and the socket to read
-                        # if the client IP is whitelisted.
-                        if ip in self.whitelist:
-                            self.insocks.append(insock)
-                            self.mes_handlers[mes_handler.sock] = {
-                                "handler": mes_handler,
-                                "subscribed": set()
-                            }
-                        else:
-                            # Send a message, indicating a client it is not
-                            # whitelisted. Disconnect the client after sending
-                            self.queue_message(
-                                EventClient._protmes(
-                                    "notwhitelisted",
-                                    body={"ip": mes_handler.address}
-                                ),
-                                mes_handler=mes_handler, disconnect=True,
-                                prio=1
-                            )
-
+                    # Only start storing settings and the socket to read
+                    # if the client IP is whitelisted.
+                    if ip in self.whitelist:
+                        self.insocks.append(insock)
+                        self.mes_handlers[mes_handler.sock] = {
+                            "handler": mes_handler,
+                            "subscribed": set()
+                        }
                     else:
-                        mes_handler = self.mes_handlers[sock].get("handler")
+                        # Send a message, indicating a client it is not
+                        # whitelisted. Disconnect the client after sending
+                        self.queue_message(
+                            EventClient._protmes(
+                                "notwhitelisted",
+                                body={"ip": mes_handler.address}
+                            ),
+                            mes_handler=mes_handler, disconnect=True,
+                            prio=1
+                        )
 
-                        # Try to read incoming data until newline. If it fails,
-                        # invalid data is sent, or no data is available, the
-                        # client socket references should be cleaned and the
-                        # socket disconnected
-                        data_handled, sock_cleanup = False, False
-                        while True:
-                            try:
-                                data = mes_handler.get_json_message()
-                            except socket.error:
-                                sock_cleanup = True
-                                break
+                else:
+                    mes_handler = self.mes_handlers[sock].get("handler")
 
-                            if not data:
-                                break
+                    # Try to read incoming data until newline. If it fails,
+                    # invalid data is sent, or no data is available, the
+                    # client socket references should be cleaned and the
+                    # socket disconnected
+                    data_handled, sock_cleanup = False, False
+                    while True:
+                        try:
+                            data = mes_handler.get_json_message()
+                        except socket.error:
+                            sock_cleanup = True
+                            break
 
-                            self.handle_incoming(data, mes_handler)
-                            data_handled = True
+                        if not data:
+                            break
 
-                            if not mes_handler.buffered_message():
-                                break
+                        self.handle_incoming(data, mes_handler)
+                        data_handled = True
 
-                        # Run cleanup if no data was handled or a socket
-                        # error occurred
-                        if not data_handled or sock_cleanup:
-                            self.cleanup_client(sock)
+                        if not mes_handler.buffered_message():
+                            break
 
-        finally:
-            try:
-                self.finalize()
-            except socket.error:
-                pass
+                    # Run cleanup if no data was handled or a socket
+                    # error occurred
+                    if not data_handled or sock_cleanup:
+                        self.cleanup_client(sock)
 
 class MessageHandler(object):
     # 5 MB JSON blob
@@ -600,7 +601,8 @@ class EventClient(object):
         self.sublock = threading.Lock()
         self.queuelock = threading.Lock()
         self.protaction_handlers = {
-            "notwhitelisted": self._handle_notwhitelisted
+            "notwhitelisted": self._handle_notwhitelisted,
+            "serverclose": self._handle_serverclose
         }
 
     def connect(self):
@@ -621,12 +623,12 @@ class EventClient(object):
                 log.error("Failed to connect to event message server. %s", e)
                 time.sleep(3)
 
-            # If this is a reconnect, send all subscribed events to the
-            # server again.
-            if self.subscribed:
-                self.queue_message(
-                    self.protmes_subscribe(self.subscribed.keys())
-                )
+        # If this is a reconnect, send all subscribed events to the
+        # server again.
+        if self.connected and self.subscribed:
+            self.queue_message(
+                self.protmes_subscribe(self.subscribed.keys())
+            )
 
     def queue_message(self, message):
         """Queues the given message
@@ -807,6 +809,10 @@ class EventClient(object):
         )
 
         self.stop()
+
+    def _handle_serverclose(self, mes_body):
+        log.error("Cuckoo event server closed. Reconnecting.")
+        self.disconnect()
 
     @staticmethod
     def _protmes(action, body={}):
