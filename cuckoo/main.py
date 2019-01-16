@@ -772,6 +772,40 @@ def massurl(ctx, host, port):
     init_console_logging(ctx.parent.level)
     massurl_main(host, port)
 
+@main.command("eventserver")
+@click.option("-H", "--host", default="localhost", help="Host to bind the event server on")
+@click.option("-p", "--port", type=int, default=42037, help="Port to bind the event server on")
+@click.pass_context
+def eventserver(ctx, host, port):
+    import socket
+    from cuckoo.core.realtime import EventMessageServer
+
+    init_console_logging(ctx.parent.level)
+
+    pidfile = Pidfile("eventserver")
+    if pidfile.exists():
+        log.error(
+            red("Event messaging server is already running. PID: %s"),
+            pidfile.pid
+        )
+        sys.exit(1)
+
+    pidfile.create()
+    event_server = EventMessageServer(host, port)
+    try:
+        log.info(
+            "Starting Cuckoo event messaging server (IP=%s, port=%s)",
+            host, port
+        )
+        event_server.start()
+    except socket.error as e:
+        log.error("Error starting event server: %s", e)
+    except KeyboardInterrupt:
+        log.info("CTRL+C detected, stopping the server.")
+    finally:
+        event_server.finalize()
+        pidfile.remove()
+
 @distributed.command("instance")
 @click.argument("name")
 @click.pass_context
