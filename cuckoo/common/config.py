@@ -266,6 +266,11 @@ class Config(object):
                 "guacd_host": String("localhost"),
                 "guacd_port": Int(4822),
             },
+            "eventserver": {
+                "ip": String("localhost"),
+                "port": Int(42037),
+                "whitelist": List(String, "127.0.0.1")
+            }
         },
         "virtualbox": {
             "virtualbox": {
