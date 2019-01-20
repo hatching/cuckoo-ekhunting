@@ -36,6 +36,7 @@ TASK_PENDING = "pending"
 TASK_RUNNING = "running"
 TASK_COMPLETED = "completed"
 TASK_RECOVERED = "recovered"
+TASK_ABORTED = "aborted"
 TASK_REPORTED = "reported"
 TASK_FAILED_ANALYSIS = "failed_analysis"
 TASK_FAILED_PROCESSING = "failed_processing"
@@ -49,9 +50,9 @@ TYPE_BASELINE = "baseline"
 TYPE_SERVICE = "service"
 
 status_type = Enum(
-    TASK_PENDING, TASK_RUNNING, TASK_COMPLETED, TASK_REPORTED, TASK_RECOVERED,
-    TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING,
-    name="status_type"
+    TASK_PENDING, TASK_RUNNING, TASK_COMPLETED, TASK_ABORTED, TASK_REPORTED,
+    TASK_RECOVERED, TASK_FAILED_ANALYSIS, TASK_FAILED_PROCESSING,
+    TASK_FAILED_REPORTING, name="status_type"
 )
 
 task_type = Enum(
@@ -264,6 +265,7 @@ class Target(Base):
         Integer(), ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False
     )
+    analyzed = Column(Boolean, nullable=False, default=False)
 
     __table_args__ = (
         Index(
@@ -293,7 +295,7 @@ class Target(Base):
 
     def __init__(self, target, category, crc32, md5, sha1, sha256,
                  sha512, ssdeep=None, file_size=None, file_type=None,
-                 task_id=None):
+                 task_id=None, analyzed=False):
         self.target = target
         self.category = category
         self.md5 = md5
@@ -305,6 +307,7 @@ class Target(Base):
         self.file_size = file_size
         self.file_type = file_type
         self.task_id = task_id
+        self.analyzed = analyzed
 
 class Error(Base):
     """Analysis errors."""
@@ -1469,3 +1472,17 @@ class Database(object):
         finally:
             session.close()
 
+    def update_targets(self, target_dicts):
+        """Update the target rows with the changes values in the list of target
+        dicts.
+        @param target_dicts: Al list of Target dictionaries containing all
+        columns
+        """
+        session = self.Session()
+        try:
+            session.bulk_update_mappings(Target, target_dicts)
+            session.commit()
+        except SQLAlchemyError as e:
+            log.exception("Error while updating target to analyzed. %s", e)
+        finally:
+            session.close()
