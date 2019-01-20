@@ -170,6 +170,12 @@ class RealTimeMessages(object):
         )
 
     @staticmethod
+    def stop_all_packages(respond=False):
+        return RealTimeMessages.command(
+            category="analyzer", method="stop_all_packages", respond=respond
+        )
+
+    @staticmethod
     def start_package(category, target, package=None, options={},
                       pkg_id=None, file_name=None, file_type=None,
                       respond=True):
@@ -201,7 +207,7 @@ class RealTimeMessages(object):
     def stop_analyzer():
         """Stop the analyzer, causing the finish routine"""
         return RealTimeMessages.command(
-            category="analyzer", method="stop", respond=True
+            category="analyzer", method="request_stop", respond=True
         )
 
     @staticmethod
@@ -605,15 +611,17 @@ class EventClient(object):
             "serverclose": self._handle_serverclose
         }
 
-    def connect(self):
+    def connect(self, maxtries=0):
         """Connect to the given Cuckoo event server until successful"""
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         self.sock.settimeout(30)
         self.connected = False
 
+        tries = 0
         log.debug("Connecting to event message server")
         while self.do_run and not self.connected:
+            tries += 1
             try:
                 self.sock.connect((self.ip, self.port))
                 self.connected = True
@@ -621,6 +629,10 @@ class EventClient(object):
                 break
             except socket.error as e:
                 log.error("Failed to connect to event message server. %s", e)
+                if maxtries and tries >= maxtries:
+                    log.error("Maximum amount of connection tries reached")
+                    return False
+
                 time.sleep(3)
 
         # If this is a reconnect, send all subscribed events to the
@@ -629,6 +641,7 @@ class EventClient(object):
             self.queue_message(
                 self.protmes_subscribe(self.subscribed.keys())
             )
+        return True
 
     def queue_message(self, message):
         """Queues the given message
@@ -786,19 +799,24 @@ class EventClient(object):
         finally:
             self.disconnect()
 
-    def start(self):
+    def start(self, maxtries=0):
         """Start the messaging client. It is automatically started in a new
         thread. It can be stopped using the 'stop' method."""
         if self.do_run:
             return
 
         self.do_run = True
-        self.connect()
+        if not self.connect(maxtries):
+            self.do_run = False
+            return False
+
         run_t = threading.Thread(target=self._run)
         run_t.daemon = True
         run_t.start()
+        return True
 
     def stop(self):
+        self.subscribed = {}
         self.do_run = False
 
     def _handle_notwhitelisted(self, mes_body):
