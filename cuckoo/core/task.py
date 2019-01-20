@@ -305,20 +305,18 @@ class Task(object):
 
         return task_id
 
-    def add_massurl(self, urls=[], timeout=0, package="", options="",
-                 priority=1, custom="", owner="", machine="", platform="",
-                 tags=None, memory=False, enforce_timeout=False, clock=None,
-                 start_on=None):
-
+    def add_massurl(self, urls=[], package="ie", options="", priority=1,
+                    custom="", owner="", machine="", platform="", tags=None,
+                    memory=False, clock=None, start_on=None):
         if not urls:
             log.error("No URLs provided. Cannot create task.")
 
         return self.add(
-            targets=Target.create_urls(urls), timeout=timeout, package=package,
-            options=options, priority=priority, custom=custom, owner=owner,
-            machine=machine, platform=platform, tags=tags, memory=memory,
-            enforce_timeout=enforce_timeout, clock=clock, task_type="massurl",
-            start_on=start_on
+            targets=Target.create_urls(urls), timeout=len(urls) * 60,
+            package=package, options=options, priority=priority, custom=custom,
+            owner=owner, machine=machine, platform=platform, tags=tags,
+            memory=memory, enforce_timeout=True, clock=clock,
+            task_type="massurl", start_on=start_on
         )
 
     def add_path(self, file_path, timeout=0, package="", options="",
