@@ -1,16 +1,18 @@
-# Copyright (C) 2018 Cuckoo Foundation.
+# Copyright (C) 2018-2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
 import json
 import logging
 import os
+import time
 import uuid
 
 from elasticsearch import helpers
 from elasticsearch.exceptions import TransportError
 
-from cuckoo.common.elastic import elastic
+from cuckoo.common.config import config
+from cuckoo.common.elastic import elasticmassurl
 from cuckoo.common.exceptions import CuckooStartupError
 from cuckoo.misc import cwd
 
@@ -18,6 +20,7 @@ log = logging.getLogger(__name__)
 
 class URLDiaries(object):
 
+    init_done = False
     DIARY_INDEX = "urldiary"
     DIARY_MAPPING = "urldiary"
     RELATED_INDEX = "related"
@@ -25,20 +28,31 @@ class URLDiaries(object):
 
     @classmethod
     def init(cls):
-        elastic.init()
-        elastic.connect()
+        elasticmassurl.init()
+        elasticmassurl.connect()
+        cls.DIARY_INDEX = config("massurl:elasticsearch:diary_index")
+        cls.RELATED_INDEX = config("massurl:elasticsearch:related_index")
         cls.create_mappings()
+        cls.init_done = True
 
     @classmethod
     def create_mappings(cls):
         mappings = {
-            cls.DIARY_MAPPING: "diary-mapping.json",
-            cls.RELATED_MAPPING: "related-request-mapping.json"
+            cls.DIARY_INDEX: {
+                "file": "diary-mapping.json",
+                "name": cls.DIARY_MAPPING
+            },
+            cls.RELATED_INDEX: {
+                "file": "related-request-mapping.json",
+                "name": cls.RELATED_MAPPING
+            }
         }
-        for name, mapping_file in mappings.iteritems():
-            mapping_path = cwd("elasticsearch", mapping_file)
+        for indexname, info in mappings.iteritems():
+            mapping_path = cwd("elasticsearch", info.get("file"))
 
-            if elastic.client.indices.exists_type(index=name, doc_type=name):
+            if elasticmassurl.client.indices.exists_type(
+                    index=indexname, doc_type=info.get("name")
+            ):
                 continue
 
             if not os.path.exists(mapping_path):
@@ -56,26 +70,28 @@ class URLDiaries(object):
                     " Invalid JSON. %s" % (mapping_path, e)
                 )
 
-            log.info("Creating index and mapping for '%s'", name)
-            elastic.client.indices.create(name, body=mapping)
+            log.info("Creating index and mapping for '%s'", indexname)
+            elasticmassurl.client.indices.create(indexname, body=mapping)
 
     @classmethod
-    def store_diary(cls, diary, diary_id):
+    def store_diary(cls, diary, diary_id=None):
         """Store the specified URL diary under the specified id"""
+        diary_id = diary_id or uuid.uuid1()
         try:
-            elastic.client.create(
+            elasticmassurl.client.create(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, id=diary_id,
                 body=diary
             )
         except TransportError as e:
             log.exception("Error during diary creation. %s", e)
             return None
+        return diary_id
 
     @classmethod
     def get_diary(cls, diary_id):
         """Find a specified URL diary"""
         try:
-            res = elastic.client.search(
+            res = elasticmassurl.client.search(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, size=1,
                 sort="datetime:desc",
                 body={
@@ -93,7 +109,7 @@ class URLDiaries(object):
     @classmethod
     def get_latest_diary(cls, url_id, return_fields="version"):
         try:
-            res = elastic.client.search(
+            res = elasticmassurl.client.search(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, size=1,
                 sort="datetime:desc", _source_include=return_fields or None,
                 body={
@@ -129,7 +145,7 @@ class URLDiaries(object):
                 }
             }
         try:
-            res = elastic.client.search(
+            res = elasticmassurl.client.search(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, size=size,
                 sort="datetime:desc", _source_include=return_fields,
                 body=query
@@ -149,6 +165,7 @@ class URLDiaries(object):
         for r in related:
             r["parent"] = parent_uuid
             related_id = str(uuid.uuid1())
+            related_ids.append(related_id)
             ready_related.append({
                 "_id": related_id,
                 "_index": cls.RELATED_INDEX,
@@ -156,7 +173,7 @@ class URLDiaries(object):
                 "_source": r
             })
         try:
-            helpers.bulk(elastic.client, ready_related)
+            helpers.bulk(elasticmassurl.client, ready_related)
         except TransportError as e:
             log.exception("Error while bulk storing related data to")
             return None
@@ -168,7 +185,7 @@ class URLDiaries(object):
         """Find all related streams for a URL given diary uuid"""
         # TODO implement offsets
         try:
-            res = elastic.client.search(
+            res = elasticmassurl.client.search(
                 index=cls.RELATED_INDEX, doc_type=cls.RELATED_MAPPING,
                 size=max_size, body={
                     "query": {
@@ -190,7 +207,7 @@ class URLDiaries(object):
         """Retrieve the specified related requests by id"""
         ids = ids if isinstance(ids, (list, tuple, set)) else []
         try:
-            res = elastic.client.search(
+            res = elasticmassurl.client.search(
                 index=cls.RELATED_INDEX, doc_type=cls.RELATED_MAPPING,
                 body={
                     "query": {
@@ -226,7 +243,7 @@ class URLDiaries(object):
                 "range": {"datetime": {"lt": offset}}
         }
         try:
-            res = elastic.client.search(
+            res = elasticmassurl.client.search(
                 timeout="60s", index=cls.DIARY_INDEX,
                 _source_include=return_fields, sort="datetime:desc", size=size,
                 doc_type=cls.DIARY_MAPPING, body=query
@@ -255,3 +272,41 @@ class URLDiaries(object):
             return ret
 
         return [r.get("_source") for r in hits.get("hits", [])]
+
+class URLDiary(object):
+    def __init__(self, url):
+        self._diary = {
+            "url": url,
+            # TODO get URL id from massurl in the analysis manager without an
+            # extra query to the db.
+            "url_id": 0,
+            # TODO Set version properly. We need the url_id for that
+            "version": 0,
+            "datetime": "",
+            "javascript": [],
+            "related_documents": [],
+            "requested_urls": [],
+            "signatures": []
+        }
+
+    def add_javascript(self, javascript):
+        self._diary["javascript"].append(javascript)
+
+    def add_related_docs(self, doc_keys):
+        self._diary["related_documents"].extend(doc_keys)
+
+    def add_signature(self, signature):
+        if isinstance(signature, list):
+            self._diary["signatures"].extend(signature)
+        else:
+            self._diary["signatures"].append(signature)
+
+    def add_request_url(self, url):
+        self._diary["requested_urls"].append({
+            "len": len(url),
+            "url": url
+        })
+
+    def dump(self):
+        self._diary["datetime"] = int(time.time() * 1000)
+        return self._diary
