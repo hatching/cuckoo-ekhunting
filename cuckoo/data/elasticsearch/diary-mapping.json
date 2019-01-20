@@ -18,7 +18,14 @@
                  },
 				 "javascript": {"type": "text"},
                  "related_documents": {"type": "keyword"},
-                 "signatures": {"type": "text"}
+                 "signatures": {
+                      "type": "nested",
+                      "properties": {
+                        "signame": {"type": "text"},
+                        "desc": {"type": "text"},
+                        "ioc": {"type": "text"}
+                   }
+                 }
 			 }
 		 }
 	}

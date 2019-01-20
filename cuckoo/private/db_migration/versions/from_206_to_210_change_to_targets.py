@@ -59,6 +59,9 @@ def upgrade():
         sa.Column("category", sa.String(length=255), nullable=False),
         sa.Column("target", sa.Text(), nullable=False),
         sa.Column("task_id", sa.Integer(), nullable=False),
+        sa.column(
+            "analyzed", sa.Boolean(), nullable=False, server_default=False
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["task_id"], ["tasks.id"], ondelete="CASCADE")
     )
@@ -224,7 +227,8 @@ def upgrade():
             sa.Column(
                 "status", sa.Enum(
                     "pending", "running", "completed", "reported", "recovered",
-                    "failed_analysis", "failed_processing", "failed_reporting",
+                    "aborted", "failed_analysis", "failed_processing",
+                    "failed_reporting",
                     name="status_type"
                 ), server_default="pending", nullable=False
             ),
@@ -279,7 +283,8 @@ def target_from_sample(target, category, task_id, sample=None, url=None):
             "ssdeep": sample[8],
             "category": "file",
             "target": target,
-            "task_id": task_id
+            "task_id": task_id,
+            "analyzed": False
         }
     elif url and category == "url":
         t = {
@@ -293,13 +298,14 @@ def target_from_sample(target, category, task_id, sample=None, url=None):
             "ssdeep": url.get_ssdeep(),
             "category": "url",
             "target": target,
-            "task_id": task_id
+            "task_id": task_id,
+            "analyzed": False
         }
 
     return t
 
 task_types = sa.Enum(
-    "regular", "baseline", "service", "longterm", name="task_type"
+    "regular", "baseline", "service", "longterm", "massurl", name="task_type"
 )
 
 datefields = [
@@ -344,7 +350,8 @@ tasks_table = sa.Table(
     sa.Column(
         "status", sa.Enum(
             "pending", "running", "completed", "reported", "recovered",
-            "failed_analysis", "failed_processing", "failed_reporting",
+            "aborted", "failed_analysis", "failed_processing",
+            "failed_reporting",
             name="status_type"
         ), server_default="pending", nullable=False
     ),
@@ -379,3 +386,4 @@ class Target(Base):
         sa.Integer(), sa.ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False
     )
+    analyzed = sa.Column(sa.Boolean(), nullable=False, server_default=False)
