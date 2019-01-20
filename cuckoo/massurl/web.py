@@ -460,11 +460,11 @@ ws_routes = {
 
 def run_server(host, port):
     """Run the server. This handles websocket and HTTP requests"""
-    if not config("reporting:elasticsearch:enabled"):
+    if not config("massurl:massurl:enabled"):
         log.error(
-            "Elasticsearch is not enabled. The mass url dashboard requires "
-            "Elasticsearch to operate. Please enable it in your "
-            "reporting.conf"
+            "MassURL is not enabled. The mass url dashboard requires "
+            "Elasticsearch to operate. Please enable it and configure"
+            " Elasticsearch in your massurl.conf"
         )
         sys.exit(1)
 

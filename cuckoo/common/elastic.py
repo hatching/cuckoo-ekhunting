@@ -49,4 +49,13 @@ class Elastic(object):
                 "Unable to connect to ElasticSearch: %s" % e
             )
 
+class ElasticMassURL(Elastic):
+
+    def init(self):
+        self.enabled = config("massurl:massurl:enabled")
+        self.hosts = config("massurl:elasticsearch:hosts")
+        self.timeout = config("massurl:elasticsearch:timeout")
+        return self.enabled
+
 elastic = Elastic()
+elasticmassurl = ElasticMassURL()

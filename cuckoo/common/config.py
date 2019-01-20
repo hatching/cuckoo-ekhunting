@@ -922,6 +922,17 @@ class Config(object):
             },
             "__star__": ("xenserver", "machines"),
         },
+        "massurl": {
+            "massurl": {
+                "enabled": Boolean(False),
+            },
+            "elasticsearch": {
+                "hosts": List(String, "127.0.0.1:9200"),
+                "timeout": Int(300),
+                "diary_index": String("urldiary"),
+                "related_index": String("related"),
+            },
+        },
     }
 
     def get_section_types(self, file_name, section, strict=False, loose=False):
