@@ -521,6 +521,14 @@ class Analyzer(object):
         self.packages.pop(pkg_id)
         return {"pkg_id": pkg_id}
 
+    def stop_all_packages(self):
+        """Stop all currently running packages"""
+        stopped = []
+        for pkg_id in self.packages.keys():
+            self.stop_package(pkg_id)
+            stopped.append(pkg_id)
+        return stopped
+
     def list_packages(self):
         """Return a dict of package identifiers and the package name
         that is running"""
