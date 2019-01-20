@@ -1529,7 +1529,7 @@ class AnalysisManager(threading.Thread):
         self.task = task
         self.analysis = Analysis(
             task.id, self.machine.name, self.machine.label,
-            self.machine.manager
+            self.machine.manager, task.type
         )
         self.route = Route(task, self.machine)
 
@@ -1550,7 +1550,7 @@ class AnalysisManager(threading.Thread):
             "clock": self.task.clock,
             "enforce_timeout": self.task.enforce_timeout,
             "id": self.task.id,
-            "package": self.task.package,
+            "package": self.task.package or "",
             "target": None,
             "terminate_processes": config("cuckoo:cuckoo:terminate_processes"),
             "ip": self.machine.resultserver_ip,
