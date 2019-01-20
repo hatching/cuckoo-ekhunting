@@ -36,6 +36,11 @@ class Regular(AnalysisManager):
         # was run and successful
         self.processing_success = False
 
+        # TODO remove this when the latest RDP/VNC machine additions/changes
+        # have been added. Currently, the enabling requires a db change at
+        # the start of a machine
+        self.db = db
+
         # If for some reason the task dir does not exist, stop the analysis
         # because it should have been created upon submission
         if not self.task.dir_exists():
