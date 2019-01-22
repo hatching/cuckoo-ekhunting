@@ -9,7 +9,7 @@ import time
 import uuid
 
 from elasticsearch import helpers
-from elasticsearch.exceptions import TransportError
+from elasticsearch.exceptions import TransportError, ConnectionError
 
 from cuckoo.common.config import config
 from cuckoo.common.elastic import elasticmassurl
@@ -32,8 +32,14 @@ class URLDiaries(object):
         elasticmassurl.connect()
         cls.DIARY_INDEX = config("massurl:elasticsearch:diary_index")
         cls.RELATED_INDEX = config("massurl:elasticsearch:related_index")
-        cls.create_mappings()
+        try:
+            cls.create_mappings()
+        except ConnectionError as e:
+            log.error("Could not connect to Elasticsearch: %s", e)
+            return False
+
         cls.init_done = True
+        return True
 
     @classmethod
     def create_mappings(cls):

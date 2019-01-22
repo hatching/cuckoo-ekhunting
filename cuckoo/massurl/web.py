@@ -469,10 +469,13 @@ def run_server(host, port):
         sys.exit(1)
 
     log.info("Starting server for %r on %s:%s", app, host, port)
-    gevent.spawn(handle_alerts)
 
     # Initiate Elasticsearch client
-    URLDiaries.init()
+    if not URLDiaries.init():
+        log.error("Failed to start massurl server")
+        sys.exit(1)
+
+    gevent.spawn(handle_alerts)
 
     # Determines what handler should be u
     def xapp(environ, start_response):
