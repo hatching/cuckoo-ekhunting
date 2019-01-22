@@ -111,6 +111,8 @@
       align-items: center;
       justify-content: space-between;
       padding: 0 15px;
+
+      & > nav > div { display: inline-block; }
     }
 
     hr { margin: 0; }

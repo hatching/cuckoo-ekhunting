@@ -1,5 +1,6 @@
 import $ from 'jquery';
 import autosize from 'autosize';
+import Scheduler from './scheduler';
 import Templates from './templates';
 
 const APIUrl = (endpoint=false) => `/api/group/${endpoint ? endpoint : '/'}`;
@@ -110,6 +111,11 @@ function initEditor(data = {}, $editor) {
       }).catch(e => console.log(e));
     }
 
+  });
+
+  // initialize scheduler button
+  let scheduler = new Scheduler({
+    button: document.querySelector('#toggle-scheduler')
   });
 
   // close the editor

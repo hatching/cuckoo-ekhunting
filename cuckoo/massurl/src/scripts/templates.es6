@@ -111,6 +111,9 @@ const Templates = {
         <p>{{description}}</p>
       </div>
       <nav>
+        <div>
+          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar"></i> Schedule</button>
+        </div>
         <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
         <button class="button icon-button" data-close><i class="fal fa-times"></i></button>
       </nav>

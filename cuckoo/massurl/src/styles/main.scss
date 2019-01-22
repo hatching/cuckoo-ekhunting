@@ -11,6 +11,7 @@
 @import "./ext/fontawesome/solid";
 @import "./ext/fontawesome/regular";
 @import "./ext/fontawesome/light";
+@import "./ext/flatpickr";
 
 // internal core setup
 body {
@@ -31,4 +32,5 @@ body {
 @import "./components/search-bar";
 @import "./components/system-indicator";
 @import "./components/url-editor";
+@import "./components/scheduler";
 @import "./components/diary";
