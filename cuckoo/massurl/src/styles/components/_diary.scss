@@ -84,6 +84,7 @@
     &.collapse {
       &:hover {
         cursor: pointer;
+        background-color: #f5f5f5;
       }
       & > p {
         font-size: 14px;
