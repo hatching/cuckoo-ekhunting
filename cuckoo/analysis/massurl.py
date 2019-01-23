@@ -84,9 +84,10 @@ class MassURL(AnalysisManager):
         return True
 
     def set_target(self, targets):
+        blocksize = self.task.options.get("urlblocksize", self.URL_BLOCKSIZE)
         self.targets = []
-        for i in range(0, len(targets), self.URL_BLOCKSIZE):
-            self.targets.append(targets[i:i + self.URL_BLOCKSIZE])
+        for i in range(0, len(targets), blocksize):
+            self.targets.append(targets[i:i + blocksize])
 
     def new_target_block(self):
         block = {}
@@ -235,7 +236,7 @@ class MassURL(AnalysisManager):
         if not task_id or task_id != self.task.id:
             return
 
-        for k in ("desc", "ioc", "signame"):
+        for k in ("description", "ioc", "signature"):
             if not k in message["body"]:
                 return
 
@@ -282,8 +283,8 @@ class MassURL(AnalysisManager):
         for e in range(num_events):
             ev = self.detection_events.get(block=False)["body"]
             sigs.append({
-                "signame": ev.get("signame"),
-                "desc": ev.get("desc"),
+                "signature": ev.get("signature"),
+                "description": ev.get("description"),
                 "ioc": ev.get("ioc")
             })
 
