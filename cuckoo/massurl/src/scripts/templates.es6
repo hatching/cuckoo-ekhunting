@@ -50,7 +50,7 @@ const Templates = {
       <td class="text-wrap">{{content}}</td>
       <td class="no-wrap">
         {{#if url_group_name}}
-          {{url_group_name}}
+          <a href="/url-groups/view?v={{url_group_name}}">{{url_group_name}}</a>
         {{else}}
           <em class="secundary">No group</em>
         {{/if}}

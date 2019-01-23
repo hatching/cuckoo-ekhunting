@@ -69,6 +69,7 @@ function addAlert(alert, $table, method='prepend') {
   $table.find('tbody')[method](el);
   el.on('click', e => {
     if($(e.currentTarget).hasClass('info-expansion')) return;
+    if($(e.target).prop('tagName').toLowerCase() == 'a') return;
     expandInfoRow(e);
   });
 
