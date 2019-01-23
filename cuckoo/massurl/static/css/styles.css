@@ -6679,6 +6679,7 @@ table.table {
     .scheduler__control > .meta-controls button {
       -webkit-appearance: none;
       flex-basis: 100%;
+      font-size: 1em;
       border: 0;
       color: #919191;
       padding: 10px 0;

@@ -18,7 +18,13 @@ const Templates = {
         <div class="scheduler__date" data-display="monthly, yearly">
           <label class="scheduler__label">from date</label>
           <div>
-            <input type="text" value="${values.date}" class="scheduler--input-control" name="date" data-flatpickr placeholder="date" />
+            <input
+              type="text"
+              value="${values.date}"
+              class="scheduler--input-control"
+              name="date"
+              placeholder="date"
+              data-flatpickr />
             <i class="fas fa-caret-down caret"></i>
           </div>
         </div>
@@ -50,7 +56,7 @@ const Templates = {
         </div>
         <nav class="scheduler__control">
           <div>
-            <button class="button"><i class="fas fa-check"></i></button>
+            <button class="button" data-control="submit"><i class="fas fa-check"></i></button>
           </div>
           <div class="meta-controls">
             <button title="Close scheduler" data-control="close"><i class="far fa-times"></i></button>
@@ -150,6 +156,25 @@ const lib = {
 /*
   Smart scheduler UI widget
  */
+function VALUES(v) {
+ let r = {};
+ // return default set of values if value is not set
+  if(!v) {
+    return {
+     frequency: 'weekly',
+     date: helpers.dateToString(new Date()),
+     day: 'mondays',
+     time: {
+       hours: new Date().getHours(),
+       minutes: new Date().getMinutes()
+     }
+    };
+  } else {
+   // format values to a proper value format
+    return VALUES(false);
+  }
+};
+
 export default class Scheduler {
 
   // constructs the class
@@ -158,18 +183,12 @@ export default class Scheduler {
     this.props = {
       button: null,
       open: false,
+      value: false,
+      submit: false,
       ...props
     };
 
-    this.values = {
-      frequency: 'daily',
-      date: helpers.dateToString(new Date()),
-      day: 'mondays',
-      time: {
-        hours: 13,
-        minutes: 0
-      }
-    }
+    this.values = VALUES(this.props.values);
 
     this.events = {
       frequency: []
@@ -231,11 +250,14 @@ export default class Scheduler {
     const form = this.dialog.querySelector('form');
     const close = this.dialog.querySelector('[data-control="close"]');
     const reset = this.dialog.querySelector('[data-control="reset"]');
+    const submit = this.dialog.querySelector('[data-control="submit"]');
     const date  = this.dialog.querySelector('[data-flatpickr]');
     const range = this.dialog.querySelectorAll('[data-range]');
     const freq = this.dialog.querySelector('select[name="frequency"]');
     // prevDefault form
     form.addEventListener('submit', e => e.preventDefault());
+    // bind submit button
+    submit.addEventListener('click', () => this.submit());
     // bind close button
     close.addEventListener('click', () => this.toggle());
     // bind reset button
@@ -274,12 +296,16 @@ export default class Scheduler {
     let confirmed = confirm('Reset the current schedule? This cannot be undone.');
     if(confirmed) {
       this.toggle();
+      if(this.props.reset instanceof Function)
+        this.props.reset(this);
     }
   }
 
   // collects all data
-  collect() {
-
+  submit() {
+    this.toggle();
+    if(this.props.submit instanceof Function)
+      this.props.submit(this.values);
   }
 
   // subscribes callbacks to stack

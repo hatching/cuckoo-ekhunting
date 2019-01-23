@@ -115,7 +115,14 @@ function initEditor(data = {}, $editor) {
 
   // initialize scheduler button
   let scheduler = new Scheduler({
-    button: document.querySelector('#toggle-scheduler')
+    button: document.querySelector('#toggle-scheduler'),
+    value: false,
+    submit: value => {
+      console.debug('Scheduler performs [SET schedule]');
+    },
+    reset:() => {
+      console.debug('Scheduler performs [RESET schedule]');
+    }
   });
 
   // close the editor
