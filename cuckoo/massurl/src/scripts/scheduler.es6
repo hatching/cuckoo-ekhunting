@@ -8,10 +8,12 @@ const Templates = {
       <form class="scheduler--dialog">
         <div class="scheduler__frequency">
           <select class="scheduler--input-control" name="frequency" value="${values.frequency}">
-            <option value="daily">Daily</option>
+            <option value="every">Every</option>
             <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
+            <!--
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            -->
           </select>
           <i class="fas fa-caret-down caret"></i>
         </div>
@@ -40,6 +42,10 @@ const Templates = {
             <option value="sundays">Sundays</option>
           </select>
           <i class="fas fa-caret-down caret"></i>
+        </div>
+        <div class="scheduler__each-day" data-display="every">
+          <label class="scheduler__label">Every (days)</label>
+          <input type="text" placeholder="x days" class="scheduler--input-control center" value="${values.days || 1}" />
         </div>
         <div class="scheduler__time">
           <div data-range="00:23">

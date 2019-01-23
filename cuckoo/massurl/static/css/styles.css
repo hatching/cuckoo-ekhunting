@@ -6638,6 +6638,8 @@ table.table {
   background: transparent; }
   .scheduler--input-control:focus {
     outline: 0; }
+  .scheduler--input-control.center {
+    text-align: center; }
 
 .scheduler__label {
   font-size: 9px;
