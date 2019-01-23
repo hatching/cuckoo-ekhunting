@@ -9,7 +9,8 @@ const urls = {
   view_groups: (group_id, l = 1000, o = 0) => APIUrl(`view/${group_id}?limit=${l}&offset=${o}`),
   view_urls: group_id => APIUrl(`view/${group_id}/urls`),
   save_urls: () => APIUrl(`add/url`),
-  delete_urls: () => APIUrl('delete/url')
+  delete_urls: () => APIUrl('delete/url'),
+  schedule_group: id => APIUrl(`schedule/${id}`)
 }
 
 // returns all the urls for a specific group
@@ -65,6 +66,21 @@ function textAreaToArray(textarea, seperator = "\n") {
   return [];
 }
 
+// sets a schedule for a certain group
+function setSchedule(id, schedule='now') {
+  return new Promise((resolve, reject) => {
+    if(!id) return reject({message:'no ID for schedule'});
+    $.post(urls.schedule_group(id), {schedule}, response => resolve(response)).fail(err => reject(err))
+    // $.ajax({
+    //   type: 'POST',
+    //   url: `/api/groups/schedule/${id}`,
+    //   data: JSON.stringify(),
+    //   success: response => resolve({success:true,scheduled:id,response}),
+    //   error: error => reject({success:false,error})
+    // });
+  });
+}
+
 // initializes and renders a url editor for a group
 function initEditor(data = {}, $editor) {
 
@@ -117,8 +133,18 @@ function initEditor(data = {}, $editor) {
   let scheduler = new Scheduler({
     button: document.querySelector('#toggle-scheduler'),
     value: false,
-    submit: value => {
+    submit: values => {
       console.debug('Scheduler performs [SET schedule]');
+      values.when = (function(props) {
+        if(props.frequency == 'weekly')
+          return `${props.day}`;
+        else
+          return `${props.days}d`;
+      }(values));
+      let schedule = `${values.when}@${values.time.hours}:${values.time.minutes}`;
+      setSchedule(data.group.id, schedule).then(response => {
+        console.log(response);
+      }).catch(err => console.log(err));
     },
     reset:() => {
       console.debug('Scheduler performs [RESET schedule]');

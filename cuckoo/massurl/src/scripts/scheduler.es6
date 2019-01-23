@@ -33,30 +33,30 @@ const Templates = {
         <div class="scheduler__days" data-display="weekly">
           <label class="scheduler__label" for="sc-pick-day">day</label>
           <select name="day" value="${values.day}">
-            <option value="mondays">Mondays</option>
-            <option value="tuesdays">Tuesdays</option>
-            <option value="wednesdays">Wednesdays</option>
-            <option value="thursdays">Thursdays</option>
-            <option value="fridays">Fridays</option>
-            <option value="saturdays">Saturdays</option>
-            <option value="sundays">Sundays</option>
+            <option value="monday">Mondays</option>
+            <option value="tuesday">Tuesdays</option>
+            <option value="wednesday">Wednesdays</option>
+            <option value="thursday">Thursdays</option>
+            <option value="friday">Fridays</option>
+            <option value="saturday">Saturdays</option>
+            <option value="sunday">Sundays</option>
           </select>
           <i class="fas fa-caret-down caret"></i>
         </div>
         <div class="scheduler__each-day" data-display="every">
           <label class="scheduler__label">Every (days)</label>
-          <input type="text" placeholder="x days" class="scheduler--input-control center" value="${values.days || 1}" />
+          <input type="text" name="days" placeholder="x days" class="scheduler--input-control center" value="${values.days || 1}" />
         </div>
         <div class="scheduler__time">
           <div data-range="00:23">
             <a href="range:up"><i class="fal fa-angle-up"></i></a>
-            <input class="scheduler--input-control" value="${values.time.hours}" />
+            <input class="scheduler--input-control" value="${values.time.hours}" name="hours" />
             <a href="range:down"><i class="fal fa-angle-down"></i></a>
           </div>
           <span>:</span>
           <div data-range="00:59">
             <a href="range:up"><i class="fal fa-angle-up"></i></a>
-            <input class="scheduler--input-control" value="${values.time.minutes}" />
+            <input class="scheduler--input-control" value="${values.time.minutes}" name="minutes" />
             <a href="range:down"><i class="fal fa-angle-down"></i></a>
           </div>
         </div>
@@ -93,7 +93,7 @@ const lib = {
   /*
     'up-and-down' range picker
    */
-  RangePick: function(el, props={}) {
+  RangePick: function(el, props={}, change) {
     let input = el.querySelector('input');
     // parse range min and max from data string
     let range = (function(s="") {
@@ -108,6 +108,8 @@ const lib = {
       set: v => {
         range.cur   = v;
         input.value = helpers.lz(v,2);
+        if(change)
+          change(input.getAttribute('name'), range.cur)
       },
       up: () => {
         if(range.cur+1 > range.max)
@@ -170,6 +172,7 @@ function VALUES(v) {
      frequency: 'weekly',
      date: helpers.dateToString(new Date()),
      day: 'mondays',
+     days: 1,
      time: {
        hours: new Date().getHours(),
        minutes: new Date().getMinutes()
@@ -260,6 +263,8 @@ export default class Scheduler {
     const date  = this.dialog.querySelector('[data-flatpickr]');
     const range = this.dialog.querySelectorAll('[data-range]');
     const freq = this.dialog.querySelector('select[name="frequency"]');
+    const days = this.dialog.querySelector('input[name="days"]');
+    const day = this.dialog.querySelector('select[name="day"]');
     // prevDefault form
     form.addEventListener('submit', e => e.preventDefault());
     // bind submit button
@@ -276,7 +281,9 @@ export default class Scheduler {
       });
     // initialize timepicker
     range.forEach(r => {
-      lib.RangePick(r,this.values.time);
+      let pick = lib.RangePick(r,this.values.time, (which,n) => {
+        this.values.time[which] = n;
+      });
     });
     // toggles elements on and off based on frequency input
     let toggleElements = f => {
@@ -284,7 +291,11 @@ export default class Scheduler {
         let display = (el.dataset.display.indexOf(freq.value) == -1);
         el.classList.toggle('hidden',display);
       });
+      this.values.frequency = f;
     }
+    // update n days value
+    days.addEventListener('change', e => this.values.day = e.currentTarget.value);
+    day.addEventListener('change', e => this.values.days = e.currentTarget.value);
     // display the correct fields per frequency setting
     freq.addEventListener('change', e => toggleElements(freq.value));
     // trigger once on init
