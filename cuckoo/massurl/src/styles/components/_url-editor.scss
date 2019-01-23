@@ -1,3 +1,4 @@
+
 // this wraps the app always perfect in the viewport
 .editor-body {
   display: flex;
@@ -112,7 +113,13 @@
       justify-content: space-between;
       padding: 0 15px;
 
-      & > nav > div { display: inline-block; }
+      & > nav > div,
+      & > nav > p { display: inline-block; }
+
+      & > nav > p {
+        color: #888;
+        margin: 0 5px;
+      }
     }
 
     hr { margin: 0; }

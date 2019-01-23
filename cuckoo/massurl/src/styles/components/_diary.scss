@@ -50,10 +50,62 @@
   }
 
   .default-list {
-    li {
-      border-bottom: 1px solid #ccc;
-      padding: 5px 10px;
+    li { padding: 5px 10px; }
+  }
+
+  .key-value,
+  .collapse {
+
+    padding-bottom: 10px;
+    background-color: #fff;
+    border-color: #ccc;
+    border-width: 0px 1px 1px 1px;
+    padding: 15px 0;
+    border-style: solid;
+
+    &:first-child {
+      border-top-width: 1px;
+      border-top-right-radius: 6px;
+      border-top-left-radius: 6px;
     }
+    &:last-child {
+      border-bottom-width: 2px;
+      box-shadow: 0px 2px 0px #ddd;
+      border-bottom-right-radius: 6px;
+      border-bottom-left-radius: 6px;
+    }
+
+    p {
+      margin: 0;
+      padding-left: 15px;
+      padding-right: 15px;
+    }
+
+    &.collapse {
+      &:hover {
+        cursor: pointer;
+      }
+      & > p {
+        font-size: 14px;
+        font-weight: 600;
+      }
+    }
+
+    .key {
+      font-weight: 600;
+      font-size: .8em;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      color: #aaa;
+    }
+    .value {
+      word-wrap: break-word;
+    }
+
+    &.hidden {
+      display: none;
+    }
+
   }
 
 }
