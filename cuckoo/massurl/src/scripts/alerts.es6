@@ -67,19 +67,25 @@ function addAlert(alert, $table, method='prepend') {
   // create table entry
   let el = $(Templates.event(alert));
   $table.find('tbody')[method](el);
-  el.on('click', expandInfoRow);
+  el.on('click', e => {
+    if($(e.currentTarget).hasClass('info-expansion')) return;
+    expandInfoRow(e);
+  });
 
   // populate alert in top-level
   $("#top-level-alert").addClass('out');
   setTimeout(() => {
     let newContent = $(Templates.topEvent(alert));
     $("#top-level-alert .alert-outer").html(newContent);
+
     newContent.on('click', e => {
       $table.find(`tr[data-id=${alert.id || alert.task_id}]`).trigger('click');
     });
+
     setTimeout(() => {
       $("#top-level-alert").removeClass('out');
     }, 500);
+
   }, 300);
 
   if(alert.notify)
