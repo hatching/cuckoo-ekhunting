@@ -3,6 +3,10 @@ import $ from 'jquery';
 
 const APIUrl = (endpoint=false) => `/api/diary/${endpoint ? endpoint : '/'}`;
 
+const translations = {
+  ioc: 'indicator of compromise'
+};
+
 const api = {
   get: id => APIUrl(id)
 };
@@ -11,9 +15,23 @@ let generateList = (arr=[],key=false,listClass="data-list") => {
   let ul = $(`<ul class="${listClass}" />`);
   arr.forEach(item => {
     let li = $("<li />");
-    if(key !== false)
-      item = item[key];
-    li.text(item);
+    if(key !== false) {
+      if(key !== '*')
+        item = item[key];
+      else {
+        item = Object.keys(item)
+                  .map(k => {
+                    return `<div class="key-value">
+                      <p class="key">${translations[k] || k}</p><p class="value">${item[k]}</p>
+                    </div>`;
+                  }).join('');
+      }
+    }
+    if(key == '*')
+      li.html(item);
+    else
+      li.text(item);
+
     ul.append(li);
   });
   return ul;
@@ -80,10 +98,8 @@ function populateDiary(data={},el) {
 
     // creates data fields
     let requestsList = textareafy(generateList(requested_urls, "url"));
-    let signaturesList = generateList(signatures, false, "default-list");
+    let signaturesList = generateList(signatures, '*', "default-list");
     let javascriptList = textareafy(generateList(javascript));
-
-    console.log(signaturesList);
 
     requestsContainer.append(requestsList.list);
     signaturesContainer.append(signaturesList);
@@ -91,6 +107,17 @@ function populateDiary(data={},el) {
 
     requestsList.render(requestsList.list.find('textarea'));
     javascriptList.render(javascriptList.list.find('textarea'));
+
+    // apply collapse toggles to sig list
+    signaturesList.find('li').each((i,item) => {
+      let collapse = $("<div />", {
+        class: 'collapse'
+      });
+      collapse.html(`<p>${signatures[i].signature} <i class='caret'></a></p>`);
+      $(item).prepend(collapse);
+      collapse.on('click', e => collapse.nextAll('.key-value').toggleClass('hidden'));
+      collapse.click();
+    });
 
     let togglePane = e => e.currentTarget.parentNode.classList.toggle('closed');
 

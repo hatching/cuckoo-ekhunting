@@ -48,6 +48,26 @@ table.table {
     em {
       opacity: .5;
     }
+
+    a.follow-link {
+      position: relative;
+      display: block;
+      font-weight: 500;
+      color: #4A6FA5;
+      text-decoration: none;
+
+      i:before {
+        display: inline-block;
+        position: relative;
+        top: 4px;
+        @include fa-icon();
+        @extend .fas;
+        content: fa-content($fa-var-link);
+        float: right;
+        margin-left: 5px;
+        font-size: 1em;
+      }
+    }
   }
 
   thead th,

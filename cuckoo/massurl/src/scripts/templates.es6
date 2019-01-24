@@ -6,7 +6,7 @@ const getLevelName = level => ['info','warning','danger'][level-1] || "";
 const getIconType = level => ['fa-lightbulb','fa-exclamation-circle','fa-skull'][level-1] || "fa-comment";
 
 // forge pwetty dates from timestamps
-Handlebars.registerHelper('pretty-date', timestamp => moment(new Date(timestamp)).format('MM/DD/YYYY HH:mm:ss'));
+Handlebars.registerHelper('pretty-date', timestamp => moment(timestamp).format('MM/DD/YYYY HH:mm:ss'));
 // helper for parsing number-level to string-level
 Handlebars.registerHelper('alert-level', level => getLevelName(parseInt(level)));
 // spit icons from level numbers
@@ -29,7 +29,10 @@ const Templates = {
         <p>{{{truncate content}}}</p>
       </div>
       <div class="alert-time">
-        <p>{{pretty-date timestamp}}</p>
+        {{#if url_group_name}}
+          <p>{{url_group_name}}</p>
+        {{/if}}
+        <p>{{timestamp}}</p>
       </div>
     </div>
     <div class="alert-loader">
@@ -42,14 +45,14 @@ const Templates = {
     <tr data-row-style="{{alert-level level}}" data-id="{{task_id}}">
       <td class="drop-padding fill-base"></td>
       <td class="centerize icon-cell">{{{alert-icon level}}}</td>
-      <td class="no-wrap">{{pretty-date timestamp}}</td>
+      <td class="no-wrap">{{timestamp}}</td>
       <td>{{title}}</td>
       <td class="text-wrap">{{content}}</td>
       <td class="no-wrap">
-        {{#if targetgroup_name}}
-          {{targetgroup_name}}
+        {{#if url_group_name}}
+          <a class="follow-link" href="/url-groups/view?v={{url_group_name}}">{{url_group_name}} <i></i></a>
         {{else}}
-          <em class="secundary">Unspecified</em>
+          <em class="secundary">No group</em>
         {{/if}}
       </td>
       <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>
@@ -57,22 +60,25 @@ const Templates = {
     <tr class="info-expansion">
       <td colspan="7">
         <ul class="meta-summary">
+          {{#if url_group_name}}
           <li>
             <i class="far fa-barcode-alt"></i>
-            {{#if targetgroup_name}}
-              {{targetgroup_name}}
-            {{else}}
-              <em class="secundary">Unspecified</em>
-            {{/if}}
+            {{url_group_name}}
           </li>
+          {{/if}}
           <li>
             <i class="far fa-clock"></i>
-            {{pretty-date timestamp}}
+            {{timestamp}}
           </li>
         </ul>
         <h3>{{title}}</h3>
         <p>{{content}}</p>
-        <a href="{{target}}" target="_blank" class="button"><i class="far fa-file-alt"></i> View report</a>
+        {{#if diary_id}}
+          <a href="/diary/{{diary_id}}" class="button"><i class="far fa-book"></i> Show diary</a>
+        {{/if}}
+        <a href="/api/pcap/{{task_id}}" download="pcap-{{#if url_group_name}}{{url-group-name}}{{/if}}-{{timestamp}}-{{task_id}}.pcap" class="button">
+          <i class="far fa-file-alt"></i> Download PCAP
+        </a>
       </td>
     </tr>
   `)(data),
@@ -111,6 +117,11 @@ const Templates = {
         <p>{{description}}</p>
       </div>
       <nav>
+        <button class="button icon-button" data-schedule="{{id}}">Schedule now</button>
+        <p>or</p>
+        <div>
+          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar"></i> Schedule</button>
+        </div>
         <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
         <button class="button icon-button" data-close><i class="fal fa-times"></i></button>
       </nav>
