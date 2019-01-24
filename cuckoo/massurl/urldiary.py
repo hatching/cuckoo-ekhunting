@@ -82,7 +82,7 @@ class URLDiaries(object):
     @classmethod
     def store_diary(cls, diary, diary_id=None):
         """Store the specified URL diary under the specified id"""
-        diary_id = diary_id or uuid.uuid1()
+        diary_id = diary_id or str(uuid.uuid1())
         try:
             elasticmassurl.client.create(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, id=diary_id,

@@ -12,10 +12,11 @@ import logging
 import random
 import string
 import sys
+import os
 import time
 import uuid
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 from gevent.lock import BoundedSemaphore
 from gevent.pywsgi import WSGIServer
 from gevent.queue import Queue
@@ -26,6 +27,9 @@ from cuckoo.common.config import config
 from cuckoo.common.utils import parse_bool
 from cuckoo.massurl import db
 from cuckoo.massurl.urldiary import URLDiaries
+from cuckoo.massurl import schedutil
+from cuckoo.misc import cwd
+
 
 log = logging.getLogger(__name__)
 
@@ -109,7 +113,6 @@ def list_alerts():
 def add_group():
     name = request.form.get("name", "")
     description = request.form.get("description", "")
-    schedule = request.form.get("schedule") or "1d"
 
     if not name:
         return json_error(400, "Missing 'name' parameter")
@@ -117,7 +120,7 @@ def add_group():
         return json_error(400, "Missing 'description' parameter")
 
     try:
-        group_id = db.add_group(name, description, schedule)
+        group_id = db.add_group(name, description)
     except ValueError as e:
         return json_error(400, str(e))
     except KeyError:
@@ -126,6 +129,33 @@ def add_group():
         return json_error(500, "Error while creating a new group")
 
     return jsonify(group_id=group_id)
+
+@app.route("/api/group/<int:group_id>/schedule", methods=["POST"])
+def schedule_group(group_id):
+    schedule = request.form.get("schedule")
+
+    group = db.find_group(group_id=group_id)
+    if not group:
+        return json_error(404, message="Group does not exist")
+
+    if not schedule:
+        db.remove_schedule(group_id)
+        return jsonify(message="OK")
+
+    if schedule == "now":
+        schedule_next = datetime.datetime.utcnow() + \
+                        datetime.timedelta(minutes=1)
+        db.set_schedule_next(group_id, schedule_next)
+        return jsonify(message="Scheduled at %s" % schedule_next)
+
+    try:
+        schedutil.schedule_time_next(schedule)
+    except ValueError as e:
+        return json_error(500, message=str(e))
+
+    db.add_schedule(group_id, schedule)
+    return jsonify(message="OK")
+
 
 @app.route("/api/group/add/url", methods=["POST"])
 def group_add_url():
@@ -310,6 +340,16 @@ def get_diary(diary_id):
 
     return jsonify(diary)
 
+@app.route("/api/pcap/<int:task_id>")
+def get_pcap(task_id):
+    pcap_path = cwd("dump.pcap", analysis=task_id)
+    if not os.path.isfile(pcap_path):
+        return json_error(404, message="PCAP for given task does not exist")
+
+    return send_file(
+        pcap_path, attachment_filename="task%s-dump.pcap" % task_id
+    )
+
 def random_string(minimum, maximum=None):
     if maximum is None:
         maximum = minimum
@@ -370,10 +410,8 @@ def gen_alerts():
             "timestamp": datetime.datetime.now(),
             "target": random.choice(["http://example.com/somepage", None])
         }
-        db.add_alert(**alert)
-        alert["notify"] = notify
-        alert["timestamp"] = alert["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
-        alert_queue.put(json.dumps(alert))
+        send_alert(notify=notify, **alert)
+
         gevent.sleep(0.2)
 
     return jsonify(message="OK")
@@ -454,26 +492,30 @@ def handle_alerts():
         finally:
             lock.release()
 
+def send_alert(level=1, title="", content="", task_id=None, url_group_name="",
+               timestamp=None, target=None, diary_id=None, notify=False):
+    alert = {
+        "level": level,
+        "title": title,
+        "content": content,
+        "task_id": task_id,
+        "url_group_name": url_group_name,
+        "timestamp": timestamp or datetime.datetime.now(),
+        "target": target,
+        "diary_id": diary_id
+    }
+    db.add_alert(**alert)
+    alert["notify"] = notify
+    alert["timestamp"] = alert["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
+    alert_queue.put(json.dumps(alert))
+
 ws_routes = {
     "/ws/alerts": ws_connect
 }
 
 def run_server(host, port):
     """Run the server. This handles websocket and HTTP requests"""
-    if not config("massurl:massurl:enabled"):
-        log.error(
-            "MassURL is not enabled. The mass url dashboard requires "
-            "Elasticsearch to operate. Please enable it and configure"
-            " Elasticsearch in your massurl.conf"
-        )
-        sys.exit(1)
-
     log.info("Starting server for %r on %s:%s", app, host, port)
-
-    # Initiate Elasticsearch client
-    if not URLDiaries.init():
-        log.error("Failed to start massurl server")
-        sys.exit(1)
 
     gevent.spawn(handle_alerts)
 

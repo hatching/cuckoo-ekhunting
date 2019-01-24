@@ -43,13 +43,16 @@ class Alert(Base, ToDict):
     __tablename__ = "massurl_alerts"
 
     id = Column(Integer(), primary_key=True)
-    timestamp = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+    timestamp = Column(
+        DateTime, nullable=False, default=datetime.datetime.utcnow
+    )
     level = Column(Integer(), nullable=False, default=1)
     title = Column(String(255), nullable=False)
     content = Column(Text(), nullable=False)
     target = Column(Text(), nullable=True)
     url_group_name = Column(String(255), nullable=True)
     task_id = Column(Integer(), nullable=True)
+    diary_id = Column(String(36), nullable=True)
 
 class URL(Base, ToDict):
     __tablename__ = "massurl_urls"
@@ -88,15 +91,13 @@ class URLGroup(Base, ToDict):
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text(), nullable=False)
 
-    max_parallel = Column(Integer(), default=1, nullable=False)
+    max_parallel = Column(Integer(), default=100, nullable=False)
 
-    schedule = Column(Text(), server_default="", nullable=False)
+    schedule = Column(Text(), nullable=True)
     schedule_next = Column(DateTime, nullable=True)
     completed = Column(Boolean(), default=True, nullable=False)
 
-    urls = relationship(
-        "URL", secondary=URLGroupURL.__table__, lazy="dynamic"
-    )
+    urls = relationship("URL", secondary=URLGroupURL.__table__, lazy="dynamic")
     tasks = relationship(
         "Task", secondary=URLGroupTask.__table__, lazy="dynamic"
     )
@@ -242,8 +243,11 @@ def list_alerts(level=None, target_group=None, limit=100, offset=0):
 
     return alerts
 
-def add_group(name, description, schedule):
-    schedule_next = schedule_time_next(schedule)
+def add_group(name, description, schedule=None):
+    schedule_next = None
+    if schedule:
+        schedule_next = schedule_time_next(schedule)
+
     exists = False
     session = db.Session()
     try:
@@ -273,3 +277,35 @@ def list_groups(limit=50, offset=0):
     finally:
         session.close()
     return groups
+
+def add_schedule(group_id, schedule):
+    session = db.Session()
+    try:
+        session.query(URLGroup).filter(URLGroup.id == group_id).update({
+            "schedule": schedule,
+            "schedule_next": schedule_time_next(schedule)
+        })
+        session.commit()
+    finally:
+        session.close()
+
+def remove_schedule(group_id):
+    session = db.Session()
+    try:
+        session.query(URLGroup).filter(URLGroup.id == group_id).update({
+            "schedule": None,
+            "schedule_next": None
+        })
+        session.commit()
+    finally:
+        session.close()
+
+def set_schedule_next(group_id, next_datetime):
+    session = db.Session()
+    try:
+        session.query(URLGroup).filter(URLGroup.id == group_id).update({
+            "schedule_next": next_datetime
+        })
+        session.commit()
+    finally:
+        session.close()
