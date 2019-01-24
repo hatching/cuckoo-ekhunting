@@ -260,10 +260,10 @@ def exception_message():
     except ImportError:
         import pip
 
-    msg += "Modules: %s\n\n" % " ".join(sorted(
-        "%s:%s" % (package.key, package.version)
-        for package in pip.get_installed_distributions()
-    ))
+    #msg += "Modules: %s\n\n" % " ".join(sorted(
+    #    "%s:%s" % (package.key, package.version)
+    #    for package in pip.get_installed_distributions()
+    #))
     return msg
 
 _jsbeautify_blacklist = [
