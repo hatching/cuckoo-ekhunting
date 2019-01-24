@@ -371,7 +371,12 @@ def rand_sig(c=None):
          "Suspicious Java applet"]
     s.extend([random_string(8, 17) for x in range(random.randint(4, 20))])
     random.shuffle(s)
-    return [random.choice(s) for x in range(c or random.randint(0, 18))]
+    return [
+        {"signature": random.choice(s),
+         "description": random_string(10, 100),
+         "ioc": random_string(10, 100)
+         } for x in range(c or random.randint(0, 18))
+    ]
 
 @app.route("/api/genalert")
 def gen_alerts():
