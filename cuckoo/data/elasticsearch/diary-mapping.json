@@ -21,8 +21,8 @@
                  "signatures": {
                       "type": "nested",
                       "properties": {
-                        "signame": {"type": "text"},
-                        "desc": {"type": "text"},
+                        "signature": {"type": "text"},
+                        "description": {"type": "text"},
                         "ioc": {"type": "text"}
                    }
                  }
