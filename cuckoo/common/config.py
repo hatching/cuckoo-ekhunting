@@ -932,6 +932,11 @@ class Config(object):
                 "diary_index": String("urldiary"),
                 "related_index": String("related"),
             },
+            "eventserver": {
+                "ip": String("127.0.0.1"),
+                "port": Int(42037)
+
+            }
         },
     }
 
