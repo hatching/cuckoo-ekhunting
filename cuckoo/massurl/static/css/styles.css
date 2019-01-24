@@ -6295,6 +6295,12 @@ table.table {
       text-align: center;
       min-width: 25px;
       margin-right: 0; }
+  .button[disabled] {
+    background-color: #fff;
+    color: #4A6FA5;
+    border-color: #ddd; }
+    .button[disabled]:hover {
+      cursor: default; }
 
 .tabs {
   margin-bottom: 15px;
@@ -6463,11 +6469,24 @@ table.table {
       .editor-ui .editor.loading.idle:after, .editor-ui .editor.idle.idle:after {
         content: "\f0ac";
         opacity: .05; }
+    .editor-ui .editor .next-scan {
+      padding: 15px;
+      margin-bottom: 0;
+      border-bottom: 1px solid #ccc;
+      color: #888;
+      font-size: 12px;
+      font-weight: 500; }
+      .editor-ui .editor .next-scan span {
+        color: #000;
+        font-weight: 600; }
     .editor-ui .editor header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 15px; }
+      padding: 0 15px;
+      margin-top: 15px; }
+      .editor-ui .editor header h3 {
+        margin: 0; }
       .editor-ui .editor header > nav > div,
       .editor-ui .editor header > nav > p {
         display: inline-block; }

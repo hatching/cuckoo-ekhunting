@@ -43,4 +43,11 @@
     }
   }
 
+  &[disabled] {
+    background-color: #fff;
+    color: $default-base;
+    border-color: #ddd;
+    &:hover { cursor: default; }
+  }
+
 }

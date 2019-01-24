@@ -107,11 +107,29 @@
 
     }
 
+    .next-scan {
+      padding: 15px;
+      margin-bottom: 0;
+      border-bottom: 1px solid #ccc;
+      color: #888;
+      font-size: 12px;
+      font-weight: 500;
+      span {
+        color: #000;
+        font-weight: 600;
+      }
+    }
+
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 15px;
+      margin-top: 15px;
+
+      h3 {
+        margin: 0;
+      }
 
       & > nav > div,
       & > nav > p { display: inline-block; }

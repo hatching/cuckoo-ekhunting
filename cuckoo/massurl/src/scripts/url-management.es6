@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import moment from 'moment';
 import autosize from 'autosize';
 import Scheduler from './scheduler';
 import Templates from './templates';
@@ -70,15 +71,18 @@ function textAreaToArray(textarea, seperator = "\n") {
 function setSchedule(id, schedule='now') {
   return new Promise((resolve, reject) => {
     if(!id) return reject({message:'no ID for schedule'});
-    $.post(urls.schedule_group(id), {schedule}, response => resolve(response)).fail(err => reject(err))
-    // $.ajax({
-    //   type: 'POST',
-    //   url: `/api/groups/schedule/${id}`,
-    //   data: JSON.stringify(),
-    //   success: response => resolve({success:true,scheduled:id,response}),
-    //   error: error => reject({success:false,error})
-    // });
+    $.post(urls.schedule_group(id), (!schedule ? {} : {schedule}), response => resolve(response)).fail(err => reject(err))
   });
+}
+
+// sets a schedule for group id
+function scheduleNow(id) {
+  return setSchedule(id);
+}
+
+// resets a schedule for group id
+function scheduleReset(id) {
+  return setSchedule(id,false);
 }
 
 // initializes and renders a url editor for a group
@@ -87,6 +91,7 @@ function initEditor(data = {}, $editor) {
   if(!data.template || !$editor) return false;
   $editor.html(data.template);
   let $textfield = $editor.find('textarea');
+  let scan = $editor.find('button[data-schedule-now]');
   // initialize textarea auto-type-resizer
   autosize($textfield);
 
@@ -126,7 +131,6 @@ function initEditor(data = {}, $editor) {
         }).catch(e => console.log(e));
       }).catch(e => console.log(e));
     }
-
   });
 
   // initialize scheduler button
@@ -134,21 +138,46 @@ function initEditor(data = {}, $editor) {
     button: document.querySelector('#toggle-scheduler'),
     value: false,
     submit: values => {
-      console.debug('Scheduler performs [SET schedule]');
+
       values.when = (function(props) {
         if(props.frequency == 'weekly')
           return `${props.day}`;
         else
           return `${props.days}d`;
       }(values));
+
       let schedule = `${values.when}@${values.time.hours}:${values.time.minutes}`;
+
       setSchedule(data.group.id, schedule).then(response => {
-        console.log(response);
+        let nextDate = moment();
+        if(values.frequency == 'every')
+          nextDate.add(parseInt(values.days),'days');
+        if(values.frequency == 'weekly')
+          nextDate.add(7, 'days');
+        nextDate.hours(values.time.hours);
+        nextDate.minutes(values.time.minutes);
+        scan.find('span').text(nextDate.format('YYYY-DD-MM HH:mm'));
+
+        $("#toggle-scheduler span").text(`Scheduled at ${nextDate.format('YYYY-DD-MM HH:mm')}`);
+        $("#toggle-scheduler i").removeClass('fa-calendar').addClass('fa-calendar-check');
       }).catch(err => console.log(err));
+
     },
     reset:() => {
-      console.debug('Scheduler performs [RESET schedule]');
+      scheduleReset(data.group.id).then(response => {
+        $("#toggle-scheduler span").text('Schedule');
+        $("#toggle-scheduler i").removeClass('fa-calendar-check').addClass('fa-calendar');
+      }).catch(err => console.log(err));
     }
+  });
+
+  $editor.find('button[data-schedule-now]').on('click', e => {
+    scheduleNow(data.group.id).then(response => {
+      scan.text(response.message.split('.')[0]);
+      scan.prop('disabled',true);
+      if($editor.find('.next-scan'))
+        $editor.find('.next-scan span').text(response.message.replace('Scheduled at ','').split('.')[0]);
+    }).catch(err => console.log(err));
   });
 
   // close the editor
