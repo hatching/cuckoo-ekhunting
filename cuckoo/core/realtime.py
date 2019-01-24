@@ -2,9 +2,10 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import errno
+import Queue
 import json
 import logging
-import Queue
 import select
 import socket
 import threading
@@ -12,7 +13,7 @@ import time
 
 from cuckoo.common.config import config
 from cuckoo.common.exceptions import (
-    RealtimeCommandFailed, RealtimeBlockingExpired
+    RealtimeCommandFailed, RealtimeBlockingExpired, RealtimeError
 )
 
 log = logging.getLogger(__name__)
@@ -111,6 +112,9 @@ class RealTimeHandler(object):
                 self.command_cb[cmd_id] = callback
 
             self.sock.write(json.dumps(command) + "\n")
+        except socket.error as e:
+            raise RealtimeError("Real-time connection was closed. %s", e)
+
         finally:
             self.sendlock.release()
 
@@ -139,7 +143,7 @@ class RealTimeHandler(object):
             if not response.get("success"):
                 raise RealtimeCommandFailed(
                     "Guest raised exception during command execution. "
-                    "Command: '%s'" % command
+                    "Command: '%s'. Response: %s" % (command, response)
                 )
 
             return response.get("return_data")
@@ -296,7 +300,6 @@ class EventMessageServer(object):
 
     def handle_incoming(self, message, mes_handler):
         mes_type = message.get("type")
-
         if not mes_type:
             log.error("Received message without a type, ignoring")
             return
@@ -448,9 +451,13 @@ class EventMessageServer(object):
     def _handle(self):
         """Handles incoming and outgoing messages"""
         while self.do_run:
-            insocks, _o, _e = select.select(
-                self.insocks, [], [], 1
-            )
+            try:
+                insocks, _o, _e = select.select(
+                    self.insocks, [], [], 1
+                )
+            except select.error as e:
+                log.exception(e)
+
             if not self.mesqueue.empty():
                 _i, outsocks, _e = select.select([], self.outsocks, [], 1)
                 self.relay_messages(outsocks)
@@ -813,6 +820,12 @@ class EventClient(object):
         run_t = threading.Thread(target=self._run)
         run_t.daemon = True
         run_t.start()
+        return True
+
+    def start_nonblocking(self):
+        self.do_run = True
+
+        self._run()
         return True
 
     def stop(self):

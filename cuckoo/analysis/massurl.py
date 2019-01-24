@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 class MassURL(AnalysisManager):
 
     supports = ["massurl"]
-    URL_BLOCKSIZE = 1
+    URL_BLOCKSIZE = 5
     SECS_PER_BLOCK = 20
 
     def init(self, db):
@@ -50,7 +50,9 @@ class MassURL(AnalysisManager):
 
         self.rt = RealTimeHandler()
         self.ev_client = EventClient()
-        self.URL_BLOCKSIZE = self.task.options.get("urlblocksize", 1)
+        self.URL_BLOCKSIZE = self.task.options.get(
+            "urlblocksize", self.URL_BLOCKSIZE
+        )
         self.SECS_PER_BLOCK = self.task.options.get("blocktime", 20)
         self.aborted = False
         self.completed = False
@@ -61,12 +63,13 @@ class MassURL(AnalysisManager):
             "category": "url",
             "target": self.curr_block.keys(),
             "enforce_timeout": True,
-            "timeout": len(self.targets * self.SECS_PER_BLOCK * 3)
+            "timeout": len(self.task.targets) * self.SECS_PER_BLOCK * 3
         })
 
         self.guest_manager = GuestManager(
             self.machine.name, self.machine.ip, self.machine.platform,
-            self.task, self, self.analysis, self.targets[0][0]
+            self.task, self, self.analysis,
+            self.curr_block.get(self.curr_block.keys().pop(0)).get("target_obj")
         )
 
         self.aux = RunAuxiliary(
@@ -162,7 +165,7 @@ class MassURL(AnalysisManager):
                 self.rt.send_command_blocking(
                     RealTimeMessages.stop_analyzer(), maxwait=3
                 )
-            except RealtimeBlockingExpired:
+            except RealtimeError:
                 log.warning("No response from analyzer to stopping request")
 
         self.set_analysis_status(Analysis.STOPPING)
@@ -187,6 +190,9 @@ class MassURL(AnalysisManager):
 
     def run_analysis(self):
         while self.curr_block:
+            if not self.gm_wait_th.is_alive():
+                return
+
             self.request_scheduler_action(for_status="newurlblock")
 
             # Start with handling incoming onemon events, as the first block
@@ -196,13 +202,13 @@ class MassURL(AnalysisManager):
             # TODO extract HTTP requests from PCAP and add them to the
             # URL diary as requested URLs and related streams.
 
-            # Store URL diaries
-            for url, info in self.curr_block.iteritems():
-                URLDiaries.store_diary(info.get("diary").dump())
-
             if handled_events:
                 self.request_scheduler_action(for_status="aborted")
                 return
+
+            # Store URL diaries
+            for url, info in self.curr_block.iteritems():
+                URLDiaries.store_diary(info.get("diary").dump())
 
             # Acquire the next block of URLs according to the defined URL
             # blocksize
@@ -214,7 +220,8 @@ class MassURL(AnalysisManager):
                 self.rt.send_command_blocking(
                     RealTimeMessages.start_package(
                         target=self.curr_block.keys(), category="url",
-                        package=self.task.package, options=self.task.options,
+                        package=self.task.package,
+                        options=self.task.options,
                         respond=True
                     ), maxwait=len(self.curr_block) * 10
                 )
@@ -260,7 +267,10 @@ class MassURL(AnalysisManager):
             time.sleep(self.SECS_PER_BLOCK)
 
         # Request the analyzer to stop all running analysis packages
-        self.rt.send_command(RealTimeMessages.stop_all_packages())
+        try:
+            self.rt.send_command(RealTimeMessages.stop_all_packages())
+        except RealtimeError as e:
+            log.error("Error sending real-time package stop command. %s", e)
 
         # Tell onemon to stop processing this batch
         self.ev_client.send_event(
@@ -288,21 +298,34 @@ class MassURL(AnalysisManager):
                 "ioc": ev.get("ioc")
             })
 
-        # Send events to massurl scheduler if there are any
-        self.ev_client.send_event(
-            "massurldetection", body={
-                "taskid": self.task.id,
-                "status": "aborted",
-                "candidates": self.curr_block.keys(),
-                "signatures": sigs
-            }
-        )
         # TODO: store sigs in a URL diary when it is known to which URL
         # they belong or mark a URL as 'potentially triggered sig X' until
         # it is known what URL did really trigger a sig?
         if len(self.curr_block) == 1:
             info = self.curr_block.get(self.curr_block.keys().pop(0))
             info.get("diary").add_signature(sigs)
+            diary_id = URLDiaries.store_diary(info.get("diary").dump())
+            # Send events to massurl scheduler if there are any
+            self.ev_client.send_event(
+                "massurldetection", body={
+                    "taskid": self.task.id,
+                    "status": "aborted",
+                    "candidates": self.curr_block.keys(),
+                    "signatures": sigs,
+                    "diary_id": diary_id
+                }
+            )
+
+        else:
+            # Send events to massurl scheduler if there are any
+            self.ev_client.send_event(
+                "massurldetection", body={
+                    "taskid": self.task.id,
+                    "status": "aborted",
+                    "candidates": self.curr_block.keys(),
+                    "signatures": sigs
+                }
+            )
 
         return True
 

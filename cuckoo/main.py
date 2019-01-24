@@ -777,6 +777,7 @@ def massurl(ctx, host, port):
 @click.option("-p", "--port", type=int, default=42037, help="Port to bind the event server on")
 @click.pass_context
 def eventserver(ctx, host, port):
+    """Cuckoo event messaging server."""
     import socket
     from cuckoo.core.realtime import EventMessageServer
 
