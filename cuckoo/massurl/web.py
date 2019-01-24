@@ -130,7 +130,7 @@ def add_group():
 
     return jsonify(group_id=group_id)
 
-@app.route("/api/group/<int:group_id>/schedule", methods=["POST"])
+@app.route("/api/group/schedule/<int:group_id>", methods=["POST"])
 def schedule_group(group_id):
     schedule = request.form.get("schedule")
 
