@@ -417,7 +417,7 @@ class GeventResultServerWorker(gevent.server.StreamServer):
         klass = self.commands.get(command)
         if not klass:
             log.warning("Task #%s: unknown netlog protocol requested (%r), "
-                        "terminating connection.", self.task_id, command)
+                        "terminating connection.", task_id, command)
             return
         data = None
         if len(header) == 2:
@@ -426,7 +426,7 @@ class GeventResultServerWorker(gevent.server.StreamServer):
             except ValueError:
                 log.exception(
                     "Task #%s: invalid netlog header: %r",
-                    self.task_id, header[1]
+                    task_id, header[1]
                 )
                 return
             # Backwards compat with monitor; remove this.
