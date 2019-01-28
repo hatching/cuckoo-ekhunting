@@ -237,7 +237,7 @@ def handle_massurldetection(message):
     for sig in signatures:
         if not isinstance(sig, dict):
             return
-        for k in ("signature", "description", "io"):
+        for k in ("signature", "description", "ioc"):
             if k not in sig:
                 return
 
@@ -305,7 +305,6 @@ def handle_massurltask(message):
         return
 
     newstatus = message["body"].get("status")
-    log.info("Doing query")
     s = db.Session()
     try:
         groupname = s.query(URLGroup.name).filter(
