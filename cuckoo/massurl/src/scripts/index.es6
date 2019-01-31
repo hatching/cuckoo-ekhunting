@@ -122,7 +122,7 @@ $(function() {
   // specific inits for url-management
   if($("main#url-management").length) {
     initUrlManagement($("#url-management")).then(data => {
-
+      
     });
   }
 
@@ -143,7 +143,7 @@ $(function() {
   // specific inits for search
   if($("#search-content").length) {
     initSearch($("#search-content"), $("#result-container")).then(data => {
-      
+
     });
   }
 

@@ -111,16 +111,19 @@ const Templates = {
 
   // template for url-editor
   editor: data => Handlebars.compile(`
+    {{#if schedule_next}}
+      <p class="next-scan">Next scan: <span>{{schedule_next}}</span></p>
+    {{/if}}
     <header>
       <div>
         <h3>{{name}}</h3>
         <p>{{description}}</p>
       </div>
       <nav>
-        <button class="button icon-button" data-schedule="{{id}}">Schedule now</button>
+        <button class="button icon-button" data-schedule-now>Scan now</button>
         <p>or</p>
         <div>
-          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar"></i> Schedule</button>
+          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
         </div>
         <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
         <button class="button icon-button" data-close><i class="fal fa-times"></i></button>

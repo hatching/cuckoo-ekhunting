@@ -294,8 +294,8 @@ export default class Scheduler {
       this.values.frequency = f;
     }
     // update n days value
-    days.addEventListener('change', e => this.values.day = e.currentTarget.value);
-    day.addEventListener('change', e => this.values.days = e.currentTarget.value);
+    days.addEventListener('change', e => this.values.days = e.currentTarget.value);
+    day.addEventListener('change', e => this.values.day = e.currentTarget.value);
     // display the correct fields per frequency setting
     freq.addEventListener('change', e => toggleElements(freq.value));
     // trigger once on init
