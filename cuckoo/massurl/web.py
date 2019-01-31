@@ -87,7 +87,7 @@ def diary_view(uuid):
 #
 @app.route("/api/alerts/list")
 def list_alerts():
-    target_group = request.args.get("target_group")
+    url_group_name = request.args.get("url_group_name")
 
     intargs = {
         "limit": request.args.get("limit", 20),
@@ -103,7 +103,7 @@ def list_alerts():
                 return json_error(400, "%s should be an integer" % key)
 
     alerts = db.list_alerts(
-        level=intargs["level"], target_group=target_group,
+        level=intargs["level"], url_group_name=url_group_name,
         limit=intargs["limit"], offset=intargs["offset"]
     )
 

@@ -228,15 +228,15 @@ def add_alert(level, title, content, **kwargs):
     finally:
         session.close()
 
-def list_alerts(level=None, target_group=None, limit=100, offset=0):
+def list_alerts(level=None, url_group_name=None, limit=100, offset=0):
     session = db.Session()
     alerts = []
     try:
         search = session.query(Alert)
         if level:
             search = search.filter_by(level=level)
-        if target_group:
-            search = search.filter_by(target_group=target_group)
+        if url_group_name:
+            search = search.filter_by(url_group_name=url_group_name)
         alerts = search.limit(limit).offset(offset).all()
     finally:
         session.close()
