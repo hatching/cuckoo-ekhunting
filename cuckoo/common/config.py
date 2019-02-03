@@ -843,6 +843,7 @@ class Config(object):
             "*": {
                 "__section__": "vpn0",
                 "name": String("vpn0"),
+                "country": String(),
                 "description": String("Spain, Europe"),
                 "interface": String("tun0"),
                 "rt_table": String("tun0"),

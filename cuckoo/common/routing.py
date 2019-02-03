@@ -3,11 +3,15 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import logging
+import threading
 
 from cuckoo.common.config import config
+from cuckoo.common.exceptions import CuckooOperationalError
+from cuckoo.core.database import Database
 from cuckoo.core.rooter import rooter
 
 log = logging.getLogger(__name__)
+db = Database()
 
 class Route(object):
 
@@ -80,9 +84,18 @@ class Route(object):
             else:
                 self.interface = config("routing:routing:internet")
                 self.rt_table = config("routing:routing:rt_table")
+        elif self.route == "vpn":
+            country = self.task.options.get("vpn.country")
+            name = self.task.options.get("vpn.name")
+            vpn = VPNManager.acquire(country=country, name=name)
+            self.interface = vpn.get("interface")
+            self.rt_table = vpn.get("rt_table")
+            self.task.options["route"] = name
+
         elif self.route in config("routing:vpn:vpns"):
-            self.interface = config("routing:%s:interface" % self.route)
-            self.rt_table = config("routing:%s:rt_table" % self.route)
+            vpn = VPNManager.acquire(name=self.route)
+            self.interface = vpn.get("interface")
+            self.rt_table = vpn.get("rt_table")
         else:
             log.warning(
                 "Unknown network routing destination specified, ignoring "
@@ -204,3 +217,76 @@ class Route(object):
                 str(config("routing:socks5:dnsport")),
                 str(self.task.options["socks5.localport"])
             )
+
+
+class VPNManager(object):
+
+    lock = threading.Lock()
+    vpns = None
+
+    @classmethod
+    def init(cls):
+        """Initialize the order VPN list. Used to round-robin VPN for Cuckoo
+        tasks"""
+        if cls.vpns is not None:
+            raise CuckooOperationalError(
+                "VPNManager initialization called after it has already been"
+                " initialized."
+            )
+
+        cls.vpns = []
+
+        used_vpns = set([
+            task.route for task in
+            db.list_tasks(
+            filter_by="route", operators="!=", values="none", details=False,
+            order_by="started_on", limit=len(config("routing:vpn:vpns"))
+        )])
+
+        vpns = []
+        # Insert the vpn names in order, so that the last used vpns end up
+        # at the end of the vpn list.
+        for vpn in config("routing:vpn:vpns"):
+            if vpn not in used_vpns:
+                vpns.append(vpn)
+
+        for used in used_vpns:
+            if used in config("routing:vpn:vpns"):
+                vpns.append(used)
+
+        for vpn in vpns:
+            cls.vpns.append({
+                "name": config("routing:%s:name" % vpn),
+                "country": config("routing:%s:country" % vpn),
+                "description": config("routing:%s:description" % vpn),
+                "interface": config("routing:%s:interface" % vpn),
+                "rt_table": config("routing:%s:rt_table" % vpn)
+            })
+
+    @classmethod
+    def acquire(cls, country=None, name=None):
+        """Return a dictionary containing VPN info of the VPN that has not
+        been used for the longest time."""
+        cls.lock.acquire()
+        use_vpn = None
+        try:
+            for vpn in cls.vpns:
+                if country:
+                    if vpn.get("country").lower() == country.lower():
+                        use_vpn = vpn
+                        break
+                elif name:
+                    if vpn.get("name") == name:
+                        use_vpn = vpn
+                        break
+                else:
+                    use_vpn = vpn
+                    break
+
+            # Move the entry back to the list.
+            cls.vpns.remove(vpn)
+            cls.vpns.append(vpn)
+        finally:
+            cls.lock.release()
+
+        return use_vpn

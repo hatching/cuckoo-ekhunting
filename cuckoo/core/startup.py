@@ -19,6 +19,7 @@ from cuckoo.common.config import Config, config, config2
 from cuckoo.common.exceptions import CuckooStartupError, CuckooFeedbackError
 from cuckoo.common.files import temppath
 from cuckoo.common.objects import File
+from cuckoo.common.routing import VPNManager
 from cuckoo.core.database import (
     Database, TASK_RUNNING, TASK_FAILED_ANALYSIS, TASK_PENDING
 )
@@ -28,7 +29,7 @@ from cuckoo.core.log import init_logger
 from cuckoo.core.plugins import RunSignatures
 from cuckoo.core.rooter import rooter
 from cuckoo.core.task import Task
-from cuckoo.misc import cwd, version, getuser, mkdir
+from cuckoo.misc import cwd, version, mkdir
 
 log = logging.getLogger(__name__)
 
@@ -368,6 +369,8 @@ def init_routing():
                 )
 
             interfaces.add((entry.rt_table, entry.interface))
+
+        VPNManager.init()
 
     standard_routes = "none", "drop", "internet", "inetsim", "tor"
 
