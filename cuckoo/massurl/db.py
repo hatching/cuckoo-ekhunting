@@ -309,3 +309,17 @@ def set_schedule_next(group_id, next_datetime):
         session.commit()
     finally:
         session.close()
+
+def find_group_task(task_id):
+    session = db.Session()
+    group = None
+    try:
+        group = session.query(URLGroup).filter(
+            URLGroupTask.task_id==task_id
+        ).first()
+
+        if group:
+            session.expunge(group)
+    finally:
+        session.close()
+    return group

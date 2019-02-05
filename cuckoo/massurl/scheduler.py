@@ -13,17 +13,19 @@ from cuckoo.core.database import (
     TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING
 )
 from cuckoo.core.task import Task
+from cuckoo.massurl import db as massurldb
 from cuckoo.massurl import web
 from cuckoo.massurl.db import URLGroup, URLGroupTask
-from cuckoo.massurl import db as massurldb
 from cuckoo.massurl.realtime import ev_client
 from cuckoo.massurl.schedutil import schedule_time_next
+from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
 db = Database()
 submit_task = Task()
 
 OWNER = "cuckoo.massurl"
+DEFAULT_OPTIONS = "analysis=kernel"
 
 # TODO: call .set()/.clear() when the schedule changes (group add, delete,
 # schedule modify)
@@ -44,43 +46,45 @@ def next_group_task():
     s = db.Session()
     group = s.query(URLGroup).filter(
         URLGroup.schedule_next != None,
-        URLGroup.completed.is_(True),
     ).order_by(URLGroup.schedule_next).first()
     if group:
         group = group.to_dict(False)
     s.close()
     return group
 
-def create_parallel_tasks(targets, max_parallel):
+def create_parallel_tasks(targets, max_parallel, options=None):
     urls = []
-    options = "free=yes"
+    if not options:
+        options = DEFAULT_OPTIONS
+
     for t in targets:
         urls.append(t)
         if len(urls) >= max_parallel:
-            yield submit_task.add_massurl(urls, options=options)
+            yield submit_task.add_massurl(urls, options=options, owner=OWNER)
             urls = []
     if urls:
-        yield submit_task.add_massurl(urls, options=options)
+        yield submit_task.add_massurl(urls, options=options, owner=OWNER)
 
-def create_single_task(urls, group_id):
-    for task_id in create_parallel_tasks(urls, len(urls)):
-        s = db.Session()
-        try:
-            grouptask = URLGroupTask()
-            grouptask.task_id = task_id
-            grouptask.url_group_id = group_id
-            s.add(grouptask)
-            s.commit()
-        finally:
-            s.close()
+def create_single_task(group_id, urls, **kwargs):
+    if not kwargs.get("options"):
+        kwargs["options"] = DEFAULT_OPTIONS
+
+    task_id = submit_task.add_massurl(urls=urls, **kwargs)
+    s = db.Session()
+    try:
+        grouptask = URLGroupTask()
+        grouptask.task_id = task_id
+        grouptask.url_group_id = group_id
+        s.add(grouptask)
+        s.commit()
+    finally:
+        s.close()
 
 def insert_group_tasks(group):
-    # TEMP solution
     log.debug("Creating group tasks for %r", group["name"])
     group = massurldb.find_group(group_id=group.id)
-    urls = massurldb.find_urls_group(group.id, limit=1000000000)
+    urls = massurldb.find_urls_group(group.id, limit=None)
 
-    # TEMP very ugly solution
     groupid_task = []
     for task_id in create_parallel_tasks(urls, group.max_parallel):
         groupid_task.append({
@@ -156,7 +160,6 @@ def task_creator():
 def task_checker():
     """Check if tasks have finalized"""
 
-    # TODO: event based instead of polling
     s = db.Session()
     try:
         # All failed or reported tasks
@@ -179,7 +182,7 @@ def task_checker():
                     Target.analyzed.is_(False)
                 ).all()
                 create_single_task(
-                    [u.target for u in urls], track.url_group_id
+                    track.url_group_id, [u.target for u in urls]
                 )
 
                 log.debug("Task #%s for group %s has finished",
@@ -242,17 +245,13 @@ def handle_massurldetection(message):
                 return
 
     diary_id = message["body"].get("diary_id")
-
-    s = db.Session()
-    try:
-        group = s.query(URLGroup).filter(
-            URLGroupTask.task_id==task_id
-        ).first()
-        if not group:
-            return
-        s.expunge(group)
-    finally:
-        s.close()
+    group = massurldb.find_group_task(task_id)
+    if not group:
+        log.debug(
+            "Received alert for task that is not for any of the existing"
+            " groups"
+        )
+        return
 
     if len(candidates) > 1:
         content = "One or more URLs of group '%s' might be infected!" \
@@ -277,18 +276,14 @@ def handle_massurldetection(message):
 
     # If more than a single URL was in the VM, re-analyze them all one-by-one
     if len(candidates) > 1:
-        task_id = submit_task.add_massurl(
-            urls=candidates, options="free=yes,urlblocksize=1", priority=999
+        task = db.view_task(task_id=task_id)
+        create_single_task(
+            group=group.id, urls=candidates, priority=999, owner=OWNER,
+            machine=task.machine, package=task.package, platform=task.platform,
+            options="analysis=kernel,urlblocksize=1,replay=%s" % cwd(
+                analysis=task_id
+            )
         )
-        s = db.Session()
-        try:
-            grouptask = URLGroupTask()
-            grouptask.task_id = task_id
-            grouptask.url_group_id = group.id
-            s.add(grouptask)
-            s.commit()
-        finally:
-            s.close()
 
 def handle_massurltask(message):
     for k in ("taskid", "action", "status"):
@@ -305,26 +300,22 @@ def handle_massurltask(message):
         return
 
     newstatus = message["body"].get("status")
-    s = db.Session()
-    try:
-        groupname = s.query(URLGroup.name).filter(
-            URLGroupTask.task_id == taskid
-        ).first()
-    finally:
-        s.close()
-
-    if groupname:
-        groupname = groupname[0]
+    group = massurldb.find_group_task(taskid)
+    if not group:
+        log.debug(
+            "Received alert for task that is not for any of the existing"
+            " groups"
+        )
+        return
 
     level = 1
     if newstatus in ("failed", "aborted"):
         level = 2
 
     web.send_alert(
-        level=level, title="Task changed status", url_group_name=groupname,
-        task_id=taskid,
+        level=level, title="Task changed status", url_group_name=group.name,
         content="Task #%s for group '%s' changed status to %s" % (
-            taskid, groupname, newstatus
+            taskid, group.name, newstatus
         )
     )
 

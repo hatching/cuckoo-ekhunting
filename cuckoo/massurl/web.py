@@ -144,7 +144,7 @@ def schedule_group(group_id):
 
     if schedule == "now":
         schedule_next = datetime.datetime.utcnow() + \
-                        datetime.timedelta(minutes=1)
+                        datetime.timedelta(seconds=10)
         db.set_schedule_next(group_id, schedule_next)
         return jsonify(message="Scheduled at %s" % schedule_next)
 

@@ -230,7 +230,6 @@ class MassURL(AnalysisManager):
                     "No response from guest or it failed to open new URLs. "
                     "Error: %s", e
                 )
-
                 return
 
         # The loop was broken because there are no targets left. This means
@@ -244,7 +243,7 @@ class MassURL(AnalysisManager):
             return
 
         for k in ("description", "ioc", "signature"):
-            if not k in message["body"]:
+            if k not in message["body"]:
                 return
 
         self.detection_events.put(message)
