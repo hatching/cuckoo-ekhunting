@@ -112,6 +112,9 @@ class HandlerContext(object):
         try:
             return self.sock.recv(16384)
         except socket.error as e:
+            if e.errno == errno.EBADF:
+                return ""
+
             if e.errno != errno.ECONNRESET:
                 raise
             log.debug("Task #%s had connection reset for %r", self.task_id,
@@ -376,7 +379,10 @@ class GeventResultServerWorker(gevent.server.StreamServer):
         ctx = HandlerContext(task_id, storagepath, sock, rt)
         task_log_start(task_id)
         try:
-            protocol = self.negotiate_protocol(task_id, ctx)
+            try:
+                protocol = self.negotiate_protocol(task_id, ctx)
+            except EOFError:
+                return
 
             # Registering the context allows us to abort the handler by
             # shutting down its socket when the task is deleted; this should
