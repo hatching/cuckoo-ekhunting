@@ -88,6 +88,13 @@ def diary_view(uuid):
 @app.route("/api/alerts/list")
 def list_alerts():
     url_group_name = request.args.get("url_group_name")
+    order = request.args.get("order", "desc")
+    if order not in ("asc", "desc"):
+        return json_error(400, "Order can be asc or desc")
+
+    orderby = request.args.get("orderby", "timestamp")
+    if orderby not in ("timestamp", "level"):
+        return json_error(400, "Orderby can be timestamp or level")
 
     intargs = {
         "limit": request.args.get("limit", 20),
@@ -104,7 +111,8 @@ def list_alerts():
 
     alerts = db.list_alerts(
         level=intargs["level"], url_group_name=url_group_name,
-        limit=intargs["limit"], offset=intargs["offset"]
+        limit=intargs["limit"], offset=intargs["offset"], order=order,
+        orderby=orderby
     )
 
     return jsonify([a.to_dict() for a in alerts])

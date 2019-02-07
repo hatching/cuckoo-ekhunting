@@ -4,7 +4,7 @@
 
 import datetime
 
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, desc, asc
 from sqlalchemy import Integer, String, Boolean, DateTime, Text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
@@ -228,7 +228,8 @@ def add_alert(level, title, content, **kwargs):
     finally:
         session.close()
 
-def list_alerts(level=None, url_group_name=None, limit=100, offset=0):
+def list_alerts(level=None, url_group_name=None, limit=100, offset=0,
+                orderby="timestamp", order="desc"):
     session = db.Session()
     alerts = []
     try:
@@ -237,6 +238,18 @@ def list_alerts(level=None, url_group_name=None, limit=100, offset=0):
             search = search.filter_by(level=level)
         if url_group_name:
             search = search.filter_by(url_group_name=url_group_name)
+
+        col = Alert.timestamp if orderby == "timestamp" else Alert.level
+        sort = desc(col) if order == "desc" else asc(col)
+
+        if orderby != "timestamp":
+            search = search.order_by(
+                sort, desc(Alert.timestamp) if order == "desc"
+                else asc(Alert.timestamp)
+            )
+        else:
+            search = search.order_by(sort)
+
         alerts = search.limit(limit).offset(offset).all()
     finally:
         session.close()
