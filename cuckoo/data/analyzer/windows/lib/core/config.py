@@ -17,6 +17,15 @@ class Config:
                     value = config.get(section, name).decode("utf8")
                 elif name == "options":
                     value = self.parse_options(config.get(section, name))
+                elif name == "target":
+                    value = filter(
+                        None, (config.get(section, name) or "").split(",")
+                    )
+                    if len(value) == 1:
+                        value = value[0]
+                    elif len(value) < 1:
+                        value = ""
+
                 else:
                     try:
                         value = config.getboolean(section, name)

@@ -53,7 +53,9 @@ class MassURL(AnalysisManager):
         self.URL_BLOCKSIZE = self.task.options.get(
             "urlblocksize", self.URL_BLOCKSIZE
         )
-        self.SECS_PER_BLOCK = self.task.options.get("blocktime", 20)
+        self.SECS_PER_BLOCK = self.task.options.get(
+            "blocktime", self.SECS_PER_BLOCK
+        )
         self.aborted = False
         self.completed = False
 
@@ -61,7 +63,7 @@ class MassURL(AnalysisManager):
         self.task.write_task_json()
         self.build_options(options={
             "category": "url",
-            "target": self.curr_block.keys(),
+            "target": ",".join(self.curr_block.keys()),
             "enforce_timeout": True,
             "timeout": len(self.task.targets) * self.SECS_PER_BLOCK * 3
         })

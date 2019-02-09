@@ -310,6 +310,7 @@ class Task(object):
                     memory=False, clock=None, start_on=None):
         if not urls:
             log.error("No URLs provided. Cannot create task.")
+            return None
 
         return self.add(
             targets=Target.create_urls(urls), timeout=len(urls) * 60,
