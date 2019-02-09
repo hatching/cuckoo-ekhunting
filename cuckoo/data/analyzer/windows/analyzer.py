@@ -423,21 +423,29 @@ class Analyzer(object):
 
         returns a package id
         """
-        pkg = config.get("package")
-        if not pkg:
+        pkgname = config.get("package")
+        if not pkgname:
             log.info(
                 "No analysis package provided, trying to automatically find a "
                 "matching package"
             )
             pkg = choose_package(config)
         else:
-            pkg = get_package_class(pkg)
+            pkg = get_package_class(pkgname)
+
+        if pkgname and not pkg:
+            raise CuckooPackageError(
+                "Could not find analysis package '%r'" % pkgname
+            )
 
         if not pkg:
             category = config.get("category")
             raise CuckooPackageError(
                 "No valid analysis package available for target category '%s'."
-                "%s" % (category, category if category == "file" else "")
+                "%s" % (
+                    category,
+                    config.get("file_name") if category == "file" else ""
+                )
             )
 
         log.info("Using analysis package '%s'", pkg.__name__)

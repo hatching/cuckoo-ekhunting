@@ -3,11 +3,10 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
-import importlib
 import logging
 
-from lib.common.abstracts import Package
 from lib.common.exceptions import CuckooPackageError
+from modules.packages import pkgs
 
 log = logging.getLogger(__name__)
 
@@ -26,21 +25,16 @@ def has_com_exports(exports):
     return True
 
 def get_package_class(package):
-    """Import given analysis package name and return a class object
+    """Return a class object for the given analysis package name
     @param package: A lowercase string name of an analysis package"""
 
-    package_name = "modules.packages.%s" % package
-    try:
-        importlib.import_module(package_name)
-    except ImportError as e:
-        log.exception(
-            "Failed to import analysis package: %s. %s", package_name, e
-        )
-        return None
+    package = package.lower()
+    for pkg in pkgs:
+        clsname, modname, pkg_cls = pkg
 
-    for sub in Package.__subclasses__():
-        if package == sub.__name__.lower():
-            return sub
+        if clsname.lower() == package or modname.lower() == package:
+            return pkg_cls
+
     return None
 
 def choose_package(config):
