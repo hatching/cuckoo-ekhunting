@@ -18,7 +18,9 @@ class Firefox(Package):
 
         pids = []
         for url in target:
-            pid = self.execute(firefox, args=["--new-tab", url], maximize=True)
+            pid = self.execute(
+                firefox, args=["-new-window", url], maximize=True
+            )
             if pid:
                 pids.append(pid)
 
