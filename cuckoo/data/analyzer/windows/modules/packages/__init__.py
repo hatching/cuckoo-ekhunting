@@ -17,4 +17,7 @@ for loader, fname, is_pkg in pkgutil.walk_packages(__path__):
         if name.startswith('__') or name == Package.__name__:
             continue
 
+        if not inspect.isclass(value) or not issubclass(value, Package):
+            continue
+
         pkgs.append((fname, name, value))
