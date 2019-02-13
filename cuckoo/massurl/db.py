@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Cuckoo Foundation.
+# Copyright (C) 2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - https://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -53,6 +53,7 @@ class Alert(Base, ToDict):
     url_group_name = Column(String(255), nullable=True)
     task_id = Column(Integer(), nullable=True)
     diary_id = Column(String(36), nullable=True)
+    read = Column(Boolean(), default=False, nullable=False)
 
 class URL(Base, ToDict):
     __tablename__ = "massurl_urls"
@@ -78,9 +79,11 @@ class URLGroupTask(Base, ToDict):
     """Stores progress information on tasks"""
     __tablename__ = "massurl_url_group_tasks"
     id = Column(Integer(), primary_key=True)
-
-    url_group_id = Column(Integer(), ForeignKey("massurl_url_groups.id"), nullable=False)
-    #url_id = Column(Integer(), ForeignKey("massurl_urls.id"), nullable=False)
+    run = Column(Integer(), nullable=False)
+    resubmitted = Column(Boolean(), default=False, nullable=False)
+    url_group_id = Column(
+        Integer(), ForeignKey("massurl_url_groups.id"), nullable=False
+    )
     task_id = Column(Integer(), ForeignKey("tasks.id"), nullable=False)
 
 class URLGroup(Base, ToDict):
@@ -96,6 +99,8 @@ class URLGroup(Base, ToDict):
     schedule = Column(Text(), nullable=True)
     schedule_next = Column(DateTime, nullable=True)
     completed = Column(Boolean(), default=True, nullable=False)
+    run = Column(Integer(), nullable=False, default=0)
+    status = Column(String(24), nullable=True)
 
     urls = relationship("URL", secondary=URLGroupURL.__table__, lazy="dynamic")
     tasks = relationship(
@@ -336,3 +341,39 @@ def find_group_task(task_id):
     finally:
         session.close()
     return group
+
+def mark_alert_read(alert_id=None, group_name=None, markall=False):
+    session = db.Session()
+    q = None
+    try:
+        if group_name:
+            q = session.query(Alert).filter_by(url_group_name=group_name)
+        elif markall:
+            q = session.query(Alert)
+        elif alert_id:
+            q = session.query(Alert).filter_by(id=alert_id)
+        if q:
+            q.update({"read": True})
+            session.commit()
+    finally:
+        session.close()
+
+def delete_alert(alert_id=None, group_name=None, level=None, clear=False):
+    session = db.Session()
+    q = None
+    try:
+        if group_name:
+            q = session.query(Alert).filter_by(url_group_name=group_name)
+            if level:
+                q = q.filter_by(level=level)
+        elif clear:
+            q = session.query(Alert)
+        elif alert_id:
+            q = session.query(Alert).filter_by(id=alert_id)
+        elif level:
+            q = session.query(Alert).filter_by(level=level)
+        if q:
+            q.delete()
+            session.commit()
+    finally:
+        session.close()
