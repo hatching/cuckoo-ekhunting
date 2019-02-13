@@ -10,12 +10,13 @@ import gevent
 
 from cuckoo.core.database import (
     Database, Task as DbTask, Target, TASK_FAILED_ANALYSIS,
-    TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING
+    TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING, TASK_ABORTED, TASK_PENDING,
+    TASK_COMPLETED, TASK_RUNNING, TASK_REPORTED
 )
 from cuckoo.core.task import Task
 from cuckoo.massurl import db as massurldb
 from cuckoo.massurl import web
-from cuckoo.massurl.db import URLGroup, URLGroupTask
+from cuckoo.massurl.db import URLGroup, URLGroupTask, URLGroupURL
 from cuckoo.massurl.realtime import ev_client
 from cuckoo.massurl.schedutil import schedule_time_next
 from cuckoo.misc import cwd
@@ -25,7 +26,7 @@ db = Database()
 submit_task = Task()
 
 OWNER = "cuckoo.massurl"
-DEFAULT_OPTIONS = "analysis=kernel"
+DEFAULT_OPTIONS = "analysis=kernel,route=internet"
 
 # TODO: call .set()/.clear() when the schedule changes (group add, delete,
 # schedule modify)
@@ -43,13 +44,18 @@ def run_with_minimum_delay(task, delay):
             gevent.sleep(delay - duration)
 
 def next_group_task():
+    """Retrieve a group to create tasks for. Only returns a group if it is
+     completed has a scheduled date, and has any URLs"""
     s = db.Session()
-    group = s.query(URLGroup).filter(
-        URLGroup.schedule_next != None,
-    ).order_by(URLGroup.schedule_next).first()
-    if group:
-        group = group.to_dict(False)
-    s.close()
+    try:
+        group = s.query(URLGroup).filter(
+            URLGroup.schedule_next != None, URLGroup.completed.is_(True),
+            URLGroupURL.url_group_id == URLGroup.id
+        ).order_by(URLGroup.schedule_next).first()
+        if group:
+            group = group.to_dict(False)
+    finally:
+        s.close()
     return group
 
 def create_parallel_tasks(targets, max_parallel, options=None):
@@ -60,12 +66,12 @@ def create_parallel_tasks(targets, max_parallel, options=None):
     for t in targets:
         urls.append(t)
         if len(urls) >= max_parallel:
-            yield submit_task.add_massurl(urls, options=options, owner=OWNER)
+            yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ff")
             urls = []
     if urls:
-        yield submit_task.add_massurl(urls, options=options, owner=OWNER)
+        yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ff")
 
-def create_single_task(group_id, urls, **kwargs):
+def create_single_task(group_id, urls, run, **kwargs):
     if not kwargs.get("options"):
         kwargs["options"] = DEFAULT_OPTIONS
 
@@ -75,6 +81,7 @@ def create_single_task(group_id, urls, **kwargs):
         grouptask = URLGroupTask()
         grouptask.task_id = task_id
         grouptask.url_group_id = group_id
+        grouptask.run = run
         s.add(grouptask)
         s.commit()
     finally:
@@ -84,12 +91,14 @@ def insert_group_tasks(group):
     log.debug("Creating group tasks for %r", group["name"])
     group = massurldb.find_group(group_id=group.id)
     urls = massurldb.find_urls_group(group.id, limit=None)
+    run = group.run + 1
 
     groupid_task = []
     for task_id in create_parallel_tasks(urls, group.max_parallel):
         groupid_task.append({
             "url_group_id": group.id,
-            "task_id": task_id
+            "task_id": task_id,
+            "run": run
         })
 
     if groupid_task:
@@ -97,42 +106,15 @@ def insert_group_tasks(group):
         try:
             s.query(URLGroup).filter(URLGroup.id==group.id).update({
                 "completed": False,
-                "schedule_next": None
+                "schedule_next": None,
+                "status": "pending",
+                "run": run
             })
             s.bulk_insert_mappings(URLGroupTask, groupid_task)
             s.commit()
         finally:
             s.close()
     log.debug("Tasks created: %s", groupid_task)
-
-# def insert_group_tasks(group):
-#     log.debug("Creating group tasks for %r", group["name"])
-#     s = db.Session()
-#     try:
-#         group = s.query(URLGroup).with_for_update().get(group.id)
-#         group.completed = False
-#         s.add(group)
-#
-#         max_parallel = group.max_parallel if False else 1
-#
-#         # TODO: .yield_per(500).enable_eagerloads(False)
-#         # TODO: make sure iteration works well with very large groups. if it's
-#         # too slow (on sqlite), it may block/crash Cuckoo
-#         # TODO: don't use the ORM for large number of inserts
-#         groupid_task = []
-#         for task_id in create_parallel_tasks(group.urls, max_parallel):
-#             groupid_task.append({
-#                 "url_group_id": group.id,
-#                 "task_id": task_id
-#             })
-#
-#         if groupid_task:
-#             s.bulk_insert_mappings(URLGroupTask, groupid_task)
-#         s.commit()
-#
-#     finally:
-#         s.close()
-#     log.debug("Tasks created")
 
 def task_creator():
     """Creates tasks"""
@@ -157,73 +139,154 @@ def task_creator():
 
     insert_group_tasks(group)
 
-def task_checker():
-    """Check if tasks have finalized"""
 
+def task_checker():
     s = db.Session()
     try:
-        # All failed or reported tasks
-        tasks = s.query(URLGroupTask, DbTask.status) \
-            .filter(URLGroupTask.task_id == DbTask.id,
-                    DbTask.status != "pending",
-                    DbTask.status != "running",
-                    DbTask.status != "completed")
+        tasks = s.query(URLGroupTask, URLGroup.status, DbTask.status).filter(
+            URLGroupTask.url_group_id == URLGroup.id,
+            URLGroupTask.task_id == DbTask.id,
+            URLGroup.completed.is_(False),
+            URLGroupTask.run == URLGroup.run,
+            DbTask.status != "pending", DbTask.status != "completed"
+        )
         if not tasks.count():
             return
 
-        check_groups = set()
-        for track, task_status in tasks.all():
-            if task_status == "aborted":
-                # Re-submit all URLs for task id that are not 'analyzed'
-                # Look up for what group this task was, so we can match
-                # the new task id and group id in URLGroupTask
-                urls = s.query(Target.target).filter(
-                    Target.task_id == track.task_id,
-                    Target.analyzed.is_(False)
-                ).all()
-                create_single_task(
-                    track.url_group_id, [u.target for u in urls]
-                )
-
-                log.debug("Task #%s for group %s has finished",
-                          track.task_id, track.url_group_id)
-                # TODO: if malicious and this task has multiple targets,
-                # create a new single-target task for every URL
-            elif task_status in (
-                    TASK_FAILED_ANALYSIS, TASK_FAILED_REPORTING,
-                    TASK_FAILED_PROCESSING
-            ):
-                log.error(
-                    "Task #%s for group %s has failed: %s", track.task_id,
-                    track.url_group_id, task_status
-                )
-
-            check_groups.add(track.url_group_id)
-            s.delete(track)
-        for group in check_groups:
-            have_tasks = s.query(URLGroupTask).filter_by(url_group_id=group).exists()
-            if s.query(have_tasks).scalar():
-                continue
-            log.info("All tasks for group %s have completed", group)
-            g = s.query(URLGroup).with_for_update().get(group)
-            if g.schedule:
-                g.schedule_next = schedule_time_next(g.schedule)
-                log.debug("Group %s scheduled at %s", group, g.schedule_next)
-            g.completed = True
-            s.add(g)
-        s.commit()
+        tasks = tasks.all()
+        s.expunge_all()
     finally:
         s.close()
 
-def handle_massurldetection(message):
-    for k in ("taskid", "status", "candidates", "signatures"):
-        if k not in message["body"]:
-            return
+    check_groups = set()
+    for grouptask, groupstatus, task_status in tasks:
+        set_running = False
+        if task_status == TASK_RUNNING and groupstatus == "pending":
+            set_running = True
+
+        check_groups.add((grouptask.url_group_id, set_running))
+
+        # Verify if the failed or aborted task was already resubmitted.
+        # Create a new submission if any URLs for a failed task were not
+        # analyzed
+        if not grouptask.resubmitted and task_status in (
+                TASK_FAILED_ANALYSIS, TASK_FAILED_REPORTING,
+                TASK_FAILED_PROCESSING, TASK_ABORTED
+        ):
+
+            log.error(
+                "Task #%s for group %r has status: %s", grouptask.task_id,
+                grouptask.url_group_id, task_status
+            )
+
+            s = db.Session()
+            # Retrieve all URLs for the failed task that have not been marked
+            # as analyzed and mark the grouptask relation as resubmitted, so
+            # that it will not try to resubmit it again.
+            try:
+                s.query(URLGroupTask).filter(
+                    URLGroupTask.id==grouptask.id
+                ).update({"resubmitted": True})
+
+                urls = s.query(Target.target).filter(
+                    Target.task_id == grouptask.task_id,
+                    Target.analyzed.is_(False)
+                )
+                if urls.count():
+                    urls = [u.target for u in urls.all()]
+                    task = s.query(DbTask).get(grouptask.task_id)
+                    s.expunge(task)
+
+                s.commit()
+            finally:
+                s.close()
+
+            # Create a new task for URLs that have not been analyzed yet.
+            if urls:
+                create_single_task(
+                    group_id=grouptask.url_group_id, urls=urls,
+                    run=grouptask.run, custom="%d" % grouptask.task_id,
+                    options=task.options, machine=task.machine,
+                    package=task.package, clock=task.clock
+                )
+
+    s = db.Session()
+    alerts = []
+    try:
+        for group_id, set_running in check_groups:
+            if set_running:
+                group = s.query(URLGroup).get(group_id)
+                if group.status == "pending":
+                    group.status = "running"
+                    s.add(group)
+                    alerts.append({
+                        "level": 1, "title": "Group analysis started",
+                        "url_group_name": group.name,
+                        "content": "The analysis for group %r "
+                                   "has started" % group.name
+                    })
+                    s.commit()
+                continue
+
+            have_tasks = s.query(DbTask).filter(
+                URLGroupTask.task_id == DbTask.id,
+                URLGroupTask.run == URLGroup.run,
+                URLGroupTask.resubmitted.is_(False),
+                DbTask.status != TASK_REPORTED
+            ).exists()
+
+            if s.query(have_tasks).scalar():
+                continue
+
+            log.info("All tasks for group %s have completed", group_id)
+            group = s.query(URLGroup).with_for_update().get(group_id)
+
+            if group.schedule:
+                group.schedule_next = schedule_time_next(group.schedule)
+                log.debug(
+                    "Group %s scheduled at %s", group_id, group.schedule_next
+                )
+
+            group.completed = True
+            group.status = "completed"
+            s.add(group)
+
+            alerts.append({
+                "level": 1, "title": "Group analysis completed",
+                "url_group_name": group.name,
+                "content": "The analysis for group %r has completed. %s" % (
+                    group.name, ("Next run at %s" % group.schedule_next)
+                    if group.schedule_next else ""
+                )
+            })
+            s.commit()
+    finally:
+        s.close()
+
+    for alert in alerts:
+        web.send_alert(**alert)
+
+def validate_message(message, extra_keys=[]):
+    keys = ["taskid", "status"]
+    keys.extend(extra_keys)
+    for k in keys:
+        if k not in message.get("body", {}):
+            return None
 
     try:
-        task_id = int(message["body"].get("taskid"))
+        message["body"]["taskid"] = int(message["body"]["taskid"])
     except ValueError:
-        return
+        return None
+
+    return message
+
+def handle_massurldetection(message):
+    message = validate_message(
+        message, ["candidates", "signatures"]
+    )
+
+    log.info("DETECTION EVENT: %s", message)
+    task_id = message["body"].get("taskid")
 
     status = message["body"].get("status")
     if status != "aborted":
@@ -253,6 +316,7 @@ def handle_massurldetection(message):
         )
         return
 
+    log.info("Amount of targets in machine was %s", len(candidates))
     if len(candidates) > 1:
         content = "One or more URLs of group '%s' might be infected!" \
                   " Re-analyzing all URLs one-by-one.\n" \
@@ -276,52 +340,20 @@ def handle_massurldetection(message):
 
     # If more than a single URL was in the VM, re-analyze them all one-by-one
     if len(candidates) > 1:
+        log.info("Creating new replay task for remaining URLs in VM")
         task = db.view_task(task_id=task_id)
         create_single_task(
-            group=group.id, urls=candidates, priority=999, owner=OWNER,
-            machine=task.machine, package=task.package, platform=task.platform,
+            group_id=group.id, urls=candidates, run=group.run, priority=999,
+            owner=OWNER, machine=task.machine, package=task.package,
+            platform=task.platform,
             options="analysis=kernel,urlblocksize=1,replay=%s" % cwd(
-                analysis=task_id
+                "dump.pcap", analysis=task_id
             )
         )
-
-def handle_massurltask(message):
-    for k in ("taskid", "action", "status"):
-        if k not in message["body"]:
-            return
-
-    action = message["body"].get("action")
-    if action != "statuschange":
-        return
-
-    try:
-        taskid = int(message["body"].get("taskid"))
-    except ValueError:
-        return
-
-    newstatus = message["body"].get("status")
-    group = massurldb.find_group_task(taskid)
-    if not group:
-        log.debug(
-            "Received alert for task that is not for any of the existing"
-            " groups"
-        )
-        return
-
-    level = 1
-    if newstatus in ("failed", "aborted"):
-        level = 2
-
-    web.send_alert(
-        level=level, title="Task changed status", url_group_name=group.name,
-        content="Task #%s for group '%s' changed status to %s" % (
-            taskid, group.name, newstatus
-        )
-    )
 
 def massurl_scheduler():
     # TODO: increase delays
     gevent.spawn(run_with_minimum_delay, task_creator, 5.0)
     gevent.spawn(run_with_minimum_delay, task_checker, 5.0)
-    ev_client.subscribe(handle_massurltask, "massurltask")
+    # ev_client.subscribe(handle_massurltask, "massurltask")
     ev_client.subscribe(handle_massurldetection, "massurldetection")
