@@ -11,7 +11,6 @@ import json
 import logging
 import random
 import string
-import sys
 import os
 import time
 import uuid
@@ -23,7 +22,6 @@ from gevent.queue import Queue
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 
-from cuckoo.common.config import config
 from cuckoo.common.utils import parse_bool
 from cuckoo.massurl import db
 from cuckoo.massurl.urldiary import URLDiaries
@@ -87,7 +85,7 @@ def diary_view(uuid):
 #
 @app.route("/api/alerts/list")
 def list_alerts():
-    url_group_name = request.args.get("url_group_name")
+    url_group_name = request.args.get("group_name")
     order = request.args.get("order", "desc")
     if order not in ("asc", "desc"):
         return json_error(400, "Order can be asc or desc")
@@ -116,6 +114,46 @@ def list_alerts():
     )
 
     return jsonify([a.to_dict() for a in alerts])
+
+@app.route("/api/alerts/read", methods=["POST"])
+def mark_alert_read():
+    alert = request.form.get("alert", 0)
+    groupname = request.form.get("url_group_name")
+    markall = request.form.get("markall", False)
+
+    try:
+        alert = int(alert)
+    except ValueError:
+        return json_error(400, "'alert' should be an integer")
+
+    db.mark_alert_read(
+        alert_id=alert, group_name=groupname, markall=markall
+    )
+    return jsonify(message="OK")
+
+@app.route("/api/alerts/delete", methods=["POST"])
+def delete_alert():
+    alert = request.form.get("alert", 0)
+    level = request.form.get("level", 0)
+    groupname = request.form.get("group_name")
+    clearall = request.form.get("clearall", False)
+
+    intargs = {
+        "alert": request.args.get("alert", 0),
+        "level": request.args.get("level", 0)
+    }
+
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
+    db.delete_alert(
+        alert_id=alert, group_name=groupname, level=level, clear=clearall
+    )
+    return jsonify(message="OK")
 
 @app.route("/api/group/add", methods=["POST"])
 def add_group():
@@ -150,7 +188,13 @@ def schedule_group(group_id):
         db.remove_schedule(group_id)
         return jsonify(message="OK")
 
+    if not db.find_urls_group(group_id=group.id, limit=1):
+        return json_error(400, "Group has no URLs")
+
     if schedule == "now":
+        if not group.completed:
+            return json_error(400, "Group is already pending or running")
+
         schedule_next = datetime.datetime.utcnow() + \
                         datetime.timedelta(seconds=10)
         db.set_schedule_next(group_id, schedule_next)
