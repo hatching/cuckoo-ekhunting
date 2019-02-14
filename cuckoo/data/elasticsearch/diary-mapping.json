@@ -3,7 +3,7 @@
 	     "urldiary": {
 		     "properties": {
 			     "url": {"type": "keyword"},
-                 "url_id": {"type": "integer"},
+                 "url_id": {"type": "keyword"},
                  "datetime": {
                      "type": "date",
                      "format": "epoch_millis"
