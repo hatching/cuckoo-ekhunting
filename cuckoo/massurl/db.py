@@ -4,13 +4,13 @@
 
 import datetime
 
-from sqlalchemy import Column, ForeignKey, desc, asc
+from sqlalchemy import Column, ForeignKey, desc, asc, and_
 from sqlalchemy import Integer, String, Boolean, DateTime, Text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 
 from cuckoo.core.database import Database, Base
-from cuckoo.common.objects import Dictionary
+from cuckoo.common.objects import Dictionary, URL as URLHashes
 from cuckoo.common.utils import json_encode
 from cuckoo.massurl.schedutil import schedule_time_next
 
@@ -57,7 +57,7 @@ class Alert(Base, ToDict):
 
 class URL(Base, ToDict):
     __tablename__ = "massurl_urls"
-    id = Column(Integer(), primary_key=True)
+    id = Column(String(64), primary_key=True)
     target = Column(String(2048), nullable=False, unique=True)
 
     # TODO: useful attributes per URL for searching
@@ -67,7 +67,7 @@ class URLGroupURL(Base):
     __tablename__ = "massurl_url_group_urls"
 
     url_id = Column(
-        Integer(), ForeignKey("massurl_urls.id", ondelete="CASCADE"),
+        String(64), ForeignKey("massurl_urls.id", ondelete="CASCADE"),
         nullable=False, primary_key=True,
     )
     url_group_id = Column(
@@ -132,49 +132,90 @@ def find_group(name=None, group_id=None, details=False):
 
     return group
 
+
 def mass_group_add(urls, group_name=None, group_id=None):
     """Bulk add a list of url strings to a provided group.
     If no target exists for a provided urls, it will be created.
     @param urls: A list of URLs, may be of existing targets.
+    @param group_name: A group name to add the targets to.
     @param group_id: A group identifier to add the targets to."""
-    urls = set(urls)
+    urls = set(URLHashes(url) for url in set(urls))
 
     session = db.Session()
     try:
-        if group_id is None:
-            group = session.query(URLGroup).filter_by(name=group_name).first()
-        else:
-            group = session.query(URLGroup).get(group_id)
-        if not group:
-            return
-        group_id = group.id
-        # TODO: optimize
-        for url in urls:
-            u = session.query(URL.id).filter_by(target=url).first()
-            if not u:
-                u = URL(target=url)
-                session.add(u)
-                session.flush()
-            session.merge(URLGroupURL(url_id=u.id, url_group_id=group_id))
-        session.commit()
+        if not group_id:
+            group_id = session.query(
+                URLGroup.id
+            ).filter_by(name=group_name).first()
+
+        if not group_id:
+            return False
+
+        # Find URLs from the given list that already exist.
+        existing_sha256 = session.query(URL.id).filter(
+            URL.id.in_([url.get_sha256() for url in urls])
+        ).all()
+
+        existing_sha256 = [url.id for url in existing_sha256]
+
+        # Create new entries for URLs that do not exist
+        new_urls = [
+            dict(id=url.get_sha256(), target=url.url)
+            for url in urls if url.get_sha256() not in existing_sha256
+        ]
+
+        if new_urls:
+            db.engine.execute(URL.__table__.insert(), new_urls)
+
+        # See if any of the existing URLs already belong to the specified
+        # URL group
+        url_in_group = session.query(URLGroupURL.url_id).filter(
+            URLGroupURL.url_group_id == group_id,
+            URLGroupURL.url_id.in_(existing_sha256)
+        ).all()
+
+        url_in_group = [group.url_id for group in url_in_group]
+
+        # Add URLs to the specified group of the do not belong to it yet.
+        group_add = [
+            dict(url_id=url.get_sha256(), url_group_id=group_id)
+            for url in urls if not url.get_sha256() in url_in_group
+        ]
+
+        if group_add:
+            db.engine.execute(URLGroupURL.__table__.insert(), group_add)
+
         return group_id
+
     finally:
         session.close()
 
-def delete_url_from_group(targets, group_id):
+def delete_url_from_group(targets, group_id, clearall=False):
     """Removes the given list of urls from the given group
     @param targets: A list of urls
     @param group_id: The group id to remove the urls from"""
+    targets = set(targets)
     session = db.Session()
-
     try:
-        for url in targets:
-            u = session.query(URL.id).filter_by(target=url).first()
-            if not u:
-                continue
-            session.query(URLGroupURL) \
-                .filter_by(url_id=u.id, url_group_id=group_id) \
-                .delete(synchronize_session=False)
+        if clearall:
+            db.engine.execute(
+                URLGroupURL.__table__.delete(synchronize_session=False).where(
+                    URLGroupURL.url_group_id==group_id
+                )
+            )
+
+        else:
+            urls = set(URLHashes(url).get_sha256() for url in targets)
+            db.engine.execute(
+                URLGroupURL.__table__.delete(
+                    synchronize_session=False).where(
+                    and_(
+                        URLGroupURL.url_group_id==group_id,
+                        URLGroupURL.url_id.in_(urls)
+                    )
+                )
+            )
+
         session.commit()
         return True
     finally:

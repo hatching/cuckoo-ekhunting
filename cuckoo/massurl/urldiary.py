@@ -83,6 +83,13 @@ class URLDiaries(object):
     def store_diary(cls, diary, diary_id=None):
         """Store the specified URL diary under the specified id"""
         diary_id = diary_id or str(uuid.uuid1())
+        version = cls.get_latest_diary(diary.get("url_id"))
+        if version:
+            version = version.get("version", 1) + 1
+        else:
+            version = 1
+
+        diary["version"] = version
         try:
             elasticmassurl.client.create(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, id=diary_id,
@@ -280,12 +287,12 @@ class URLDiaries(object):
         return [r.get("_source") for r in hits.get("hits", [])]
 
 class URLDiary(object):
-    def __init__(self, url):
+    def __init__(self, url, url_id):
         self._diary = {
             "url": url,
             # TODO get URL id from massurl in the analysis manager without an
             # extra query to the db.
-            "url_id": 0,
+            "url_id": url_id,
             # TODO Set version properly. We need the url_id for that
             "version": 0,
             "datetime": "",
