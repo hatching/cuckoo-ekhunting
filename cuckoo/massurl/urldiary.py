@@ -2,14 +2,21 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import io
 import json
 import logging
 import os
-import time
 import uuid
+import time
+
+import dpkt
 
 from elasticsearch import helpers
 from elasticsearch.exceptions import TransportError, ConnectionError
+from httpreplay.cut import http_handler, https_handler
+from httpreplay.misc import read_tlsmaster
+from httpreplay.reader import PcapReader
+from httpreplay.smegma import TCPPacketStreamer
 
 from cuckoo.common.config import config
 from cuckoo.common.elastic import elasticmassurl
@@ -323,3 +330,88 @@ class URLDiary(object):
     def dump(self):
         self._diary["datetime"] = int(time.time() * 1000)
         return self._diary
+
+
+class RequestFinder(object):
+
+    MAX_REQUEST_SIZE = 2048
+
+    def __init__(self, task_id):
+        self.task_id = task_id
+        self.offset = 0
+        self.pcapheader = None
+        self.handlers = {}
+
+    def process(self, flowmapping):
+
+        tlspath = cwd("tlsmaster.txt", analysis=self.task_id)
+        tlsmaster = {}
+        if os.path.exists(tlspath):
+            tlsmaster = read_tlsmaster(tlspath)
+
+        if tlsmaster or not self.handlers:
+            self._create_handlers(tlsmaster)
+
+        pcap_fp = self.get_fp()
+        reader = PcapReader(pcap_fp)
+        reader.set_tcp_handler(TCPPacketStreamer(reader, self.handlers))
+
+        reports = {}
+
+        try:
+            for flow, timestamp, protocol, sent, recv in reader.process():
+                if not isinstance(sent, dpkt.http.Request):
+                    continue
+
+                tracked_url = flowmapping.get(flow)
+                if not tracked_url:
+                    continue
+
+                report = reports.setdefault(tracked_url, {})
+                requested = reports.setdefault("requested", [])
+                logs = report.setdefault("logs", {})
+
+                url = "%s://%s%s" % (
+                    protocol,
+                    sent.headers.get("host", "%s:%s" % (flow[2], flow[3])),
+                    sent.uri
+                )
+                if url not in requested:
+                    requested.append(url)
+
+                log = logs.setdefault(url, [])
+                log.append({
+                    "time": timestamp,
+                    "request": bytes(sent)[:self.MAX_REQUEST_SIZE],
+                    "response": bytes(recv)[:self.MAX_REQUEST_SIZE]
+                })
+
+            return reports
+        finally:
+            self.offset = pcap_fp.tell()
+            pcap_fp.close()
+
+    def get_fp(self):
+        pcap = cwd("dump.pcap", analysis=self.task_id)
+        if not self.pcapheader:
+            with open(pcap, "rb") as fp:
+                self.pcapheader = fp.read(24)
+
+        if self.offset == 0:
+            return open(pcap, "rb")
+        elif self.offset > 0:
+            with open(pcap, "rb") as fp:
+                fp.seek(self.offset)
+                return io.BytesIO(self.pcapheader + fp.read())
+
+    def _create_handlers(self, tlsmaster={}):
+        self.handlers = {
+            80: http_handler,
+            8000: http_handler,
+            8080: http_handler
+        }
+        if tlsmaster:
+            self.handlers.update({
+                443: lambda: https_handler(tlsmaster),
+                4443: lambda: https_handler(tlsmaster)
+            })
