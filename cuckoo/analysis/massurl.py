@@ -89,7 +89,9 @@ class MassURL(AnalysisManager):
         return True
 
     def set_target(self, targets):
-        blocksize = self.task.options.get("urlblocksize", self.URL_BLOCKSIZE)
+        blocksize = int(self.task.options.get(
+            "urlblocksize", self.URL_BLOCKSIZE
+        ))
         self.targets = []
         for i in range(0, len(targets), blocksize):
             self.targets.append(targets[i:i + blocksize])
@@ -98,8 +100,9 @@ class MassURL(AnalysisManager):
         block = {}
         if self.targets:
             for t in self.targets.pop(0):
+                diary = URLDiary(t.target, t.sha256)
                 block[t.target] = {
-                    "diary": URLDiary(t.target),
+                    "diary": diary,
                     "target_obj": t
                 }
             return block

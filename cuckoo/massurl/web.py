@@ -298,6 +298,7 @@ def group_delete_url():
     urls = request.form.get("urls", "")
     name = request.form.get("group_name", "")
     group_id = request.form.get("group_id")
+    delall = request.form.get("delall", False)
     seperator = request.form.get("seperator", "\n")
 
     if not group_id and not name:
@@ -314,10 +315,10 @@ def group_delete_url():
         return json_error(404, "Specified group does not exist")
 
     urls = filter(None, [url.strip() for url in urls.split(seperator)])
-    if not urls:
+    if not urls and not delall:
         return json_error(400, "No URLs specified")
 
-    if db.delete_url_from_group(urls, group.id):
+    if db.delete_url_from_group(urls, group.id, clearall=delall):
         return jsonify(message="success")
 
     return json_error(500, "Error removing URLs from group")
@@ -344,7 +345,7 @@ def list_groups():
         ]
     )
 
-@app.route("/api/diary/url/<int:url_id>")
+@app.route("/api/diary/url/<url_id>")
 def get_diaries_url(url_id):
     intargs = {
         "limit": request.args.get("limit", 20),
@@ -358,10 +359,14 @@ def get_diaries_url(url_id):
             except ValueError:
                 return json_error(400, "%s should be an integer" % key)
 
-    return jsonify(URLDiaries.list_diary_url_id(
+    diary_list = URLDiaries.list_diary_url_id(
         url_id, size=intargs.get("limit"), return_fields="version,datetime",
         offset=intargs.get("offset")
-    ))
+    )
+    if diary_list is None:
+        return json_error(500, "Error retrieving URL diaries")
+
+    return jsonify(diary_list)
 
 @app.route("/api/diary/search/<item>")
 def search_diaries(item):
@@ -377,12 +382,15 @@ def search_diaries(item):
             except ValueError:
                 return json_error(400, "%s should be an integer" % key)
 
-    return jsonify(
-        URLDiaries.search_diaries(
-            item, return_fields="datetime,url,version",
-            size=intargs.get("limit"), offset=intargs.get("offset")
-        )
+    diary_list = URLDiaries.search_diaries(
+        item, return_fields="datetime,url,version", size=intargs.get("limit"),
+        offset=intargs.get("offset")
     )
+
+    if diary_list is None:
+        return json_error(500, "Error retrieving URL diaries")
+
+    return jsonify(diary_list)
 
 @app.route("/api/diary/<diary_id>")
 def get_diary(diary_id):

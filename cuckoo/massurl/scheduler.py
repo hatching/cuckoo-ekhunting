@@ -222,7 +222,7 @@ def task_checker():
                     alerts.append({
                         "level": 1, "title": "Group analysis started",
                         "url_group_name": group.name,
-                        "content": "The analysis for group %r "
+                        "content": "The analysis of group '%s' "
                                    "has started" % group.name
                     })
                     s.commit()
@@ -238,8 +238,8 @@ def task_checker():
             if s.query(have_tasks).scalar():
                 continue
 
-            log.info("All tasks for group %s have completed", group_id)
             group = s.query(URLGroup).with_for_update().get(group_id)
+            log.info("All tasks for group %s have completed", group.name)
 
             if group.schedule:
                 group.schedule_next = schedule_time_next(group.schedule)
@@ -254,7 +254,7 @@ def task_checker():
             alerts.append({
                 "level": 1, "title": "Group analysis completed",
                 "url_group_name": group.name,
-                "content": "The analysis for group %r has completed. %s" % (
+                "content": "The analysis of group '%s' has completed. %s" % (
                     group.name, ("Next run at %s" % group.schedule_next)
                     if group.schedule_next else ""
                 )
@@ -355,5 +355,4 @@ def massurl_scheduler():
     # TODO: increase delays
     gevent.spawn(run_with_minimum_delay, task_creator, 5.0)
     gevent.spawn(run_with_minimum_delay, task_checker, 5.0)
-    # ev_client.subscribe(handle_massurltask, "massurltask")
     ev_client.subscribe(handle_massurldetection, "massurldetection")

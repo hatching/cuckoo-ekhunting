@@ -369,8 +369,15 @@ class Scheduler(object):
                 analysis_manager = manager(
                     machine, self.machinery, self.machine_lock
                 )
-                analysis_manager.set_task(core_task)
-                analysis_manager.set_target(core_task.targets)
+                try:
+                    analysis_manager.set_task(core_task)
+                    analysis_manager.set_target(core_task.targets)
+                except Exception as e:
+                    analysis_manager = None
+                    log.exception(
+                        "Failure when setting task and target for analysis"
+                        " manager '%s'.", manager
+                    )
                 break
 
         return analysis_manager
