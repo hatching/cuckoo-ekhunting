@@ -76,9 +76,11 @@ const Templates = {
         {{#if diary_id}}
           <a href="/diary/{{diary_id}}" class="button"><i class="far fa-book"></i> Show diary</a>
         {{/if}}
-        <a href="/api/pcap/{{task_id}}" download="pcap-{{#if url_group_name}}{{url-group-name}}{{/if}}-{{timestamp}}-{{task_id}}.pcap" class="button">
+        {{#if task_id}}
+        <a href="/api/pcap/{{task_id}}" class="button">
           <i class="far fa-file-alt"></i> Download PCAP
         </a>
+        {{/if}}
       </td>
     </tr>
   `)(data),
