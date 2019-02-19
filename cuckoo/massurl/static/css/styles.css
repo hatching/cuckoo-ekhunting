@@ -5932,6 +5932,10 @@ body {
     .app__body .container {
       width: 1050px;
       margin: 0px auto; }
+    .app__body.expanded {
+      padding: 0; }
+      .app__body.expanded .table {
+        border-radius: 0; }
 
 .alert {
   display: flex;
@@ -6304,7 +6308,8 @@ table.table {
 
 .tabs {
   margin-bottom: 15px;
-  padding-left: 10px; }
+  padding-left: 10px;
+  padding-top: 15px; }
   .tabs > ul > li {
     margin-right: 10px; }
     .tabs > ul > li a {
@@ -6406,6 +6411,8 @@ table.table {
   border-radius: 16px;
   height: 100%;
   overflow: hidden; }
+  .expanded .editor-ui {
+    border-radius: 0; }
   .editor-ui-left {
     border-right: 1px solid #ccc;
     overflow-y: auto; }
@@ -6596,6 +6603,12 @@ table.table {
         .editor-ui .editor .data-list li.paginate,
         .editor-ui .editor .default-list li.paginate {
           padding: 10px; }
+    .editor-ui .editor.flex {
+      display: flex;
+      flex-direction: column; }
+      .editor-ui .editor.flex .url-area {
+        flex-basis: 100%;
+        overflow-y: auto; }
 
 .scheduler--parent {
   position: relative; }

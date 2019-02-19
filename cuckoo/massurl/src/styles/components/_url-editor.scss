@@ -15,6 +15,10 @@
   height: 100%;
   overflow: hidden;
 
+  .expanded & {
+    border-radius: 0;
+  }
+
   &-left {
     border-right: 1px solid #ccc;
     overflow-y: auto;
@@ -275,6 +279,16 @@
 
       }
 
+    }
+
+    &.flex {
+      display: flex;
+      flex-direction: column;
+
+      .url-area {
+        flex-basis: 100%;
+        overflow-y: auto;
+      }
     }
 
   }

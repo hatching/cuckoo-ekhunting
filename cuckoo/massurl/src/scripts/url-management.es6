@@ -113,7 +113,6 @@ function initEditor(data = {}, $editor) {
 
     if(rm.length) {
       deleteUrls(rm, data.group.id).then(res => {
-        console.log(res);
         saveUrls(values, id).then(res => {
           loadUrlsForGroup(data.group.id).then(u => {
             // update state

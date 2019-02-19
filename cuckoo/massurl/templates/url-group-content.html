@@ -3,7 +3,7 @@
   <main class="viewport" id="url-management">
     <div class="foreground app">
       {% include 'partials/header.html' %}
-      <section class="app__body editor-body">
+      <section class="app__body editor-body expanded">
         {% include 'partials/url-group-nav.html' %}
         <div class="split-view editor-ui">
           <div class="split-view-container one-third editor-ui-left" id="url-group-list">
@@ -13,7 +13,7 @@
             {% endfor %}
             </ul>
           </div>
-          <div class="split-view-container editor loading" id="url-edit"></div>
+          <div class="split-view-container editor flex loading" id="url-edit"></div>
         </div>
       </section>
     </div>

@@ -21,6 +21,14 @@
       width: 1050px;
       margin: 0px auto;
     }
+
+    &.expanded {
+      padding: 0;
+
+      .table {
+        border-radius: 0;
+      }
+    }
   }
 
 }
