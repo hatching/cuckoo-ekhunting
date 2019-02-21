@@ -5,6 +5,8 @@ const safe = Handlebars.SafeString;
 const getLevelName = level => ['info','warning','danger'][level-1] || "";
 const getIconType = level => ['fa-lightbulb','fa-exclamation-circle','fa-skull'][level-1] || "fa-comment";
 
+// parse a timestamp to a unix format
+Handlebars.registerHelper('unix-time', timestamp => moment(timestamp).unix());
 // forge pwetty dates from timestamps
 Handlebars.registerHelper('pretty-date', timestamp => moment(timestamp).format('MM/DD/YYYY HH:mm:ss'));
 // helper for parsing number-level to string-level
@@ -44,8 +46,8 @@ const Templates = {
   event: data => Handlebars.compile(`
     <tr data-row-style="{{alert-level level}}" data-id="{{task_id}}">
       <td class="drop-padding fill-base"></td>
-      <td class="centerize icon-cell">{{{alert-icon level}}}</td>
-      <td class="no-wrap">{{timestamp}}</td>
+      <td class="centerize icon-cell" data-sort-number="{{level}}">{{{alert-icon level}}}</td>
+      <td class="no-wrap" data-sort-number="{{unix-time timestamp}}">{{timestamp}}</td>
       <td>{{title}}</td>
       <td class="text-wrap">{{content}}</td>
       <td class="no-wrap">
@@ -57,7 +59,11 @@ const Templates = {
       </td>
       <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>
     </tr>
-    <tr class="info-expansion">
+  `)(data),
+
+  // info row to display more alert info
+  eventInfo: data => Handlebars.compile(`
+    <tr class="info-expansion" data-belongs-to="{{task_id}}">
       <td colspan="7">
         <ul class="meta-summary">
           {{#if url_group_name}}

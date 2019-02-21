@@ -52,7 +52,6 @@
     "glob-fs": "0.1.7",
     "handlebars": "4.0.11",
     "moment": "2.20.1",
-    "node-notifier": "5.2.1",
-    "tablesort": "5.1.0"
+    "node-notifier": "5.2.1"
   }
 }

@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import $ from './jquery-with-plugins';
 import Templates from './templates';
 import stream from './socket-handler';
 import sound from './sounds';
@@ -59,6 +59,18 @@ function expandInfoRow(e) {
   row.toggleClass('expanded');
 }
 
+function createInfoRow(alert, parent) {
+  // remove if it already exists
+  if(parent.next().hasClass('info-expansion')) {
+    parent.removeClass('expanded');
+    parent.next().remove();
+    return;
+  }
+  let row = $(Templates.eventInfo(alert));
+  parent.after(row);
+  parent.addClass('expanded');
+}
+
 function addAlert(alert, $table, method='prepend') {
 
   // pre-reset the alert mode
@@ -66,11 +78,14 @@ function addAlert(alert, $table, method='prepend') {
 
   // create table entry
   let el = $(Templates.event(alert));
+
   $table.find('tbody')[method](el);
+
   el.on('click', e => {
     if($(e.currentTarget).hasClass('info-expansion')) return;
     if($(e.target).prop('tagName').toLowerCase() == 'a') return;
-    expandInfoRow(e);
+    // expandInfoRow(e);
+    createInfoRow(alert, el);
   });
 
   // populate alert in top-level
@@ -120,16 +135,60 @@ function initAlerts($table) {
     }).catch(err => console.log(err));
   });
 
+  //
+  // initialize sorting on table
+  //
+  $table.find('th.sortable').each(function() {
+
+    let th = $(this),
+        index = th.index(),
+        inverse = false;
+
+    // force click upon th
+    th.find('a').on('click', e => e.preventDefault());
+
+    function moveInfoBlocks() {
+      $table.find('tr[data-id]').each(function() {
+        let id = $(this).data('id');
+        let targetInfoRow = $table.find(`tr[data-belongs-to="${id}"]`);
+        $(this).insertAfter(targetInfoRow);
+      });
+    }
+
+    th.on('click', e => {
+      $table.find('td').filter(function() {
+        return $(this).index() === index;
+      }).sortElements(function(a,b) {
+        if(a.getAttribute('data-sort-number')) {
+          a = parseInt(a.getAttribute('data-sort-number'));
+          b = parseInt(b.getAttribute('data-sort-number'));
+          return a > b ?
+            inverse ? -1 : 1
+            : inverse ? 1 : -1;
+        } else {
+          return $.text([a]) > $.text([b]) ?
+            inverse ? -1 : 1
+            : inverse ? 1 : -1;
+        }
+      }, function() {
+        return this.parentNode;
+      });
+      inverse = !inverse;
+    });
+
+  });
+
   return new Promise((resolve, reject) => {
 
     $.get(baseUrl, alerts => {
 
       // constructs available alerts from API call
       response.alerts = alerts || [];
+
       alerts.forEach(alert => addAlert(alert, $table));
-      if($table.find('tr.loading').length) {
+
+      if($table.find('tr.loading').length)
         $table.find('tr.loading').remove();
-      }
 
       connectSocket(alert => {
         addAlert(alert, $table);
