@@ -3,14 +3,16 @@ import Templates from './templates';
 import stream from './socket-handler';
 import sound from './sounds';
 
-const baseUrl = `${window.location.origin}/api/alerts/list`;
+const baseUrl = `${window.location.origin}/api/alerts`;
 const socketBase = `ws://${window.location.host}/ws/alerts`;
 
 const urls = {
   alerts: (l,o,s='desc',ob='timestamp') => {
-    return `${baseUrl}?limit=${l}&offset=${o*l}&order=${s}&orderby=${ob}`;
-  }
+    return `${baseUrl}/list?limit=${l}&offset=${o*l}&order=${s}&orderby=${ob}`;
+  },
+  alertRead: () => `${baseUrl}/read`
 }
+
 let currentLimit = 20;
 let currentOffset = 0;
 
@@ -53,12 +55,10 @@ function connectSocket(cb) {
   });
 }
 
-// toggle-expand the info-row in the table
-function expandInfoRow(e) {
-  e.preventDefault();
-  let row = $(e.currentTarget);
-  row.parents('tbody').find('tr.expanded').not(row).removeClass('expanded');
-  row.toggleClass('expanded');
+function setAlertRead(data={}) {
+  return new Promise((resolve, reject) => {
+    $.post(urls.alertRead(), data).done(response => resolve(response)).fail(err => reject(err));
+  });
 }
 
 function createInfoRow(alert, parent) {
@@ -71,6 +71,13 @@ function createInfoRow(alert, parent) {
   let row = $(Templates.eventInfo(alert));
   parent.after(row);
   parent.addClass('expanded');
+
+  setAlertRead({
+    alert: alert.id
+  }).then(r => {
+    console.log(r);
+    parent.find('td:first-child').removeClass('fill-base');
+  }).catch(e => console.log(e));
 }
 
 function topAlert($table, alert) {
@@ -108,7 +115,6 @@ function addAlert(alert, $table, method='append', first=false) {
   el.on('click', e => {
     if($(e.currentTarget).hasClass('info-expansion')) return;
     if($(e.target).prop('tagName').toLowerCase() == 'a') return;
-    // expandInfoRow(e);
     createInfoRow(alert, el);
   });
 

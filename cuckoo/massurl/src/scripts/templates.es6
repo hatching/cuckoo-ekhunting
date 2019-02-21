@@ -45,7 +45,7 @@ const Templates = {
   // template for single alert entry
   event: data => Handlebars.compile(`
     <tr data-row-style="{{alert-level level}}" data-id="{{task_id}}">
-      <td class="drop-padding fill-base"></td>
+      <td class="drop-padding {{#unless read}}fill-base{{/unless}}"></td>
       <td class="centerize icon-cell" data-sort-number="{{level}}">{{{alert-icon level}}}</td>
       <td class="no-wrap" data-sort-number="{{unix-time timestamp}}">{{timestamp}}</td>
       <td>{{title}}</td>
