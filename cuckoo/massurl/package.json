@@ -15,16 +15,16 @@
   "author": "Koen Houtman",
   "license": "MIT",
   "dependencies": {
+    "@babel/cli": "7.2.3",
     "@babel/core": "7.1.6",
+    "@babel/node": "7.2.2",
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
     "@babel/plugin-transform-destructuring": "7.1.3",
+    "@babel/polyfill": "7.0.0",
+    "@babel/preset-env": "7.0.0",
+    "@babel/register": "7.0.0",
     "any-json": "3.1.0",
     "ascii-art": "1.4.3",
-    "babel-cli": "6.26.0",
-    "babel-plugin-transform-custom-element-classes": "0.1.0",
-    "babel-polyfill": "6.26.0",
-    "babel-preset-env": "2.0.0-alpha.20",
-    "babel-register": "6.26.0",
     "babelify": "10.0.0",
     "browserify": "14.5.0",
     "chalk": "2.3.0",
@@ -32,7 +32,7 @@
     "deep-extend": "0.6.0",
     "e": "0.0.4",
     "exorcist": "1.0.0",
-    "flatpickr": "^4.5.2",
+    "flatpickr": "4.5.2",
     "jquery": "3.3.1",
     "json-to-sass-map": "1.0.1",
     "minimist": "1.2.0",
@@ -52,6 +52,7 @@
     "glob-fs": "0.1.7",
     "handlebars": "4.0.11",
     "moment": "2.20.1",
-    "node-notifier": "5.2.1"
+    "node-notifier": "5.2.1",
+    "tablesort": "5.1.0"
   }
 }

@@ -13,8 +13,8 @@ const SETTINGS = {
     },
     babel: {
       "plugins": [
-        "transform-custom-element-classes",
-        "transform-es2015-classes"
+        "@babel/transform-custom-element-classes",
+        "@babel/transform-es2015-classes"
       ],
       "presets": ["env"],
       "extensions": [".es6"],

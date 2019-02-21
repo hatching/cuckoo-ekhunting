@@ -60,7 +60,7 @@ if(!wasRequired) {
     tooling = require(__dirname + '/tooling/build');
   } else {
     // source code has not been built - use babel-node to run.
-    require('babel-register');
+    require('@babel/register');
     tooling = require(__dirname + '/tooling');
   }
 }
