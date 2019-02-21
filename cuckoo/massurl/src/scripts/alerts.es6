@@ -7,7 +7,9 @@ const baseUrl = `${window.location.origin}/api/alerts/list`;
 const socketBase = `ws://${window.location.host}/ws/alerts`;
 
 const urls = {
-  alerts: (limit, offset) => `${baseUrl}?limit=${limit}&offset=${offset}`
+  alerts: (l,o,s='desc',ob='timestamp') => {
+    return `${baseUrl}?limit=${l}&offset=${o*l}&order=${s}&orderby=${ob}`;
+  }
 }
 let currentLimit = 20;
 let currentOffset = 0;
@@ -112,7 +114,7 @@ function paginateNext() {
   return new Promise((resolve, reject) => {
     currentOffset += 1;
     console.log(`fetching page ${currentOffset}, retrieving ${currentLimit} more alerts.`);
-    $.get(urls.alerts(currentLimit, currentOffset), response => resolve(response))
+    $.get(urls.alerts(currentLimit,currentOffset), response => resolve(response))
       .fail(err => reject(err));
   });
 }
@@ -180,7 +182,7 @@ function initAlerts($table) {
 
   return new Promise((resolve, reject) => {
 
-    $.get(baseUrl, alerts => {
+    $.get(urls.alerts(currentLimit,currentOffset), alerts => {
 
       // constructs available alerts from API call
       response.alerts = alerts || [];
