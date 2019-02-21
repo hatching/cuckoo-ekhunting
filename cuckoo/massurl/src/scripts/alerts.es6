@@ -73,25 +73,10 @@ function createInfoRow(alert, parent) {
   parent.addClass('expanded');
 }
 
-function addAlert(alert, $table, method='prepend') {
-
-  // pre-reset the alert mode
-  alertMode(false);
-
-  // create table entry
-  let el = $(Templates.event(alert));
-
-  $table.find('tbody')[method](el);
-
-  el.on('click', e => {
-    if($(e.currentTarget).hasClass('info-expansion')) return;
-    if($(e.target).prop('tagName').toLowerCase() == 'a') return;
-    // expandInfoRow(e);
-    createInfoRow(alert, el);
-  });
-
+function topAlert($table, alert) {
   // populate alert in top-level
   $("#top-level-alert").addClass('out');
+
   setTimeout(() => {
     let newContent = $(Templates.topEvent(alert));
     $("#top-level-alert .alert-outer").html(newContent);
@@ -108,6 +93,28 @@ function addAlert(alert, $table, method='prepend') {
 
   if(alert.notify)
     alertMode();
+}
+
+function addAlert(alert, $table, method='append', first=false) {
+
+  // pre-reset the alert mode
+  alertMode(false);
+
+  // create table entry
+  let el = $(Templates.event(alert));
+
+  $table.find('tbody')[method](el);
+
+  el.on('click', e => {
+    if($(e.currentTarget).hasClass('info-expansion')) return;
+    if($(e.target).prop('tagName').toLowerCase() == 'a') return;
+    // expandInfoRow(e);
+    createInfoRow(alert, el);
+  });
+
+  if(!first)
+    topAlert($table, alert);
+
 }
 
 function paginateNext() {
@@ -133,7 +140,7 @@ function initAlerts($table) {
     e.preventDefault();
     paginateNext().then(response => {
       if(response.length)
-        response.forEach(alert => addAlert(alert, $table, 'append'));
+        response.forEach(alert => addAlert(alert, $table));
     }).catch(err => console.log(err));
   });
 
@@ -189,11 +196,14 @@ function initAlerts($table) {
 
       alerts.forEach(alert => addAlert(alert, $table));
 
+      // set first alert to pop
+      topAlert($table, alerts[0]);
+
       if($table.find('tr.loading').length)
         $table.find('tr.loading').remove();
 
       connectSocket(alert => {
-        addAlert(alert, $table);
+        addAlert(alert, $table, 'prepend');
       }).then(str => {
         response.stream = str;
         resolve(response || {});
