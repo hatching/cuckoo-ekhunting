@@ -59,6 +59,7 @@ function populateUrls(u,el) {
     let ar = $("<i class='far fa-angle-right'></i>");
     li.attr('data-url-id', e.id); // MOCK ID
     ta.val(e.url);
+    ta.attr('title', e.url);
     ta.attr('disabled', true);
     li.append(ic, ta, ar);
     return li;
