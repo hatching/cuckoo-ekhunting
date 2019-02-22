@@ -104,6 +104,15 @@
         margin-right: 10px;
         font-size: 1.1em;
       }
+
+      [data-placeholder="url"] {
+        display: inline-block;
+        white-space: nowrap;
+        max-width: calc(100% - 50px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+      }
     }
 
     .split-view {
