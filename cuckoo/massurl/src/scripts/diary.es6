@@ -1,5 +1,7 @@
 import moment from 'moment';
+import autosize from 'autosize';
 import $ from 'jquery';
+import Templates from './templates';
 
 const APIUrl = (endpoint=false) => `/api/diary/${endpoint ? endpoint : '/'}`;
 
@@ -118,8 +120,21 @@ function populateDiary(data={},el) {
     // create hooks for displaying request logs
     requestsList.list.find('li').each(function() {
       let req = $(this).data('item');
+      // console.log(req);
       let btn = $(`<button class="expand" data-request-log="${req.request_log}"><i class='fal fa-expand-alt'></i></button>`);
       $(this).prepend(btn);
+
+      btn.on('click', evt => {
+        $.get(`/api/requestlog/${req.request_log}`).done(response => {
+          let dialog = $(Templates.requestView(response.log));
+          $("body").append(dialog);
+          dialog.find('textarea').each((i, ta) => autosize(ta));
+          dialog.find('.close-dialog').on('click', e => {
+            e.preventDefault();
+            dialog.remove();
+          });
+        }).fail(err => console.log(err));
+      });
     });
 
     // apply collapse toggles to sig list

@@ -6920,4 +6920,57 @@ table.table {
   .diary-ui .collapse.hidden {
     display: none; }
 
+.content-overlay {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 30px;
+  box-sizing: border-box; }
+  .content-overlay__dialog {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(245, 245, 245, 0.8);
+    border-radius: 8px;
+    overflow-y: auto; }
+  .content-overlay p {
+    padding: 10px;
+    margin: 0;
+    box-sizing: border-box; }
+  .content-overlay__navbar {
+    text-align: right;
+    color: #ccc;
+    margin-bottom: 15px; }
+    .content-overlay__navbar a {
+      color: inherit;
+      font-size: 2em; }
+  .content-overlay .network-body {
+    display: flex;
+    padding: 0 7px 15px 7px;
+    box-sizing: border-box; }
+    .content-overlay .network-body > div {
+      flex-basis: 100%;
+      padding: 0 7px;
+      box-sizing: border-box; }
+      .content-overlay .network-body > div h4 {
+        margin: 0 0 15px 0; }
+    .content-overlay .network-body textarea {
+      width: 100%;
+      font-family: monospace;
+      height: auto;
+      padding: 15px;
+      box-sizing: border-box;
+      resize: none;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: #000;
+      border: 0; }
+      .content-overlay .network-body textarea:hover {
+        background-color: rgba(255, 255, 255, 0.4);
+        border-radius: 6px; }
+
 /*# sourceMappingURL=styles.css.map */

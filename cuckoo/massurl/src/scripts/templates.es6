@@ -155,8 +155,29 @@ const Templates = {
     </div>
   `)(data),
 
-  contentOverlay: data => Handlebars.compile(`
-    
+  // constructs an overlay and dumps a huge amount of content in it. Spreads
+  // over the entire page
+  requestView: data => Handlebars.compile(`
+    <div class="content-overlay">
+      <nav class="content-overlay__navbar">
+        <a href="#" class="close-dialog" title="Close view"><i class="fal fa-times"></i></a>
+      </nav>
+      <div class="content-overlay__dialog">
+        {{#each this}}
+          <p>{{pretty-date time}}</p>
+          <div class="network-body">
+            <div>
+              <h4>Request</h4>
+              <textarea disabled>{{request}}</textarea>
+            </div>
+            <div>
+              <h4>Response</h4>
+              <textarea disabled>{{response}}</textarea>
+            </div>
+          </div>
+        {{/each}}
+      </div>
+    </div>
   `)(data)
 
 };
