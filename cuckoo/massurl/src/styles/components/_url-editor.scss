@@ -30,9 +30,11 @@
     padding: 15px 0;
 
     & > li {
+      position: relative;
       border-bottom: 1px solid #ccc;
       a {
         display: block;
+        flex-basis: 100%;
         padding: 15px;
         color: inherit;
         font-weight: 500;
@@ -56,6 +58,36 @@
           }
         }
 
+      }
+
+      .events-badge {
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        margin-top: -13px;
+        background-color: #fff;
+        padding: 3px 10px;
+        text-align: center;
+        border: 1px solid #aaa;
+        border-radius: 15px;
+        color: #000;
+
+        &.has-critical {
+          line-height: 0;
+          padding: 3px 3px 6px 10px;
+          &:after {
+            content: "";
+            position: relative;
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            background-color: #f00;
+            margin-left: 5px;
+            top: 1px;
+            right: 2px;
+          }
+        }
       }
     }
   }
