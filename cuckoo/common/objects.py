@@ -533,7 +533,6 @@ class Analysis(object):
         self.manager = manager
         self.task_type = task_type
         self.started_on = None
-        self.event_client = None
         self.status = None
         self.shutdown_on = None
         self.changed = False
@@ -557,16 +556,6 @@ class Analysis(object):
             self.shutdown_on = datetime.datetime.now()
 
         self.changed = True
-
-        if self.event_client:
-            self.event_client.send_event(
-                "%stask" % self.task_type, body={
-                    "taskid": self.task_id,
-                    "tasktype": self.task_type,
-                    "status": status,
-                    "action": "statuschange"
-                }
-            )
 
     def get_status(self):
         """Returns the current analysis status and marks the status as read.
