@@ -5968,7 +5968,7 @@ body {
     flex-basis: 100%;
     padding-left: 30px; }
     .alert .alert-content h2 {
-      font-size: 30px;
+      font-size: 20px;
       color: #4A6FA5;
       text-shadow: 0px 1px 0px #fff;
       margin: 0 0 8px; }
@@ -5977,7 +5977,9 @@ body {
       font-style: italic;
       font-weight: 500;
       color: #353F54;
-      font-size: 18px; }
+      font-size: 16px; }
+    .alert .alert-content .button {
+      margin-top: 10px; }
   .alert .alert-time {
     white-space: nowrap; }
     .alert .alert-time p {

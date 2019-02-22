@@ -14,9 +14,11 @@ Handlebars.registerHelper('alert-level', level => getLevelName(parseInt(level)))
 // spit icons from level numbers
 Handlebars.registerHelper('alert-icon', level => `<i class="fal ${getIconType(level)}"></i>`);
 // generate a shortened version of a big string
-Handlebars.registerHelper('truncate', content => (content.length > 45) ? content.substr(0, 45-1) + '&hellip;' : content);
+Handlebars.registerHelper('truncate', content => (content.length > 70) ? content.substr(0, 70-1) + '&hellip;' : content);
 // handlebars inline join helper
 Handlebars.registerHelper('join', arr => arr.join('\n'));
+// handlebars if this, then that
+Handlebars.registerHelper('eq', (that, what, block) => that == what ? block.fn() : '');
 
 const Templates = {
 
@@ -29,6 +31,7 @@ const Templates = {
       <div class="alert-content">
         <h2>{{title}}</h2>
         <p>{{{truncate content}}}</p>
+        <a class="button" href="#">Show info</a>
       </div>
       <div class="alert-time">
         {{#if url_group_name}}
@@ -44,7 +47,7 @@ const Templates = {
 
   // template for single alert entry
   event: data => Handlebars.compile(`
-    <tr data-row-style="{{alert-level level}}" data-id="{{task_id}}">
+    <tr data-row-style="{{alert-level level}}" data-id="{{id}}">
       <td class="drop-padding {{#unless read}}fill-base{{/unless}}"></td>
       <td class="centerize icon-cell" data-sort-number="{{level}}">{{{alert-icon level}}}</td>
       <td class="no-wrap" data-sort-number="{{unix-time timestamp}}">{{timestamp}}</td>
@@ -83,9 +86,9 @@ const Templates = {
           <a href="/diary/{{diary_id}}" class="button"><i class="far fa-book"></i> Show diary</a>
         {{/if}}
         {{#if task_id}}
-        <a href="/api/pcap/{{task_id}}" class="button">
-          <i class="far fa-file-alt"></i> Download PCAP
-        </a>
+          <a href="/api/pcap/{{task_id}}" class="button">
+            <i class="far fa-file-alt"></i> Download PCAP
+          </a>
         {{/if}}
       </td>
     </tr>

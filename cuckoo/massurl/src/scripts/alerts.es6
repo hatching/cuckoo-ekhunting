@@ -16,6 +16,10 @@ const urls = {
 let currentLimit = 20;
 let currentOffset = 0;
 
+const state = {
+  topAlert: false
+}
+
 // shifts background based on current state (on/off/toggle)
 // swapBackground(null) => toggles
 // swapBackground(true/false) => sets .fill-red class based on bool
@@ -57,11 +61,16 @@ function connectSocket(cb) {
 
 function setAlertRead(data={}) {
   return new Promise((resolve, reject) => {
-    $.post(urls.alertRead(), data).done(response => resolve(response)).fail(err => reject(err));
+    $.post(urls.alertRead(), data).done(response => {
+      if(data.alert && state.topAlert)
+        if(data.alert == state.topAlert.id) state.topAlert.read = true;
+      resolve(response);
+    }).fail(err => reject(err));
   });
 }
 
 function createInfoRow(alert, parent) {
+
   // remove if it already exists
   if(parent.next().hasClass('info-expansion')) {
     parent.removeClass('expanded');
@@ -75,20 +84,21 @@ function createInfoRow(alert, parent) {
   setAlertRead({
     alert: alert.id
   }).then(r => {
-    console.log(r);
     parent.find('td:first-child').removeClass('fill-base');
   }).catch(e => console.log(e));
 }
 
 function topAlert($table, alert) {
+
   // populate alert in top-level
   $("#top-level-alert").addClass('out');
 
   setTimeout(() => {
     let newContent = $(Templates.topEvent(alert));
+
     $("#top-level-alert .alert-outer").html(newContent);
 
-    newContent.on('click', e => {
+    newContent.find('.button').on('click', e => {
       $table.find(`tr[data-id=${alert.id || alert.task_id}]`).trigger('click');
     });
 
@@ -97,6 +107,8 @@ function topAlert($table, alert) {
     }, 500);
 
   }, 300);
+
+  state.topAlert = alert;
 
   if(alert.notify)
     alertMode();
@@ -118,8 +130,12 @@ function addAlert(alert, $table, method='append', first=false) {
     createInfoRow(alert, el);
   });
 
-  if(!first)
+  if(!first) {
+    if(state.topAlert && !state.topAlert.read) {
+      if(state.topAlert.level == 3 && alert.level < 3) return;
+    }
     topAlert($table, alert);
+  }
 
 }
 
@@ -202,11 +218,11 @@ function initAlerts($table) {
 
       alerts.forEach(alert => addAlert(alert, $table));
 
-      // set first alert to pop
-      topAlert($table, alerts[0]);
-
       if($table.find('tr.loading').length)
         $table.find('tr.loading').remove();
+
+      // set first alert to pop
+      topAlert($table, alerts[0]);
 
       connectSocket(alert => {
         addAlert(alert, $table, 'prepend');
