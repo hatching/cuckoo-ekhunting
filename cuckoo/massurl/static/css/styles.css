@@ -6430,11 +6430,18 @@ table.table {
         font-weight: 500;
         color: #4A6FA5;
         text-decoration: none; }
+        .editor-ui .url-groups > li a > span {
+          display: block;
+          margin-top: 10px;
+          font-weight: 700;
+          font-size: .7em;
+          color: #999; }
         .editor-ui .url-groups > li a:hover {
           background-color: #eee; }
         .editor-ui .url-groups > li a.active {
-          background-color: #4A6FA5;
-          color: #fff; }
+          background-color: #4A6FA5; }
+          .editor-ui .url-groups > li a.active, .editor-ui .url-groups > li a.active > span {
+            color: #fff; }
   .editor-ui > header {
     padding: 0 20px;
     border-bottom: 1px solid #ccc; }

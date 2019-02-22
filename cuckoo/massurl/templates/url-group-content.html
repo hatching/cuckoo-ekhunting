@@ -9,7 +9,14 @@
           <div class="split-view-container one-third editor-ui-left" id="url-group-list">
             <ul class="url-groups">
             {% for group in groups %}
-              <li><a href="open:{{group.id}}">{{group.name}}</a></li>
+              <li data-id="{{group.id}}">
+                <a href="open:{{group.id}}">
+                  {{group.name}}
+                  {% if group.schedule_next %}
+                    <span><i class="fal fa-calendar-check"></i> {{group.schedule_next}}</span>
+                  {% endif %}
+                </a>
+              </li>
             {% endfor %}
             </ul>
           </div>

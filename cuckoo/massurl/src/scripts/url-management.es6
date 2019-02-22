@@ -71,7 +71,10 @@ function textAreaToArray(textarea, seperator = "\n") {
 function setSchedule(id, schedule='now') {
   return new Promise((resolve, reject) => {
     if(!id) return reject({message:'no ID for schedule'});
-    $.post(urls.schedule_group(id), (!schedule ? {} : {schedule}), response => resolve(response)).fail(err => reject(err))
+    $.post(urls.schedule_group(id), (!schedule ? {} : {schedule}), response => {
+      console.log(response);
+      resolve(response);
+    }).fail(err => reject(err))
   });
 }
 
@@ -155,9 +158,17 @@ function initEditor(data = {}, $editor) {
           nextDate.add(7, 'days');
         nextDate.hours(values.time.hours);
         nextDate.minutes(values.time.minutes);
-        scan.find('span').text(nextDate.format('YYYY-DD-MM HH:mm'));
+        nextDate.seconds(0);
 
-        $("#toggle-scheduler span").text(`Scheduled at ${nextDate.format('YYYY-DD-MM HH:mm')}`);
+        let scheduleString = nextDate.format('YYYY-DD-MM HH:mm:ss');
+        scan.find('span').text(scheduleString);
+        let $groupListItem = $(`.url-groups li[data-id=${data.group.id}] a`);
+        if(!$groupListItem.find('span').length) {
+          let sp = $("<span />");
+          $groupListItem.append(sp);
+        }
+        $groupListItem.find('span').html(`<i class="fal fa-calendar-check"></i> ${scheduleString}`);
+        $("#toggle-scheduler span").text(`Scheduled at ${scheduleString}`);
         $("#toggle-scheduler i").removeClass('fa-calendar').addClass('fa-calendar-check');
       }).catch(err => console.log(err));
 
@@ -166,6 +177,7 @@ function initEditor(data = {}, $editor) {
       scheduleReset(data.group.id).then(response => {
         $("#toggle-scheduler span").text('Schedule');
         $("#toggle-scheduler i").removeClass('fa-calendar-check').addClass('fa-calendar');
+        $(`.url-groups li[data-id=${data.group.id}] a span`).remove();
       }).catch(err => console.log(err));
     }
   });

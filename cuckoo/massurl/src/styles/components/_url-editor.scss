@@ -38,11 +38,24 @@
         font-weight: 500;
         color: $default-base;
         text-decoration: none;
+
+        & > span {
+          display: block;
+          margin-top: 10px;
+          font-weight: 700;
+          font-size: .7em;
+          color: #999;
+        }
+
         &:hover { background-color: #eee; }
         &.active {
           background-color: $default-base;
-          color: #fff;
+
+          &, & > span {
+            color: #fff;
+          }
         }
+
       }
     }
   }
