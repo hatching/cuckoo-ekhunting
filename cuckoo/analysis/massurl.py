@@ -10,7 +10,7 @@ import time
 from cuckoo.common.abstracts import AnalysisManager
 from cuckoo.common.exceptions import (
     CuckooMachineSnapshotError, CuckooMachineError, CuckooGuestError,
-    CuckooGuestCriticalTimeout, RealtimeBlockingExpired, RealtimeError
+    CuckooGuestCriticalTimeout, RealtimeError
 )
 from cuckoo.common.objects import Analysis
 from cuckoo.core.database import (
@@ -21,7 +21,10 @@ from cuckoo.core.log import task_log_start, task_log_stop
 from cuckoo.core.plugins import RunAuxiliary
 from cuckoo.core.realtime import EventClient, RealTimeHandler, RealTimeMessages
 from cuckoo.core.resultserver import ResultServer
-from cuckoo.massurl.urldiary import URLDiary, URLDiaries
+from cuckoo.massurl.urldiary import URLDiary, URLDiaries, RequestFinder
+from cuckoo.processing.behavior import BehaviorAnalysis
+from cuckoo.processing.dumptls import TLSMasterSecrets
+from cuckoo.processing.network import NetworkAnalysis
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +32,7 @@ class MassURL(AnalysisManager):
 
     supports = ["massurl"]
     URL_BLOCKSIZE = 5
-    SECS_PER_BLOCK = 20
+    SECS_PER_BLOCK = 22
 
     def init(self, db):
         # If for some reason the task dir does not exist, stop the analysis
@@ -71,7 +74,9 @@ class MassURL(AnalysisManager):
         self.guest_manager = GuestManager(
             self.machine.name, self.machine.ip, self.machine.platform,
             self.task, self, self.analysis,
-            self.curr_block.get(self.curr_block.keys().pop(0)).get("target_obj")
+            self.curr_block.get(
+                self.curr_block.keys().pop(0)
+            ).get("target_obj")
         )
 
         self.aux = RunAuxiliary(
@@ -84,7 +89,11 @@ class MassURL(AnalysisManager):
         self.gm_wait_th = threading.Thread(
             target=self.guest_manager.wait_for_completion
         )
+        self.gm_wait_th.daemon = True
         self.detection_events = Queue.Queue()
+        self.netflow_events = Queue.Queue()
+        self.realtime_finished = False
+        self.requestfinder = RequestFinder(self.task.id)
 
         return True
 
@@ -178,6 +187,10 @@ class MassURL(AnalysisManager):
         # Stop all Auxiliary modules
         self.aux.stop()
 
+        # Wait for the guest manager wait to stop before stopping the machine.
+        # We want any exception messages to be retrieved from the agent.
+        self.gm_wait_th.join(timeout=6)
+
         # Stop the analysis machine.
         try:
             self.machinery.stop(self.machine.label)
@@ -198,22 +211,62 @@ class MassURL(AnalysisManager):
             if not self.gm_wait_th.is_alive():
                 return
 
-            self.request_scheduler_action(for_status="newurlblock")
+            log.debug("Uploaded new block of %d URLs", len(self.curr_block))
 
-            # Start with handling incoming onemon events, as the first block
-            # of URLs has been submitted with the task options
-            handled_events = self.handle_detection_events()
+            pkg_info = {}
+            tries = len(self.curr_block) + 5
+            while not pkg_info:
+                try:
+                    pkg_info = self.rt.send_command_blocking(
+                        RealTimeMessages.list_packages(),
+                        maxwait=len(self.curr_block) * 2
+                    )
+                except RealtimeError as e:
+                    log.error(
+                        "No response from guest or it failed to send analysis "
+                        "package information. %s", e
+                    )
+                    return
 
-            # TODO extract HTTP requests from PCAP and add them to the
-            # URL diary as requested URLs and related streams.
+                tries -= 1
+                if not pkg_info and tries <= 0:
+                    log.error(
+                        "Analyzer is not returning target PIDs. It might have "
+                        "failed to start the targets."
+                    )
+                    return
+                time.sleep(1)
 
-            if handled_events:
+            pids_targets = {
+                int(pid): target for p in pkg_info
+                for pid, target in p.get("pids").items()
+            }
+
+            # Give the URLs some time to load and remain opened
+            time.sleep(self.SECS_PER_BLOCK)
+
+            # Request the analyzer to stop all running analysis packages
+            try:
+                self.rt.send_command(RealTimeMessages.stop_all_packages())
+            except RealtimeError as e:
+                log.error(
+                    "Error sending real-time package stop command. %s", e
+                )
+
+            # Ask realtime to process the generated onemon protobuf file.
+            signature_events = self.handle_events(pids_targets)
+
+            # The end of the URL block is reached, have the scheduler
+            # do the database operations
+            self.request_scheduler_action(for_status="stopurlblock")
+
+            if signature_events:
                 self.request_scheduler_action(for_status="aborted")
                 return
 
             # Store URL diaries
             for url, info in self.curr_block.iteritems():
-                URLDiaries.store_diary(info.get("diary").dump())
+                URLDiaries.store_diary(info.get("diary"))
 
             # Acquire the next block of URLs according to the defined URL
             # blocksize
@@ -225,8 +278,7 @@ class MassURL(AnalysisManager):
                 self.rt.send_command_blocking(
                     RealTimeMessages.start_package(
                         target=self.curr_block.keys(), category="url",
-                        package=self.task.package,
-                        options=self.task.options,
+                        package=self.task.package, options=self.task.options,
                         respond=True
                     ), maxwait=len(self.curr_block) * 10
                 )
@@ -241,75 +293,97 @@ class MassURL(AnalysisManager):
         # the analysis was completed.
         self.completed = True
 
-    def onemon_callback(self, message):
-        log.info("INCOMING ONEMON EVENT")
-        task_id = message["body"].get("taskid")
-        if not task_id or task_id != self.task.id:
-            return
+    def extract_requests(self, pid_target):
+        flow_target = {}
+        flows = {}
+        for x in range(self.netflow_events.qsize()):
+            flow, pid = self.netflow_events.get(block=False)
 
-        for k in ("description", "ioc", "signature"):
-            if k not in message["body"]:
-                return
+            if pid not in flows:
+                flows[pid] = []
+            flows[pid].append(flow)
 
-        self.detection_events.put(message)
+            target = pid_target.get(pid)
+            if target:
+                flow_target[flow] = target
 
-    def handle_detection_events(self):
+        reports = self.requestfinder.process(flow_target)
+        for target_url, report in reports.iteritems():
+            log.debug("Traffic extracted for %s", target_url)
+            target_helpers = self.curr_block.get(target_url)
+            diary = target_helpers.get("diary")
+            diary.set_request_report(report)
+
+    def handle_events(self, pid_target):
         # New queue for a new batch, to be sure it is empty
         self.detection_events = Queue.Queue()
-        # Inform event subscribers a new batch is being opened in the VM
+        self.netflow_events = Queue.Queue()
+        self.realtime_finished = False
+        self.realtime_finished = False
+
+        # Tell onemon to process results.
         self.ev_client.send_event(
             "massurltask", body={
-                "taskid": self.task.id,
-                "status": self.analysis.status,
-                "action": "newbatch"
+                "taskid": self.task.id
             }
         )
 
-        time.sleep(self.SECS_PER_BLOCK)
-        # If some event occured, increase wait time a to gather some more info
-        if not self.detection_events.empty():
-            time.sleep(self.SECS_PER_BLOCK)
+        # If IE was used, TLS master secrets van be extracted.
+        # If not package is supplied, the analyzer will use IE.
+        if not self.task.package or self.task.package.lower() == "ie":
+            self.task.process(
+                reporting=False, signatures=False, processing_modules=[
+                    BehaviorAnalysis, NetworkAnalysis, TLSMasterSecrets
+                ]
+            )
 
-        # Request the analyzer to stop all running analysis packages
-        try:
-            self.rt.send_command(RealTimeMessages.stop_all_packages())
-        except RealtimeError as e:
-            log.error("Error sending real-time package stop command. %s", e)
+        waited = 0
+        while not self.realtime_finished:
+            if waited >= 60:
+                log.error(
+                    "Timeout for realtime onemon processor reached. No results"
+                    " received. Stopping analysis of URL current block: %r",
+                    self.curr_block.keys()
+                )
+                break
+            waited += 0.5
+            time.sleep(0.5)
 
-        # Tell onemon to stop processing this batch
-        self.ev_client.send_event(
-            "massurltask", body={
-                "taskid": self.task.id,
-                "status": self.analysis.status,
-                "action": "batchclosed"
-            }
-        )
+        if self.netflow_events.qsize():
+            self.extract_requests(pid_target)
 
-        num_events = self.detection_events.qsize()
-        # If no events were sent by onemon, no signatures were triggered.
+        # If no events were sent by Onemon, no signatures were triggered.
         # Continue analysis.
-        if not num_events:
-            return False
+        if self.detection_events.qsize():
+            self.handle_signature_events()
+            return True
 
-        log.info("Detected %d events in task #%d", num_events, self.task.id)
+        return False
+
+    def handle_signature_events(self):
+        num_events = self.detection_events.qsize()
+
+        log.info(
+            "%d realtime signature triggered for task #%d", num_events,
+            self.task.id
+        )
         # Collect all triggered signatures from the queue
         sigs = []
-        for e in range(num_events):
-            ev = self.detection_events.get(block=False)["body"]
+        for x in range(num_events):
+            ev = self.detection_events.get(block=False)
             sigs.append({
                 "signature": ev.get("signature"),
                 "description": ev.get("description"),
                 "ioc": ev.get("ioc")
             })
 
-        # TODO: store sigs in a URL diary when it is known to which URL
-        # they belong or mark a URL as 'potentially triggered sig X' until
-        # it is known what URL did really trigger a sig?
+        # A signature was triggered while only a single URL was opened. Update
+        # and store the URL diary, and send a detection event.
         if len(self.curr_block) == 1:
-            info = self.curr_block.get(self.curr_block.keys().pop(0))
-            info.get("diary").add_signature(sigs)
-            diary_id = URLDiaries.store_diary(info.get("diary").dump())
-            # Send events to massurl scheduler if there are any
+            diary = self.curr_block.itervalues().next().get("info")
+            diary.add_signature(sigs)
+            diary_id = URLDiaries.store_diary(diary)
+
             self.ev_client.send_event(
                 "massurldetection", body={
                     "taskid": self.task.id,
@@ -321,7 +395,9 @@ class MassURL(AnalysisManager):
             )
 
         else:
-            # Send events to massurl scheduler if there are any
+            # Multiple URLs were opened while signatures were triggered. Send
+            # a detection event with all URLs that were opened. The massurl
+            # scheduler will create a new task with only these URLs.
             self.ev_client.send_event(
                 "massurldetection", body={
                     "taskid": self.task.id,
@@ -330,8 +406,6 @@ class MassURL(AnalysisManager):
                     "signatures": sigs
                 }
             )
-
-        return True
 
     def run(self):
         task_log_start(self.task.id)
@@ -342,13 +416,12 @@ class MassURL(AnalysisManager):
             self.set_analysis_status(Analysis.FAILED)
             return
 
-        # Hand the event client to the analysis status object, so each
-        # status change will be sent as an event.
-        self.analysis.event_client = self.ev_client
-
         # Tell the client to ask the event server to send all events of
-        # type 'signature'. These events will be sent by onemon.
-        self.ev_client.subscribe(self.onemon_callback, "signature")
+        # type 'signature' and 'netflow'. These events will be sent by onemon.
+        self.ev_client.subscribe(self.realtime_sig_cb, "signature")
+        self.ev_client.subscribe(self.realtime_netflow_cb, "netflow")
+        self.ev_client.subscribe(self.realtime_finished_cb, "finished")
+
         try:
             if self.start_run():
                 self.set_analysis_status(Analysis.RUNNING)
@@ -373,6 +446,47 @@ class MassURL(AnalysisManager):
         else:
             self.set_analysis_status(Analysis.FAILED, wait=True)
 
+    def realtime_sig_cb(self, message):
+        """Handle incoming signature events from the realtime processor"""
+        log.info("INCOMING ONEMON EVENT")
+        task_id = message["body"].get("taskid")
+        if not task_id or task_id != self.task.id:
+            return
+
+        for k in ("description", "ioc", "signature"):
+            if k not in message["body"]:
+                return
+
+        self.detection_events.put(message["body"])
+
+    def realtime_netflow_cb(self, message):
+        """Handle incoming netflow events from the realtime processor"""
+        task_id = message["body"].get("taskid")
+        if not task_id or task_id != self.task.id:
+            return
+
+        for k in ("srcip", "srcport", "dstip", "dstport", "pid"):
+            if k not in message["body"]:
+                return
+
+        flow = message["body"]
+        self.netflow_events.put(
+            (
+                (
+                    flow.get("srcip"), flow.get("srcport"), flow.get("dstip"),
+                    flow.get("dstport")
+                ),  flow.get("pid")
+            )
+        )
+
+    def realtime_finished_cb(self, message):
+        """Handle incoming finish events from the realtime processor"""
+        task_id = message["body"].get("taskid")
+        if not task_id or task_id != self.task.id:
+            return
+
+        self.realtime_finished = True
+
     def on_status_failed(self, db):
         """The mass url analysis failed"""
         # What should we do it failed? How can be prevent redundant work and
@@ -393,12 +507,11 @@ class MassURL(AnalysisManager):
         # Store used machine in the task
         db.set_machine(self.task.id, self.machine.name)
 
-    def on_status_newurlblock(self, db):
-        """When a new block of URLs has been sent to the VM, update their rows
+    def on_status_stopurlblock(self, db):
+        """When a new block of URLs has finished, update their rows
         in the database. This way we can keep track of which were and were not
         analyzed in case of an abort/crash/detection and a re-submit
          is required."""
-        log.debug("Uploaded new block of %d URLs", len(self.curr_block))
         updated = []
         for t in self.curr_block:
             target_obj = self.curr_block[t].get("target_obj")
@@ -423,6 +536,7 @@ class MassURL(AnalysisManager):
 
     def finalize(self, db):
         self.ev_client.stop()
+        self.task.set_latest()
         self.release_machine_lock()
         if self.analysis.status != Analysis.STOPPED:
             log.warning(
