@@ -282,7 +282,7 @@ class RunProcessing(object):
         machine = machine.to_dict()
         self.machine.update(machine)
 
-    def run(self):
+    def run(self, processing_list=[]):
         """Run all processing modules and all signatures.
         @return: processing results.
         """
@@ -302,7 +302,8 @@ class RunProcessing(object):
         # Order modules using the user-defined sequence number.
         # If none is specified for the modules, they are selected in
         # alphabetical order.
-        processing_list = cuckoo.processing.plugins
+        if not processing_list:
+            processing_list = cuckoo.processing.plugins
 
         # If no modules are loaded, return an empty dictionary.
         if processing_list:

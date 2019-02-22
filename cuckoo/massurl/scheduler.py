@@ -183,6 +183,7 @@ def task_checker():
             # Retrieve all URLs for the failed task that have not been marked
             # as analyzed and mark the grouptask relation as resubmitted, so
             # that it will not try to resubmit it again.
+            task = None
             try:
                 s.query(URLGroupTask).filter(
                     URLGroupTask.id==grouptask.id
@@ -202,12 +203,15 @@ def task_checker():
                 s.close()
 
             # Create a new task for URLs that have not been analyzed yet.
-            if urls:
+            if task:
+                log.debug(
+                    "Creating new task for failed task #%s", grouptask.task_id
+                )
                 create_single_task(
                     group_id=grouptask.url_group_id, urls=urls,
                     run=grouptask.run, custom="%d" % grouptask.task_id,
                     options=task.options, machine=task.machine,
-                    package=task.package, clock=task.clock
+                    package=task.package, clock=task.clock, owner=OWNER
                 )
 
     s = db.Session()
@@ -229,6 +233,7 @@ def task_checker():
                 continue
 
             have_tasks = s.query(DbTask).filter(
+                URLGroupTask.url_group_id==URLGroup.id,
                 URLGroupTask.task_id == DbTask.id,
                 URLGroupTask.run == URLGroup.run,
                 URLGroupTask.resubmitted.is_(False),

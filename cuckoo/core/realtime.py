@@ -103,6 +103,23 @@ class RealTimeHandler(object):
         @param callback: A function obj that accepts a msg dict sent by the
         guest
         """
+
+        # Command might be sent when the analyzer has not connected back yet.
+        # Wait a single time if there is no socket yet.
+        wait = 0
+        if not self.sock:
+            while True:
+                if self.sock:
+                    break
+
+                if wait >= 10:
+                    raise RealtimeError(
+                        "No socket available to send commands over."
+                        " Waited 10 seconds."
+                    )
+                wait += 0.5
+                time.sleep(0.5)
+
         self.sendlock.acquire()
         self.cmd_id += 1
         cmd_id = self.cmd_id

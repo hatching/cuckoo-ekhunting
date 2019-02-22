@@ -13,11 +13,11 @@
                      "type": "nested",
                      "properties": {
                          "url": {"type": "text"},
-                         "len": {"type": "integer"}
+                         "len": {"type": "integer"},
+                         "request_log": {"type": "text"}
                      }
                  },
 				 "javascript": {"type": "text"},
-                 "related_documents": {"type": "keyword"},
                  "signatures": {
                       "type": "nested",
                       "properties": {

@@ -14,6 +14,7 @@ import dpkt
 from elasticsearch import helpers
 from elasticsearch.exceptions import TransportError, ConnectionError
 from httpreplay.cut import http_handler, https_handler
+from httpreplay.exceptions import ReplayException
 from httpreplay.misc import read_tlsmaster
 from httpreplay.reader import PcapReader
 from httpreplay.smegma import TCPPacketStreamer
@@ -30,8 +31,8 @@ class URLDiaries(object):
     init_done = False
     DIARY_INDEX = "urldiary"
     DIARY_MAPPING = "urldiary"
-    RELATED_INDEX = "related"
-    RELATED_MAPPING = "related"
+    RELATED_INDEX = "requestlog"
+    RELATED_MAPPING = "requestlog"
 
     @classmethod
     def init(cls):
@@ -52,11 +53,11 @@ class URLDiaries(object):
     def create_mappings(cls):
         mappings = {
             cls.DIARY_INDEX: {
-                "file": "diary-mapping.json",
+                "file": "massurl-diary.json",
                 "name": cls.DIARY_MAPPING
             },
             cls.RELATED_INDEX: {
-                "file": "related-request-mapping.json",
+                "file": "massurl-requestlog.json",
                 "name": cls.RELATED_MAPPING
             }
         }
@@ -67,6 +68,8 @@ class URLDiaries(object):
                     index=indexname, doc_type=info.get("name")
             ):
                 continue
+
+            log.error("DOES NOT EXIST %s. type: %s", indexname, info.get("name"))
 
             if not os.path.exists(mapping_path):
                 raise CuckooStartupError(
@@ -84,23 +87,35 @@ class URLDiaries(object):
                 )
 
             log.info("Creating index and mapping for '%s'", indexname)
-            elasticmassurl.client.indices.create(indexname, body=mapping)
+            elasticmassurl.client.indices.create(indexname, body=mapping,)
 
     @classmethod
-    def store_diary(cls, diary, diary_id=None):
-        """Store the specified URL diary under the specified id"""
+    def store_diary(cls, urldiary, diary_id=None):
+        """Store the specified URL diary under a generated or the
+        specified id"""
         diary_id = diary_id or str(uuid.uuid1())
-        version = cls.get_latest_diary(diary.get("url_id"))
+
+        request_log_ids = {
+            url: str(uuid.uuid1()) for url in urldiary.urls
+        }
+
+        # Store all per-url request logs in a separate index first with the
+        # specified IDs. Store these IDs in the URL diary.
+        if cls.store_request_logs(urldiary.logs, diary_id, request_log_ids):
+            urldiary.set_requestlog_ids(request_log_ids)
+
+        urldiary = urldiary.dump()
+        version = cls.get_latest_diary(urldiary.get("url_id"))
         if version:
             version = version.get("version", 1) + 1
         else:
             version = 1
 
-        diary["version"] = version
+        urldiary["version"] = version
         try:
             elasticmassurl.client.create(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, id=diary_id,
-                body=diary
+                body=urldiary
             )
         except TransportError as e:
             log.exception("Error during diary creation. %s", e)
@@ -177,28 +192,29 @@ class URLDiaries(object):
         return URLDiaries.get_values(res, return_empty=[])
 
     @classmethod
-    def store_related(cls, parent_uuid, related):
+    def store_request_logs(cls, request_logs, parent_uuid, request_log_ids):
         """Store a list of related request objects. Objects must be related
-        to the specified URL diary parent"""
-        related_ids = []
-        ready_related = []
-        for r in related:
+        to the specified URL diary parent
+        @param request_log_ids: a dict of url:identifier"""
+        ready_logs = []
+        for r in request_logs:
             r["parent"] = parent_uuid
-            related_id = str(uuid.uuid1())
-            related_ids.append(related_id)
-            ready_related.append({
-                "_id": related_id,
+            r["datetime"] = int(time.time() * 1000)
+            ready_logs.append(json.dumps({
+                "_id": request_log_ids.get(r.get("url")),
                 "_index": cls.RELATED_INDEX,
-                "_mapping": cls.RELATED_MAPPING,
+                "_type": cls.RELATED_MAPPING,
                 "_source": r
-            })
+            }, encoding="latin1"))
         try:
-            helpers.bulk(elasticmassurl.client, ready_related)
+            helpers.bulk(
+                elasticmassurl.client,
+                [json.loads(requestlog) for requestlog in ready_logs]
+            )
         except TransportError as e:
-            log.exception("Error while bulk storing related data to")
-            return None
-
-        return related_ids
+            log.exception("Error while bulk storing request logs data")
+            return False
+        return True
 
     @classmethod
     def get_related(cls, parent_uuid, max_size=100):
@@ -297,23 +313,18 @@ class URLDiary(object):
     def __init__(self, url, url_id):
         self._diary = {
             "url": url,
-            # TODO get URL id from massurl in the analysis manager without an
-            # extra query to the db.
             "url_id": url_id,
-            # TODO Set version properly. We need the url_id for that
             "version": 0,
             "datetime": "",
             "javascript": [],
-            "related_documents": [],
             "requested_urls": [],
             "signatures": []
         }
+        self.logs = []
+        self.urls = []
 
     def add_javascript(self, javascript):
         self._diary["javascript"].append(javascript)
-
-    def add_related_docs(self, doc_keys):
-        self._diary["related_documents"].extend(doc_keys)
 
     def add_signature(self, signature):
         if isinstance(signature, list):
@@ -321,16 +332,43 @@ class URLDiary(object):
         else:
             self._diary["signatures"].append(signature)
 
-    def add_request_url(self, url):
-        self._diary["requested_urls"].append({
-            "len": len(url),
-            "url": url
-        })
+    def set_request_report(self, report):
+        requested_urls = report.get("requested", [])
+        if not requested_urls:
+            return
+        self.urls = requested_urls
+
+        requestlogs = report.get("log", {})
+        if not requestlogs:
+            return
+
+        for url in requested_urls:
+            requestlog = requestlogs.get(url)
+            if requestlog:
+                self.logs.append({
+                    "url": url,
+                    "log": requestlog
+                })
+
+    def set_requestlog_ids(self, request_log_ids):
+        for url in self.urls:
+            self._diary["requested_urls"].append({
+                "url": url,
+                "len": len(url),
+                "request_log": request_log_ids.get(url)
+            })
 
     def dump(self):
+        if not self._diary["requested_urls"]:
+            for url in self.urls:
+                self._diary["requested_urls"].append({
+                    "url": url,
+                    "len": len(url),
+                    "request_log": ""
+                })
+
         self._diary["datetime"] = int(time.time() * 1000)
         return self._diary
-
 
 class RequestFinder(object):
 
@@ -343,7 +381,11 @@ class RequestFinder(object):
         self.handlers = {}
 
     def process(self, flowmapping):
+        """Reads a PCAP and adds the reqeusts that match the flow mapping
+        to a dictionary of reports it will return. Reports will contain
+        all found requests made for a url
 
+        @param flowmapping: a dictionary of netflow:url values"""
         tlspath = cwd("tlsmaster.txt", analysis=self.task_id)
         tlsmaster = {}
         if os.path.exists(tlspath):
@@ -352,10 +394,12 @@ class RequestFinder(object):
         if tlsmaster or not self.handlers:
             self._create_handlers(tlsmaster)
 
-        pcap_fp = self.get_fp()
+        pcap_fp = open(cwd("dump.pcap", analysis=self.task_id))
         reader = PcapReader(pcap_fp)
-        reader.set_tcp_handler(TCPPacketStreamer(reader, self.handlers))
+        if self.offset and self.offset > 0:
+            pcap_fp.seek(self.offset)
 
+        reader.set_tcp_handler(TCPPacketStreamer(reader, self.handlers))
         reports = {}
 
         try:
@@ -368,8 +412,8 @@ class RequestFinder(object):
                     continue
 
                 report = reports.setdefault(tracked_url, {})
-                requested = reports.setdefault("requested", [])
-                logs = report.setdefault("logs", {})
+                requested = report.setdefault("requested", [])
+                logs = report.setdefault("log", {})
 
                 url = "%s://%s%s" % (
                     protocol,
@@ -379,30 +423,21 @@ class RequestFinder(object):
                 if url not in requested:
                     requested.append(url)
 
-                log = logs.setdefault(url, [])
-                log.append({
+                requestlog = logs.setdefault(url, [])
+                requestlog.append({
                     "time": timestamp,
                     "request": bytes(sent)[:self.MAX_REQUEST_SIZE],
                     "response": bytes(recv)[:self.MAX_REQUEST_SIZE]
                 })
 
             return reports
+        except (ReplayException, dpkt.dpkt.Error) as e:
+            log.exception("Failure while extracting requests from PCAP")
+            return reports
+
         finally:
             self.offset = pcap_fp.tell()
             pcap_fp.close()
-
-    def get_fp(self):
-        pcap = cwd("dump.pcap", analysis=self.task_id)
-        if not self.pcapheader:
-            with open(pcap, "rb") as fp:
-                self.pcapheader = fp.read(24)
-
-        if self.offset == 0:
-            return open(pcap, "rb")
-        elif self.offset > 0:
-            with open(pcap, "rb") as fp:
-                fp.seek(self.offset)
-                return io.BytesIO(self.pcapheader + fp.read())
 
     def _create_handlers(self, tlsmaster={}):
         self.handlers = {
@@ -413,5 +448,6 @@ class RequestFinder(object):
         if tlsmaster:
             self.handlers.update({
                 443: lambda: https_handler(tlsmaster),
-                4443: lambda: https_handler(tlsmaster)
+                4443: lambda: https_handler(tlsmaster),
+                8443: lambda: https_handler(tlsmaster)
             })

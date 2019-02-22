@@ -170,11 +170,16 @@ class Task(object):
         with open(path, "wb") as fw:
             fw.write(json_encode(dump))
 
-    def process(self):
+    def process(self, signatures=True, reporting=True, processing_modules=[]):
         """Process, run signatures and reports the results for this task"""
-        results = RunProcessing(task=self.task_dict).run()
-        RunSignatures(results=results).run()
-        RunReporting(task=self.task_dict, results=results).run()
+        results = RunProcessing(task=self.task_dict).run(
+            processing_list=processing_modules
+        )
+        if signatures:
+            RunSignatures(results=results).run()
+
+        if reporting:
+            RunReporting(task=self.task_dict, results=results).run()
 
         if config("cuckoo:cuckoo:delete_original"):
             for target in self.targets:
