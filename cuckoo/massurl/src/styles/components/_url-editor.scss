@@ -250,6 +250,9 @@
 
         textarea {
           @extend %disabled-text-field;
+          height: 40px;
+          padding-top: 8px;
+          line-height: 25px;
         }
 
         &.open {

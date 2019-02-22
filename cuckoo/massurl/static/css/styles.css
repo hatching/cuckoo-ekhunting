@@ -6579,6 +6579,10 @@ table.table {
           margin-left: 15px;
           min-width: 15px;
           text-align: right; }
+        .editor-ui .editor .url-list > li textarea {
+          height: 40px;
+          padding-top: 8px;
+          line-height: 25px; }
         .editor-ui .editor .url-list > li.open {
           margin-bottom: 0; }
           .editor-ui .editor .url-list > li.open .fa-angle-right:before {
