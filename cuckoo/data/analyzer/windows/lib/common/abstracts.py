@@ -21,6 +21,8 @@ class Package(object):
         self.options = options
         self.analyzer = analyzer
         self.pids = []
+        self.pids_targets = {}
+        self.initial_pids = []
         self.set_regkeys = True
 
         # Fetch the current working directory, defaults to $TEMP.
@@ -168,6 +170,8 @@ class Package(object):
                 "Unable to execute the initial process, analysis aborted."
             )
 
+        self.initial_pids.append(p.pid)
+
         return p.pid
 
     def package_files(self):
@@ -180,7 +184,7 @@ class Package(object):
 
     def stop(self):
         """Stop all pids of this analysis package"""
-        for pid in self.pids:
+        for pid in self.initial_pids:
             p = Process(pid=pid)
             if p.is_alive():
                 try:

@@ -135,7 +135,9 @@ class IE(Package):
             pid = self.execute(
                 iexplore, args=[url], maximize=True, mode="iexplore"
             )
+
             if pid:
                 pids.append(pid)
+                self.pids_targets[pid] = url
 
         return pids
