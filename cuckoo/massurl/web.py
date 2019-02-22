@@ -392,11 +392,19 @@ def search_diaries(item):
 
     return jsonify(diary_list)
 
+@app.route("/api/requestlog/<log_id>")
+def get_request_log(log_id):
+    request_log = URLDiaries.get_request_log(log_id)
+    if not request_log:
+        return json_error(404, "The specified request log does not exist")
+
+    return jsonify(request_log)
+
 @app.route("/api/diary/<diary_id>")
 def get_diary(diary_id):
     diary = URLDiaries.get_diary(diary_id)
     if not diary:
-        return json_error(404, "Specified URL diary does not exist")
+        return json_error(404, "The specified URL diary does not exist")
 
     return jsonify(diary)
 
