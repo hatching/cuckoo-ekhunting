@@ -15,6 +15,7 @@ let generateList = (arr=[],key=false,listClass="data-list") => {
   let ul = $(`<ul class="${listClass}" />`);
   arr.forEach(item => {
     let li = $("<li />");
+    li.data('item', item);
     if(key !== false) {
       if(key !== '*')
         item = item[key];
@@ -42,7 +43,7 @@ let textareafy = ul => {
 
   ul.find('li').each((i, li) => {
     let content = $(li).html();
-    let ta = $("<textarea></textarea>");
+    let ta = $("<textarea disabled></textarea>");
     ta.val(content);
     // ta.attr('disabled', true);
     $(li).html(ta);
@@ -113,6 +114,13 @@ function populateDiary(data={},el) {
 
     requestsList.render(requestsList.list.find('textarea'));
     javascriptList.render(javascriptList.list.find('textarea'));
+
+    // create hooks for displaying request logs
+    requestsList.list.find('li').each(function() {
+      let req = $(this).data('item');
+      let btn = $(`<button class="expand" data-request-log="${req.request_log}"><i class='fal fa-expand-alt'></i></button>`);
+      $(this).prepend(btn);
+    });
 
     // apply collapse toggles to sig list
     signaturesList.find('li').each((i,item) => {

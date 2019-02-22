@@ -153,6 +153,10 @@ const Templates = {
     <div class="url-area">
       <textarea placeholder="Type urls here">{{join urls}}</textarea>
     </div>
+  `)(data),
+
+  contentOverlay: data => Handlebars.compile(`
+    
   `)(data)
 
 };

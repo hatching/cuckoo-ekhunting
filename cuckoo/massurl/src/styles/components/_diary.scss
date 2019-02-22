@@ -53,6 +53,28 @@
     li { padding: 5px 10px; }
   }
 
+  .data-list {
+    li {
+      position: relative;
+
+      button.expand {
+        -webkit-appearance: none;
+        position: absolute;
+        background-color: transparent;
+        border: 0;
+        top: 5px;
+        right: 5px;
+        &:hover {
+          cursor: pointer;
+          i { @extend .far; }
+        }
+        &:focus { outline: none; }
+        & + textarea { padding-right: 45px; }
+      }
+
+    }
+  }
+
   .key-value,
   .collapse {
 
