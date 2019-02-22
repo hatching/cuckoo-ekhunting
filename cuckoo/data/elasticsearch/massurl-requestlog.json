@@ -1,6 +1,6 @@
 {
     "mappings": {
-         "related": {
+         "requestlog": {
              "properties": {
                  "parent": {"type": "keyword"},
                  "url": {"type": "text"},
@@ -12,7 +12,7 @@
                      "type": "nested",
                      "properties": {
                          "request": {"type": "text"},
-                         "respone": {"type": "integer"},
+                         "response": {"type": "text"},
                          "datetime": {
                               "type": "date",
                               "format": "epoch_millis"
