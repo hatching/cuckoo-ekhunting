@@ -163,8 +163,11 @@ const Templates = {
         <a href="#" class="close-dialog" title="Close view"><i class="fal fa-times"></i></a>
       </nav>
       <div class="content-overlay__dialog">
-        {{#each this}}
-          <p>{{pretty-date time}}</p>
+        {{#each log}}
+          <p>
+            <small>{{../url}}</small>
+            {{pretty-date time}}
+          </p>
           <div class="network-body">
             <div>
               <h4>Request</h4>

@@ -6929,7 +6929,7 @@ table.table {
   height: 100vh;
   top: 0;
   left: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(74, 111, 165, 0.8);
   padding: 30px;
   box-sizing: border-box; }
   .content-overlay__dialog {
@@ -6939,12 +6939,20 @@ table.table {
     border-radius: 8px;
     overflow-y: auto; }
   .content-overlay p {
+    margin: 10px;
     padding: 10px;
-    margin: 0;
-    box-sizing: border-box; }
+    border-radius: 6px;
+    box-sizing: border-box;
+    background-color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 500; }
+    .content-overlay p small {
+      display: block;
+      margin-bottom: 10px; }
   .content-overlay__navbar {
     text-align: right;
-    color: #ccc;
+    color: #fff;
     margin-bottom: 15px; }
     .content-overlay__navbar a {
       color: inherit;
@@ -6952,7 +6960,9 @@ table.table {
   .content-overlay .network-body {
     display: flex;
     padding: 0 7px 15px 7px;
-    box-sizing: border-box; }
+    box-sizing: border-box;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 15px; }
     .content-overlay .network-body > div {
       flex-basis: 100%;
       padding: 0 7px;
@@ -6966,11 +6976,12 @@ table.table {
       padding: 15px;
       box-sizing: border-box;
       resize: none;
-      background-color: rgba(255, 255, 255, 0.2);
+      background-color: rgba(255, 255, 255, 0.5);
       color: #000;
-      border: 0; }
+      border: 0;
+      line-height: 1.2em;
+      border-radius: 6px; }
       .content-overlay .network-body textarea:hover {
-        background-color: rgba(255, 255, 255, 0.4);
-        border-radius: 6px; }
+        background-color: rgba(255, 255, 255, 0.9); }
 
 /*# sourceMappingURL=styles.css.map */
