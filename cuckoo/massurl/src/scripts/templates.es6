@@ -17,8 +17,20 @@ Handlebars.registerHelper('alert-icon', level => `<i class="fal ${getIconType(le
 Handlebars.registerHelper('truncate', content => (content.length > 70) ? content.substr(0, 70-1) + '&hellip;' : content);
 // handlebars inline join helper
 Handlebars.registerHelper('join', arr => arr.join('\n'));
-// handlebars if this, then that
-Handlebars.registerHelper('eq', (that, what, block) => that == what ? block.fn() : '');
+// returns a status icon based on process status
+Handlebars.registerHelper('status-icon', status => {
+  switch(status) {
+    case 'pending':
+      return '<i class="far fa-hourglass"></i>';
+    break;
+    case 'running':
+      return '<i class="far fa-spinner-third fa-spin"></i>';
+    break;
+    case 'completed':
+      return '<i class="far fa-check"></i>';
+    break;
+  }
+});
 
 const Templates = {
 
@@ -122,12 +134,9 @@ const Templates = {
 
   // template for url-editor
   editor: data => Handlebars.compile(`
-    {{#if schedule_next}}
-      <p class="next-scan">Next scan: <span>{{schedule_next}}</span></p>
-    {{/if}}
     <header>
       <div>
-        <h3>{{name}}</h3>
+        <h3>{{{status-icon status}}} {{name}}</h3>
         <p>{{description}}</p>
       </div>
       <nav>

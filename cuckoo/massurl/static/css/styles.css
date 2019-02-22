@@ -6432,7 +6432,7 @@ table.table {
         text-decoration: none; }
         .editor-ui .url-groups > li a > span {
           display: block;
-          margin-top: 10px;
+          margin-top: 5px;
           font-weight: 700;
           font-size: .7em;
           color: #999; }
@@ -6503,6 +6503,9 @@ table.table {
       margin-top: 15px; }
       .editor-ui .editor header h3 {
         margin: 0; }
+        .editor-ui .editor header h3 i {
+          font-size: .7em;
+          vertical-align: middle; }
       .editor-ui .editor header > nav > div,
       .editor-ui .editor header > nav > p {
         display: inline-block; }
