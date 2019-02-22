@@ -312,5 +312,20 @@ a226203586ec912424df197b1cca99e6e0963fdb cuckoo/data/analyzer/windows/lib/core/c
 3d91afea10312cc9a948cb4c292d6b0465e64402 cuckoo/data/analyzer/windows/lib/core/pipe.py
 e6ebc011fdfe169de45f8ca789e3e3060228eeba cuckoo/data/analyzer/windows/lib/core/privileges.py
 cf95ee4f22bea00c11d588cde739e25bba73dbf8 cuckoo/data/analyzer/windows/modules/packages/ie.py
-3c7f391e9ad22dd088ef8525f96201eea142d5b1 cuckoo/data/elasticsearch/diary-mapping.json
-b546605753f504a7ea6cc01e01c62fbb2f50deab cuckoo/data/elasticsearch/related-request-mapping.json
+
+# TBD
+3579924897708941a5b8ae4fb00a68293af7d9ad agent/agent.py
+c58b9931d97150c86e30a301befd6080b4b0e965 analyzer/windows/analyzer.py
+e9e539d0168d234f1e28271cf3fa5bf32c935198 analyzer/windows/lib/common/abstracts.py
+69b069de833745621d6ff8690bec8aa976687a05 analyzer/windows/lib/common/hashing.py
+2120e0012db1c61dd7f6b11e89b03f0810c71e8d analyzer/windows/lib/common/results.py
+826c0379650fe6f4fe7194edcab8bedab1a4aac5 analyzer/windows/lib/core/command.py
+ba25cc5a8586ca244caa06cc7e76b311e9fa3d8c analyzer/windows/lib/core/config.py
+5f0cf0af9c066288673b1aa2ea221edeb23be12a analyzer/windows/lib/core/packages.py
+3d91afea10312cc9a948cb4c292d6b0465e64402 analyzer/windows/lib/core/pipe.py
+e6ebc011fdfe169de45f8ca789e3e3060228eeba analyzer/windows/lib/core/privileges.py
+6e4c455566787837eff63b9e3a402f92a9c06898 analyzer/windows/modules/packages/__init__.py
+396c29e73fc94a297af532f10cd2e05287e1f3d9 analyzer/windows/modules/packages/ff.py
+96a3466e2efec0847fb2b6fbf682132b1c3c0585 analyzer/windows/modules/packages/ie.py
+fc3ee0a768d8a41faddd817a6dc86453ba5cd1cf elasticsearch/massurl-diary.json
+c06e07ba28230de640dc28025bebc7024aa8209f elasticsearch/massurl-requestlog.json
