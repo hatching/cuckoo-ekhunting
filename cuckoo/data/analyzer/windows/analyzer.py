@@ -480,7 +480,11 @@ class Analyzer(object):
         self.pkg_counter += 1
         pkg_id = str(config.get("pkg_id") or self.pkg_counter)
         self.packages[pkg_id] = pkg_instance
-        return {"pkg_id": pkg_id}
+        return {
+            "pkg_id": pkg_id,
+            "name": pkg_instance.__class__.__name__,
+            "pids": pkg_instance.pids_targets
+        }
 
     def stop_package(self, pkg_id, procmemdump=False):
         """Stop the package matching the given package id. Process memory
@@ -540,10 +544,13 @@ class Analyzer(object):
     def list_packages(self):
         """Return a dict of package identifiers and the package name
         that is running"""
-        return {
-            pkg_id: pkg.__class__.__name__
-            for pkg_id, pkg in self.packages.iteritems()
-        }
+        return [
+            {
+                "pkg_id": pkg_id,
+                "pids": pkg.pids_targets,
+                "name": pkg.__class__.__name__
+            } for pkg_id, pkg in self.packages.iteritems()
+        ]
 
     def dump_memory(self, pid):
         """Dump the memory of the specified PID"""
@@ -745,13 +752,13 @@ class Analyzer(object):
                 for pkg_cnt, pkg in self.packages.iteritems():
                     pkg.set_pids(self.plist.pids)
 
-                try:
-                    pkg.check()
-                except Exception as e:
-                    log.exception(
-                        "The analysis package '%s' raised an exception. "
-                        "Error: %s. %s", pkg.__class__.__name__, e
-                    )
+                    try:
+                        pkg.check()
+                    except Exception as e:
+                        log.exception(
+                            "The analysis package '%s' raised an exception. "
+                            "Error: %s. %s", pkg.__class__.__name__, e
+                        )
             finally:
                 self.plock.release()
                 time.sleep(1)
