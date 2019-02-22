@@ -536,9 +536,9 @@ class GuestManager(object):
                 status = self.get("/status", timeout=5).json()
             except Exception as e:
                 log.info("Virtual Machine /status failed (%r)", e)
-                # this might fail due to timeouts or just temporary network issues
-                # thus we don't want to abort the analysis just yet and wait for things to
-                # recover
+                # this might fail due to timeouts or just temporary network
+                # issues thus we don't want to abort the analysis just yet and
+                # wait for things to recover
                 continue
 
             if status["status"] == "complete":
