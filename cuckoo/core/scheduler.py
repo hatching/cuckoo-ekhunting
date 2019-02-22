@@ -136,6 +136,9 @@ class Scheduler(object):
         """Stop the Cuckoo task scheduler."""
         self.running = False
         # Shutdown machine manager (used to kill machines that still alive).
+        for manager in self.managers:
+            manager.force_cleanup()
+
         self.machinery.shutdown()
 
     def ready_for_new_run(self):
