@@ -82,7 +82,13 @@ function loadDiary(id) {
 
 // populates a diary
 function populateDiary(data={},el) {
-  let setHolder = (label,value) => el.find(`[data-placeholder=${label}]`).text(value);
+  let setHolder = (label,value) => {
+    let ph = el.find(`[data-placeholder=${label}]`);
+    if(ph.length) {
+      ph.text(value);
+      ph.attr('title', value);
+    }
+  };
   return new Promise((resolve, reject) => {
 
     let { url, datetime, version, requested_urls, signatures, javascript } = data;
