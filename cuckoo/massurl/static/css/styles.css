@@ -626,6 +626,7 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after,
 .far,
+.diary-ui .data-list li button.expand:hover i,
 .fal,
 .editor-ui .editor.loading:after,
 .editor-ui .editor.idle:after,
@@ -718,6 +719,7 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.loa
 table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-left.editor.idle:after,
 .far.fa-pull-left,
+.diary-ui .data-list li button.expand:hover i.fa-pull-left,
 .fal.fa-pull-left,
 .editor-ui .fa-pull-left.editor.loading:after,
 .editor-ui .fa-pull-left.editor.idle:after,
@@ -734,6 +736,7 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.lo
 table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-right.editor.idle:after,
 .far.fa-pull-right,
+.diary-ui .data-list li button.expand:hover i.fa-pull-right,
 .fal.fa-pull-right,
 .editor-ui .fa-pull-right.editor.loading:after,
 .editor-ui .fa-pull-right.editor.idle:after,
@@ -4952,7 +4955,9 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
   src: url("/static/fonts/fontawesome/fa-regular-400.eot");
   src: url("/static/fonts/fontawesome/fa-regular-400.eot?#iefix") format("embedded-opentype"), url("/static/fonts/fontawesome/fa-regular-400.woff2") format("woff2"), url("/static/fonts/fontawesome/fa-regular-400.woff") format("woff"), url("/static/fonts/fontawesome/fa-regular-400.ttf") format("truetype"), url("/static/fonts/fontawesome/fa-regular-400.svg#fontawesome") format("svg"); }
 
-.far {
+
+.far,
+.diary-ui .data-list li button.expand:hover i {
   font-family: 'Font Awesome 5 Pro';
   font-weight: 400; }
 
@@ -6852,6 +6857,22 @@ table.table {
 
 .diary-ui .default-list li {
   padding: 5px 10px; }
+
+.diary-ui .data-list li {
+  position: relative; }
+  .diary-ui .data-list li button.expand {
+    -webkit-appearance: none;
+    position: absolute;
+    background-color: transparent;
+    border: 0;
+    top: 5px;
+    right: 5px; }
+    .diary-ui .data-list li button.expand:hover {
+      cursor: pointer; }
+    .diary-ui .data-list li button.expand:focus {
+      outline: none; }
+    .diary-ui .data-list li button.expand + textarea {
+      padding-right: 45px; }
 
 .diary-ui .key-value,
 .diary-ui .collapse {
