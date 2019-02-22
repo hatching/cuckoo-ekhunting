@@ -52,7 +52,8 @@ def index():
 def url_groups():
     return render_template(
         "url-groups.html", groups=[
-            g.to_dict() for g in db.list_groups(limit=50)
+            g.to_dict(additional=["urlcount", "unread", "highalert"])
+            for g in db.list_groups(limit=50, details=True)
         ]
     )
 
@@ -60,7 +61,8 @@ def url_groups():
 def url_groups_manage():
     return render_template(
         "url-group-content.html", groups=[
-            g.to_dict() for g in db.list_groups(limit=50)
+            g.to_dict(additional=["urlcount", "unread", "highalert"])
+            for g in db.list_groups(limit=50, details=True)
         ]
     )
 
@@ -68,7 +70,8 @@ def url_groups_manage():
 def url_groups_view():
     return render_template(
         "url-group-view.html", groups=[
-            g.to_dict() for g in db.list_groups(limit=50)
+            g.to_dict(additional=["urlcount", "unread", "highalert"])
+            for g in db.list_groups(limit=50, details=True)
         ]
     )
 
@@ -243,11 +246,21 @@ def view_group(group_id=None, name=None):
     if not group_id and not name:
         return json_error(400, "No group_id or name specified to view")
 
-    group = db.find_group(name=name, group_id=group_id)
+    try:
+        details = int(request.args.get("details", 0))
+    except ValueError:
+        return json_error(400, "Invalid value for 'details'. Can be 0 or 1")
+
+    group = db.find_group(name=name, group_id=group_id, details=True)
     if not group:
         return json_error(404, "Group not found")
 
-    return jsonify(group.to_dict())
+    if details:
+        return jsonify(group.to_dict(
+            additional=["urlcount", "unread", "highalert"]
+        ))
+    else:
+        return jsonify(group.to_dict())
 
 @app.route("/api/group/view/<int:group_id>/urls")
 @app.route("/api/group/view/<name>/urls")
@@ -327,7 +340,8 @@ def group_delete_url():
 def list_groups():
     intargs = {
         "limit": request.args.get("limit", 50),
-        "offset": request.args.get("offset", 0)
+        "offset": request.args.get("offset", 0),
+        "details": request.args.get("details", 0)
     }
 
     for key, value in intargs.iteritems():
@@ -337,13 +351,21 @@ def list_groups():
             except ValueError:
                 return json_error(400, "%s should be an integer" % key)
 
-    return jsonify(
-        [
-            g.to_dict() for g in db.list_groups(
-                limit=intargs["limit"], offset=intargs["offset"]
+    if not intargs.get("details"):
+        return jsonify(
+            [
+                g.to_dict() for g in db.list_groups(
+                    limit=intargs["limit"], offset=intargs["offset"]
+                )
+            ]
+        )
+    else:
+        return jsonify([
+            g.to_dict(additional=["urlcount", "unread", "highalert"])
+            for g in db.list_groups(
+                limit=intargs["limit"], offset=intargs["offset"], details=True
             )
-        ]
-    )
+        ])
 
 @app.route("/api/diary/url/<url_id>")
 def get_diaries_url(url_id):

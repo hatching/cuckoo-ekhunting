@@ -4,7 +4,7 @@
 
 import datetime
 
-from sqlalchemy import Column, ForeignKey, desc, asc, and_
+from sqlalchemy import Column, ForeignKey, desc, asc, and_, func
 from sqlalchemy import Integer, String, Boolean, DateTime, Text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
@@ -19,7 +19,7 @@ db = Database()
 class ToDict(object):
     """Mixin to turn simple objects into a dict or JSON (no relation
     support)"""
-    def to_dict(self, dt=True):
+    def to_dict(self, dt=True, additional=[]):
         """Converts object to dict.
         @return: dict
         """
@@ -30,6 +30,10 @@ class ToDict(object):
                 d[column.name] = value.strftime("%Y-%m-%d %H:%M:%S")
             else:
                 d[column.name] = value
+
+        for field in additional:
+            d[field] = getattr(self, field)
+
         return d
 
     def to_json(self):
@@ -122,8 +126,24 @@ def find_group(name=None, group_id=None, details=False):
             group = group.filter_by(id=group_id)
 
         group = group.first()
-        if group:
-            session.expunge(group)
+        if not group:
+            return None
+
+        session.expunge(group)
+
+        if details:
+            group.urlcount = session.query(
+                func.count(URLGroupURL.url_group_id)
+            ).filter_by(url_group_id=group.id).first()[0]
+
+            group.unread = session.query(func.count(Alert.id)).filter(
+                Alert.url_group_name==group.name, Alert.read.is_(False)
+            ).first()[0]
+
+            group.highalert = session.query(func.count(Alert.id)).filter(
+                Alert.url_group_name==group.name, Alert.read.is_(False),
+                Alert.level >= 3
+            ).first()[0]
 
     finally:
         session.close()
@@ -308,8 +328,10 @@ def add_group(name, description, schedule=None):
     exists = False
     session = db.Session()
     try:
-        g = URLGroup(name=name, description=description, schedule=schedule,
-                     schedule_next=schedule_next)
+        g = URLGroup(
+            name=name, description=description, schedule=schedule,
+            schedule_next=schedule_next
+        )
         session.add(g)
         session.commit()
         group_id = g.id
@@ -320,7 +342,7 @@ def add_group(name, description, schedule=None):
         raise KeyError("Group with name %r exists" % name)
     return group_id
 
-def list_groups(limit=50, offset=0):
+def list_groups(limit=50, offset=0, details=False):
     """Retrieve a list of target groups"""
     groups = []
     session = db.Session()
@@ -328,12 +350,31 @@ def list_groups(limit=50, offset=0):
         search = session.query(URLGroup).order_by(URLGroup.id.desc())
         groups = search.limit(limit).offset(offset).all()
 
-        if groups:
-            for group in groups:
-                session.expunge(group)
+        if not groups:
+            return []
+
+        for group in groups:
+            session.expunge(group)
+
+        if not details:
+            return groups
+
+        for group in groups:
+            group.urlcount = session.query(
+                func.count(URLGroupURL.url_group_id)
+            ).filter_by(url_group_id=group.id).first()[0]
+
+            group.unread = session.query(func.count(Alert.id)).filter(
+                Alert.url_group_name==group.name, Alert.read.is_(False)
+            ).first()[0]
+            group.highalert = session.query(func.count(Alert.id)).filter(
+                Alert.url_group_name==group.name, Alert.read.is_(False),
+                Alert.level >= 3
+            ).first()[0]
+
+        return groups
     finally:
         session.close()
-    return groups
 
 def add_schedule(group_id, schedule):
     session = db.Session()
