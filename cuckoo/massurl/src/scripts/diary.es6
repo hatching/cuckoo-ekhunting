@@ -126,7 +126,7 @@ function populateDiary(data={},el) {
 
       btn.on('click', evt => {
         $.get(`/api/requestlog/${req.request_log}`).done(response => {
-          let dialog = $(Templates.requestView(response.log));
+          let dialog = $(Templates.requestView(response));
           $("body").append(dialog);
           dialog.find('textarea').each((i, ta) => autosize(ta));
           dialog.find('.close-dialog').on('click', e => {
