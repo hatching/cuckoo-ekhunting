@@ -31,15 +31,15 @@ class URLDiaries(object):
     init_done = False
     DIARY_INDEX = "urldiary"
     DIARY_MAPPING = "urldiary"
-    RELATED_INDEX = "requestlog"
-    RELATED_MAPPING = "requestlog"
+    REQUEST_LOG_INDEX = "requestlog"
+    REQUEST_LOG_MAPPING = "requestlog"
 
     @classmethod
     def init(cls):
         elasticmassurl.init()
         elasticmassurl.connect()
         cls.DIARY_INDEX = config("massurl:elasticsearch:diary_index")
-        cls.RELATED_INDEX = config("massurl:elasticsearch:related_index")
+        cls.REQUEST_LOG_INDEX = config("massurl:elasticsearch:related_index")
         try:
             cls.create_mappings()
         except ConnectionError as e:
@@ -56,9 +56,9 @@ class URLDiaries(object):
                 "file": "massurl-diary.json",
                 "name": cls.DIARY_MAPPING
             },
-            cls.RELATED_INDEX: {
+            cls.REQUEST_LOG_INDEX: {
                 "file": "massurl-requestlog.json",
-                "name": cls.RELATED_MAPPING
+                "name": cls.REQUEST_LOG_MAPPING
             }
         }
         for indexname, info in mappings.iteritems():
@@ -68,8 +68,6 @@ class URLDiaries(object):
                     index=indexname, doc_type=info.get("name")
             ):
                 continue
-
-            log.error("DOES NOT EXIST %s. type: %s", indexname, info.get("name"))
 
             if not os.path.exists(mapping_path):
                 raise CuckooStartupError(
@@ -87,7 +85,7 @@ class URLDiaries(object):
                 )
 
             log.info("Creating index and mapping for '%s'", indexname)
-            elasticmassurl.client.indices.create(indexname, body=mapping,)
+            elasticmassurl.client.indices.create(indexname, body=mapping)
 
     @classmethod
     def store_diary(cls, urldiary, diary_id=None):
@@ -202,8 +200,8 @@ class URLDiaries(object):
             r["datetime"] = int(time.time() * 1000)
             ready_logs.append(json.dumps({
                 "_id": request_log_ids.get(r.get("url")),
-                "_index": cls.RELATED_INDEX,
-                "_type": cls.RELATED_MAPPING,
+                "_index": cls.REQUEST_LOG_INDEX,
+                "_type": cls.REQUEST_LOG_MAPPING,
                 "_source": r
             }, encoding="latin1"))
         try:
@@ -217,26 +215,23 @@ class URLDiaries(object):
         return True
 
     @classmethod
-    def get_related(cls, parent_uuid, max_size=100):
-        """Find all related streams for a URL given diary uuid"""
-        # TODO implement offsets
+    def get_request_log(cls, requestlog_id):
+        """Find request log with given ID"""
         try:
             res = elasticmassurl.client.search(
-                index=cls.RELATED_INDEX, doc_type=cls.RELATED_MAPPING,
-                size=max_size, body={
+                index=cls.REQUEST_LOG_INDEX,doc_type=cls.REQUEST_LOG_MAPPING,
+                size=1, sort="datetime:desc",
+                body={
                     "query": {
-                        "match": {"parent": parent_uuid}
+                        "match": {"_id": requestlog_id}
                     }
                 }
             )
         except TransportError as e:
-            log.exception(
-                "Error while retrieving related streams to parent: '%s'. %s",
-                parent_uuid, e
-            )
+            log.exception("Error during request log lookup. %s", e)
             return None
 
-        return URLDiaries.get_values(res, return_empty=[])
+        return URLDiaries.get_values(res, return_empty=None, listed=False)
 
     @classmethod
     def get_related_ids(cls, ids=[]):
@@ -244,7 +239,7 @@ class URLDiaries(object):
         ids = ids if isinstance(ids, (list, tuple, set)) else []
         try:
             res = elasticmassurl.client.search(
-                index=cls.RELATED_INDEX, doc_type=cls.RELATED_MAPPING,
+                index=cls.REQUEST_LOG_INDEX, doc_type=cls.REQUEST_LOG_MAPPING,
                 body={
                     "query": {
                         "ids": {"values": ids}

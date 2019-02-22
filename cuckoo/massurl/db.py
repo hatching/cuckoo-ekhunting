@@ -60,8 +60,6 @@ class URL(Base, ToDict):
     id = Column(String(64), primary_key=True)
     target = Column(String(2048), nullable=False, unique=True)
 
-    # TODO: useful attributes per URL for searching
-
 class URLGroupURL(Base):
     """Associates URLs with URL groups"""
     __tablename__ = "massurl_url_group_urls"
