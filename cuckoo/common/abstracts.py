@@ -1651,5 +1651,9 @@ class AnalysisManager(threading.Thread):
 
     def finalize(self, db):
         """Is always called by de scheduler thread after the analysis manager
-        thread has exited."""
+        thread has finished."""
         pass
+
+    def force_cleanup(self):
+        """Is only called if the scheduler is stopped"""
+        self.route.unroute_network()
