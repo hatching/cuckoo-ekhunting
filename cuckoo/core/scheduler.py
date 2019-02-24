@@ -298,11 +298,6 @@ class Scheduler(object):
                     break
 
                 if not machine:
-                    log.debug(
-                        "No matching machine available for task #%s. Skipping"
-                        " task until machine is available. Requirements: %s",
-                        task.id, Task.requirements_str(task)
-                    )
                     exclude.append(task.id)
 
         if not task or not machine:
