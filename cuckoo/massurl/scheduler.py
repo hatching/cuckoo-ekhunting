@@ -66,10 +66,10 @@ def create_parallel_tasks(targets, max_parallel, options=None):
     for t in targets:
         urls.append(t)
         if len(urls) >= max_parallel:
-            yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ff")
+            yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ie")
             urls = []
     if urls:
-        yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ff")
+        yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ie")
 
 def create_single_task(group_id, urls, run, **kwargs):
     if not kwargs.get("options"):

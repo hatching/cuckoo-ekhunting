@@ -416,13 +416,11 @@ class RequestFinder(object):
                 if url not in requested:
                     requested.append(url)
 
-
-
                 requestlog = logs.setdefault(url, [])
                 requestlog.append({
                     "time": timestamp,
-                    "request": bytes(sent)[:self.MAX_REQUEST_SIZE],
-                    "response": bytes(recv)[:self.MAX_REQUEST_SIZE]
+                    "request": bytes(sent.raw)[:self.MAX_REQUEST_SIZE],
+                    "response": bytes(recv.raw)[:self.MAX_REQUEST_SIZE]
                 })
 
             return reports

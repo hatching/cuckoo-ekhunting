@@ -96,7 +96,7 @@ class URLGroup(Base, ToDict):
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text(), nullable=False)
 
-    max_parallel = Column(Integer(), default=100, nullable=False)
+    max_parallel = Column(Integer(), default=30, nullable=False)
 
     schedule = Column(Text(), nullable=True)
     schedule_next = Column(DateTime, nullable=True)
