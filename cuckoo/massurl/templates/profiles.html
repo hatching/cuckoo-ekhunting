@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+
+<main class="viewport">
+  <div class="foreground app">
+    {% include 'partials/header.html' %}
+    <section class="app__body editor-body expanded">
+      {% include 'partials/settings-nav.html' %}
+      <div class="split-view--vertical editor-ui">
+        <div class="split-view">
+          <div class="split-view-container one-third editor-ui-left">
+
+          </div>
+          <div class="split-view-container editor ready">
+            Profiles
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="background pattern-small-steps" id="app-background"></div>
+</main>
+
+{% endblock %}

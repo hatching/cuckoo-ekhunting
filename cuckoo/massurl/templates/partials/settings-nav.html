@@ -1,0 +1,10 @@
+<nav class="tabs">
+  <ul>
+    <li>
+      <a {% if request.endpoint == "settings_view" %}class="active"{% endif %} href="/settings">Global</a>
+    </li>
+    <li>
+      <a {% if request.endpoint == "profiles_view" %}class="active"{% endif %} href="/settings/profiles">Profiles</a>
+    </li>
+  </ul>
+</nav>

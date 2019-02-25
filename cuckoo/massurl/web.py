@@ -83,6 +83,14 @@ def diaries_search():
 def diary_view(uuid):
     return render_template("url-diary.html", uuid=uuid)
 
+@app.route("/settings")
+def settings_view():
+    return render_template("settings.html")
+
+@app.route("/settings/profiles")
+def profiles_view():
+    return render_template("profiles.html")
+
 #
 # API routes
 #

@@ -79,8 +79,12 @@
     &.with-options { position: relative; }
   }
 
-  button {
+  button,
+  a {
     -webkit-appearance: none;
+    text-align: center;
+    box-sizing: border-box;
+    display: block;
     border: 0;
     width: 30px;
     height: 30px;
@@ -96,11 +100,15 @@
       &.fa-expand-alt { opacity: .5; }
       &.fa-comment-alt { opacity: .5; }
     }
+
+    .fa-cog { opacity: .8; }
+
     &:focus { outline: 0; }
     &:hover {
       cursor: pointer;
       .fa-volume-mute { opacity: .8; }
       .fa-expand-alt { opacity: .8; }
+      .fa-cog { opacity: 1; }
       &.fa-comment-alt-check { opacity: .8; }
     }
   }
