@@ -163,6 +163,8 @@ function paginateNext() {
 
 function initAlerts($table) {
 
+  const gid = parseGroupName();
+
   const response = {
     alerts: [],
     html: '',
@@ -243,6 +245,38 @@ function initAlerts($table) {
         response.stream = str;
         resolve(response || {});
       }).catch(e => reject(e));
+
+      if(gid) {
+
+        $('.app__header .controls').prepend(`
+          <li>
+            <button id="mark-group-alerts-read" title="Mark all alerts read">
+              <i class="fal fa-comment-alt-check"></i>
+            </button>
+          </li>
+        `);
+
+        let setToCompleted = () => $("#mark-group-alerts-read i")
+                                      .removeClass('fa-comment-alt-check')
+                                      .addClass('fa-comment-alt');
+
+        if(alerts.filter(a=>(a.read==false)).length == 0)
+          setToCompleted();
+
+        $('#mark-group-alerts-read').on('click', evt => {
+          setAlertRead({
+            url_group_name: decodeURIComponent(gid),
+            markall: true
+          }).then(() => {
+            alerts.filter(a=>(a.read==false)).forEach(a => {
+              a.read = true;
+              $table.find(`tbody tr[data-id="${a.id}"] .fill-base`).removeClass('fill-base');
+            });
+            setToCompleted()
+          }).catch(err => console.log(err));
+        });
+
+      }
 
     }).fail(err => reject({err}));
 

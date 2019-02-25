@@ -5922,6 +5922,8 @@ body {
           opacity: .5; }
         .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after {
           opacity: .5; }
+        .app__header .controls button .fal.fa-comment-alt, .app__header .controls button .editor-ui .fa-comment-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-comment-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.idle:after {
+          opacity: .5; }
       .app__header .controls button:focus {
         outline: 0; }
       .app__header .controls button:hover {
@@ -5929,6 +5931,8 @@ body {
         .app__header .controls button:hover .fa-volume-mute {
           opacity: .8; }
         .app__header .controls button:hover .fa-expand-alt {
+          opacity: .8; }
+        .app__header .controls button:hover.fa-comment-alt-check {
           opacity: .8; }
   .app__body {
     flex-basis: 100%;

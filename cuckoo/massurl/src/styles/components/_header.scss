@@ -94,12 +94,14 @@
       transition: opacity 100ms linear;
       &.fa-volume-mute { opacity: .5; }
       &.fa-expand-alt { opacity: .5; }
+      &.fa-comment-alt { opacity: .5; }
     }
     &:focus { outline: 0; }
     &:hover {
       cursor: pointer;
       .fa-volume-mute { opacity: .8; }
       .fa-expand-alt { opacity: .8; }
+      &.fa-comment-alt-check { opacity: .8; }
     }
   }
 
