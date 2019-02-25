@@ -122,7 +122,14 @@ function populateUrls(u,el) {
               let list = createDiaryList(data.response);
               list.find('li').each((i,li)=>{
                 button.before(li);
+                // if 'no records' is shown, remove it
+                if(button.find('p').length) button.find('p').remove();
               });
+            });
+
+            paginator.on('empty', () => {
+              if(!button.find('p').length)
+                button.append('<p><i class="fas fa-exclamation-triangle"></i> No records left.</p>');
             });
 
           } else {
@@ -148,41 +155,37 @@ function initUrlGroupView($el) {
   let $groups = $el.find('.url-groups');
   let $urls = $el.find('.url-list');
 
-  pre.push(loadGroups());
-
   return new Promise((resolve, reject) => {
 
-    Promise.all(pre).then(responses => {
-      const groups = responses[0];
-      groups.forEach(g => {
-        let { name } = g;
-        $groups.append(`<li><a href="open:${name}">${name}</a></li>`)
-      });
+    $el.find('.url-groups a[href^="open:"]').on('click', e => {
+      $groups.find('a').removeClass('active');
+      $(e.currentTarget).addClass('active');
+      e.preventDefault();
+      let id = e.currentTarget.getAttribute('href').split(':')[1];
 
-      $el.find('.url-groups a[href^="open:"]').on('click', e => {
-        $groups.find('a').removeClass('active');
-        $(e.currentTarget).addClass('active');
-        e.preventDefault();
-        let id = e.currentTarget.getAttribute('href').split(':')[1];
-
-        loadUrlsForGroup(id).then(d => {
-          populateUrls(d.urls, $urls);
-        }).catch(err => console.log(err));
-
-      });
-
-      let show = detectTarget();
-      if(show) {
-        loadUrlsForGroup(show).then(d => {
-          populateUrls(d.urls, $urls);
-        }).catch(err => console.log(err));
-      } else {
-        $el.find('.url-groups a[href^="open:"]').eq(0).click();
-      }
-
-      resolve();
+      loadUrlsForGroup(id).then(d => {
+        populateUrls(d.urls, $urls);
+      }).catch(err => console.log(err));
 
     });
+
+    $el.find('.url-groups li').each(function() {
+      $(this).find('.events-badge').on('click', function() {
+        let gn = $(this).parents('li').data('name');
+        window.location = `/?group=${gn}`;
+      });
+    });
+
+    let show = detectTarget();
+    if(show) {
+      loadUrlsForGroup(show).then(d => {
+        populateUrls(d.urls, $urls);
+      }).catch(err => console.log(err));
+    } else {
+      $el.find('.url-groups a[href^="open:"]').eq(0).click();
+    }
+
+    resolve();
 
   });
 }

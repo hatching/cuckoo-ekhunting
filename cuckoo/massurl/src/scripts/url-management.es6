@@ -7,7 +7,7 @@ import Templates from './templates';
 const APIUrl = (endpoint=false) => `/api/group/${endpoint ? endpoint : '/'}`;
 
 const urls = {
-  view_groups: (group_id, l = 1000, o = 0) => APIUrl(`view/${group_id}?limit=${l}&offset=${o}`),
+  view_groups: (group_id, l = 1000, o = 0) => APIUrl(`view/${group_id}?limit=${l}&offset=${o}&details=1`),
   view_urls: group_id => APIUrl(`view/${group_id}/urls`),
   save_urls: () => APIUrl(`add/url`),
   delete_urls: () => APIUrl('delete/url'),
@@ -228,6 +228,11 @@ function initUrlManagement($editor) {
           $editor.find('#url-edit').removeClass('loading idle');
         })
         .catch(err => console.log(err));
+    });
+
+    $links.find('.events-badge').on('click', function() {
+      let gn = $(this).parents('li').data('name');
+      window.location = `/?group=${gn}`;
     });
 
     $editor.find('.editor').removeClass('loading');

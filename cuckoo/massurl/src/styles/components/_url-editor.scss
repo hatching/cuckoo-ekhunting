@@ -49,12 +49,27 @@
           color: #999;
         }
 
+        .url-count {
+          display: inline-block;
+          border-radius: 2px;
+          padding: 2px 4px;
+          font-size: .7em;
+          background-color: #d5d5d5;
+          font-style: normal;
+          vertical-align: middle;
+        }
+
         &:hover { background-color: #eee; }
         &.active {
           background-color: $default-base;
 
           &, & > span {
             color: #fff;
+          }
+
+          .url-count {
+            background-color: shade($default-base, 20%);
+            color: rgba(#fff, .7);
           }
         }
 
@@ -87,6 +102,10 @@
             top: 1px;
             right: 2px;
           }
+        }
+
+        &:hover {
+          cursor: pointer;
         }
       }
     }
@@ -337,6 +356,14 @@
 
         &.paginate {
           padding: 10px;
+
+          p {
+            display: inline-block;
+            vertical-align: middle;
+            font-size: .9em;
+            margin: 0;
+            margin-left: 10px;
+          }
         }
 
       }

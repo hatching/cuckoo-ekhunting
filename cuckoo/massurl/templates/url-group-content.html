@@ -9,13 +9,13 @@
           <div class="split-view-container one-third editor-ui-left" id="url-group-list">
             <ul class="url-groups">
             {% for group in groups %}
-              <li data-id="{{group.id}}">
+              <li data-id="{{group.id}}" data-name="{{group.name}}">
                 <a href="open:{{group.id}}">
-                  {{group.name}}
+                  {{group.name}} <em class="url-count">{{group.urlcount}}</em>
                   {% if group.schedule_next %}
                     <span><i class="fal fa-calendar-check"></i> {{group.schedule_next}}</span>
                   {% endif %}
-                  <div title="View alerts" class="events-badge has-critical">220</div>
+                  <div title="View alerts" class="events-badge {% if group.highalert > 0 %}has-critical{% endif %}">{{ group.unread }}</div>
                 </a>
               </li>
             {% endfor %}

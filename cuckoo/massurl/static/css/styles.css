@@ -6443,12 +6443,23 @@ table.table {
           font-weight: 700;
           font-size: .7em;
           color: #999; }
+        .editor-ui .url-groups > li a .url-count {
+          display: inline-block;
+          border-radius: 2px;
+          padding: 2px 4px;
+          font-size: .7em;
+          background-color: #d5d5d5;
+          font-style: normal;
+          vertical-align: middle; }
         .editor-ui .url-groups > li a:hover {
           background-color: #eee; }
         .editor-ui .url-groups > li a.active {
           background-color: #4A6FA5; }
           .editor-ui .url-groups > li a.active, .editor-ui .url-groups > li a.active > span {
             color: #fff; }
+          .editor-ui .url-groups > li a.active .url-count {
+            background-color: #3b5984;
+            color: rgba(255, 255, 255, 0.7); }
       .editor-ui .url-groups > li .events-badge {
         position: absolute;
         right: 5px;
@@ -6474,6 +6485,8 @@ table.table {
             margin-left: 5px;
             top: 1px;
             right: 2px; }
+        .editor-ui .url-groups > li .events-badge:hover {
+          cursor: pointer; }
   .editor-ui > header {
     padding: 0 20px;
     border-bottom: 1px solid #ccc; }
@@ -6657,6 +6670,13 @@ table.table {
         .editor-ui .editor .data-list li.paginate,
         .editor-ui .editor .default-list li.paginate {
           padding: 10px; }
+          .editor-ui .editor .data-list li.paginate p,
+          .editor-ui .editor .default-list li.paginate p {
+            display: inline-block;
+            vertical-align: middle;
+            font-size: .9em;
+            margin: 0;
+            margin-left: 10px; }
     .editor-ui .editor.flex {
       display: flex;
       flex-direction: column; }
