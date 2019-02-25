@@ -352,6 +352,14 @@
 
         &.paginate {
           padding: 10px;
+
+          p {
+            display: inline-block;
+            vertical-align: middle;
+            font-size: .9em;
+            margin: 0;
+            margin-left: 10px;
+          }
         }
 
       }

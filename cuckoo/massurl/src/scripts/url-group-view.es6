@@ -122,7 +122,14 @@ function populateUrls(u,el) {
               let list = createDiaryList(data.response);
               list.find('li').each((i,li)=>{
                 button.before(li);
+                // if 'no records' is shown, remove it
+                if(button.find('p').length) button.find('p').remove();
               });
+            });
+
+            paginator.on('empty', () => {
+              if(!button.find('p').length)
+                button.append('<p>No records left.</p>')
             });
 
           } else {
