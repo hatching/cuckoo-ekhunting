@@ -153,11 +153,6 @@ function initUrlGroupView($el) {
   return new Promise((resolve, reject) => {
 
     Promise.all(pre).then(responses => {
-      const groups = responses[0];
-      groups.forEach(g => {
-        let { name } = g;
-        $groups.append(`<li><a href="open:${name}">${name}</a></li>`)
-      });
 
       $el.find('.url-groups a[href^="open:"]').on('click', e => {
         $groups.find('a').removeClass('active');

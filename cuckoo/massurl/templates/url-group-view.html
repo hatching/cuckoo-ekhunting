@@ -8,7 +8,21 @@
         <div class="split-view--vertical editor-ui">
           <div class="split-view">
             <div class="split-view-container one-third editor-ui-left">
-              <ul class="url-groups"></ul>
+              <ul class="url-groups">
+              {% for group in groups %}
+                <li data-id="{{group.id}}">
+                  <a href="open:{{group.id}}">
+                    {{group.name}} <em class="url-count">{{group.urlcount}}</em>
+                    {% if group.schedule_next %}
+                      <span><i class="fal fa-calendar-check"></i> {{group.schedule_next}}</span>
+                    {% endif %}
+                    {% if group.unread %}
+                      <div title="View alerts" class="events-badge {% if group.highalert > 0 %}has-critical{% endif %}">{{ group.unread }}</div>
+                    {% endif %}
+                  </a>
+                </li>
+              {% endfor %}
+              </ul>
             </div>
             <div class="split-view-container editor ready" id="result-container">
               <ul class="url-list"></ul>
