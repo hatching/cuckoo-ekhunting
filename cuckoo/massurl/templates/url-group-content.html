@@ -11,7 +11,7 @@
             {% for group in groups %}
               <li data-id="{{group.id}}">
                 <a href="open:{{group.id}}">
-                  {{group.name}}
+                  {{group.name}} <em class="url-count">{{group.urlcount}}</em>
                   {% if group.schedule_next %}
                     <span><i class="fal fa-calendar-check"></i> {{group.schedule_next}}</span>
                   {% endif %}

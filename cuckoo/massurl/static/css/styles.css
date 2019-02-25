@@ -6443,12 +6443,23 @@ table.table {
           font-weight: 700;
           font-size: .7em;
           color: #999; }
+        .editor-ui .url-groups > li a .url-count {
+          display: inline-block;
+          border-radius: 2px;
+          padding: 2px 4px;
+          font-size: .7em;
+          background-color: #ccc;
+          font-style: normal;
+          vertical-align: middle; }
         .editor-ui .url-groups > li a:hover {
           background-color: #eee; }
         .editor-ui .url-groups > li a.active {
           background-color: #4A6FA5; }
           .editor-ui .url-groups > li a.active, .editor-ui .url-groups > li a.active > span {
             color: #fff; }
+          .editor-ui .url-groups > li a.active .url-count {
+            background-color: #3b5984;
+            color: rgba(255, 255, 255, 0.7); }
       .editor-ui .url-groups > li .events-badge {
         position: absolute;
         right: 5px;

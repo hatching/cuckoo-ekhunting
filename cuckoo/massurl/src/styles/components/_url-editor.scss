@@ -49,12 +49,27 @@
           color: #999;
         }
 
+        .url-count {
+          display: inline-block;
+          border-radius: 2px;
+          padding: 2px 4px;
+          font-size: .7em;
+          background-color: #ccc;
+          font-style: normal;
+          vertical-align: middle;
+        }
+
         &:hover { background-color: #eee; }
         &.active {
           background-color: $default-base;
 
           &, & > span {
             color: #fff;
+          }
+
+          .url-count {
+            background-color: shade($default-base, 20%);
+            color: rgba(#fff, .7);
           }
         }
 
