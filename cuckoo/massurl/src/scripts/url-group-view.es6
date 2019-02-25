@@ -148,36 +148,30 @@ function initUrlGroupView($el) {
   let $groups = $el.find('.url-groups');
   let $urls = $el.find('.url-list');
 
-  pre.push(loadGroups());
-
   return new Promise((resolve, reject) => {
 
-    Promise.all(pre).then(responses => {
+    $el.find('.url-groups a[href^="open:"]').on('click', e => {
+      $groups.find('a').removeClass('active');
+      $(e.currentTarget).addClass('active');
+      e.preventDefault();
+      let id = e.currentTarget.getAttribute('href').split(':')[1];
 
-      $el.find('.url-groups a[href^="open:"]').on('click', e => {
-        $groups.find('a').removeClass('active');
-        $(e.currentTarget).addClass('active');
-        e.preventDefault();
-        let id = e.currentTarget.getAttribute('href').split(':')[1];
-
-        loadUrlsForGroup(id).then(d => {
-          populateUrls(d.urls, $urls);
-        }).catch(err => console.log(err));
-
-      });
-
-      let show = detectTarget();
-      if(show) {
-        loadUrlsForGroup(show).then(d => {
-          populateUrls(d.urls, $urls);
-        }).catch(err => console.log(err));
-      } else {
-        $el.find('.url-groups a[href^="open:"]').eq(0).click();
-      }
-
-      resolve();
+      loadUrlsForGroup(id).then(d => {
+        populateUrls(d.urls, $urls);
+      }).catch(err => console.log(err));
 
     });
+
+    let show = detectTarget();
+    if(show) {
+      loadUrlsForGroup(show).then(d => {
+        populateUrls(d.urls, $urls);
+      }).catch(err => console.log(err));
+    } else {
+      $el.find('.url-groups a[href^="open:"]').eq(0).click();
+    }
+
+    resolve();
 
   });
 }
