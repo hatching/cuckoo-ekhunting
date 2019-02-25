@@ -230,6 +230,11 @@ function initUrlManagement($editor) {
         .catch(err => console.log(err));
     });
 
+    $links.find('.events-badge').on('click', function() {
+      let gn = $(this).parents('li').data('name');
+      window.location = `/?group=${gn}`;
+    });
+
     $editor.find('.editor').removeClass('loading');
 
     if(openAt) {

@@ -6,9 +6,22 @@ import sound from './sounds';
 const baseUrl = `${window.location.origin}/api/alerts`;
 const socketBase = `ws://${window.location.host}/ws/alerts`;
 
+function parseGroupName() {
+  if(window.location.search) {
+    let str = ""+window.location.search.replace('?','');
+    let spl = str.split('=');
+    if(spl[0] == 'group')
+      return spl[1];
+  }
+  return false;
+}
+
 const urls = {
   alerts: (l,o,s='desc',ob='timestamp') => {
-    return `${baseUrl}/list?limit=${l}&offset=${o*l}&order=${s}&orderby=${ob}`;
+    let u = `${baseUrl}/list?limit=${l}&offset=${o*l}&order=${s}&orderby=${ob}`
+    let g = parseGroupName();
+    if(g) u += `&group_name=${g}`;
+    return u;
   },
   alertRead: () => `${baseUrl}/read`
 }

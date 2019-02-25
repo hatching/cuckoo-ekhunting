@@ -6485,6 +6485,8 @@ table.table {
             margin-left: 5px;
             top: 1px;
             right: 2px; }
+        .editor-ui .url-groups > li .events-badge:hover {
+          cursor: pointer; }
   .editor-ui > header {
     padding: 0 20px;
     border-bottom: 1px solid #ccc; }

@@ -169,6 +169,13 @@ function initUrlGroupView($el) {
 
     });
 
+    $el.find('.url-groups li').each(function() {
+      $(this).find('.events-badge').on('click', function() {
+        let gn = $(this).parents('li').data('name');
+        window.location = `/?group=${gn}`;
+      });
+    });
+
     let show = detectTarget();
     if(show) {
       loadUrlsForGroup(show).then(d => {
