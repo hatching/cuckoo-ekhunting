@@ -15,7 +15,9 @@
                   {% if group.schedule_next %}
                     <span><i class="fal fa-calendar-check"></i> {{group.schedule_next}}</span>
                   {% endif %}
-                  <div title="View alerts" class="events-badge has-critical">220</div>
+                  {% if group.unread %}
+                    <div title="View alerts" class="events-badge {% if group.highalert > 0 %}has-critical{% endif %}">{{ group.unread }}</div>
+                  {% endif %}
                 </a>
               </li>
             {% endfor %}
