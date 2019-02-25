@@ -129,7 +129,7 @@ function populateUrls(u,el) {
 
             paginator.on('empty', () => {
               if(!button.find('p').length)
-                button.append('<p>No records left.</p>')
+                button.append('<p><i class="fas fa-exclamation-triangle"></i> No records left.</p>');
             });
 
           } else {
