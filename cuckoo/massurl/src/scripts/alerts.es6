@@ -150,6 +150,11 @@ function addAlert(alert, $table, method='append', first=false) {
     topAlert($table, alert);
   }
 
+  if(!alert.read && $("#mark-group-alerts-read i").hasClass('fa-comment-alt'))
+    $("#mark-group-alerts-read i")
+      .removeClass('fa-comment-alt')
+      .addClass('fa-comment-alt-check');
+
 }
 
 function paginateNext() {
@@ -240,6 +245,7 @@ function initAlerts($table) {
       topAlert($table, alerts[0]);
 
       connectSocket(alert => {
+        if(gid && alert.url_group_name !== decodeURIComponent(gid)) return;
         addAlert(alert, $table, 'prepend');
       }).then(str => {
         response.stream = str;
@@ -268,10 +274,7 @@ function initAlerts($table) {
             url_group_name: decodeURIComponent(gid),
             markall: true
           }).then(() => {
-            alerts.filter(a=>(a.read==false)).forEach(a => {
-              a.read = true;
-              $table.find(`tbody tr[data-id="${a.id}"] .fill-base`).removeClass('fill-base');
-            });
+            $table.find('.fill-base').removeClass('fill-base');
             setToCompleted()
           }).catch(err => console.log(err));
         });
