@@ -5906,8 +5906,12 @@ body {
         margin-right: 0; }
       .app__header .controls li.with-options {
         position: relative; }
-    .app__header .controls button {
+    .app__header .controls button,
+    .app__header .controls a {
       -webkit-appearance: none;
+      text-align: center;
+      box-sizing: border-box;
+      display: block;
       border: 0;
       width: 30px;
       height: 30px;
@@ -5915,24 +5919,55 @@ body {
       color: #fff;
       background: rgba(29, 32, 34, 0.5);
       padding: 3px 0 0; }
-      .app__header .controls button .fal, .app__header .controls button .editor-ui .editor.loading:after, .editor-ui .app__header .controls button .editor.loading:after, .app__header .controls button .editor-ui .editor.idle:after, .editor-ui .app__header .controls button .editor.idle:after {
+      .app__header .controls button .fal, .app__header .controls button .editor-ui .editor.loading:after, .editor-ui .app__header .controls button .editor.loading:after, .app__header .controls button .editor-ui .editor.idle:after, .editor-ui .app__header .controls button .editor.idle:after,
+      .app__header .controls a .fal,
+      .app__header .controls a .editor-ui .editor.loading:after,
+      .editor-ui .app__header .controls a .editor.loading:after,
+      .app__header .controls a .editor-ui .editor.idle:after,
+      .editor-ui .app__header .controls a .editor.idle:after {
         font-size: 16px;
         transition: opacity 100ms linear; }
-        .app__header .controls button .fal.fa-volume-mute, .app__header .controls button .editor-ui .fa-volume-mute.editor.loading:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.loading:after, .app__header .controls button .editor-ui .fa-volume-mute.editor.idle:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.idle:after {
+        .app__header .controls button .fal.fa-volume-mute, .app__header .controls button .editor-ui .fa-volume-mute.editor.loading:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.loading:after, .app__header .controls button .editor-ui .fa-volume-mute.editor.idle:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.idle:after,
+        .app__header .controls a .fal.fa-volume-mute,
+        .app__header .controls a .editor-ui .fa-volume-mute.editor.loading:after,
+        .editor-ui .app__header .controls a .fa-volume-mute.editor.loading:after,
+        .app__header .controls a .editor-ui .fa-volume-mute.editor.idle:after,
+        .editor-ui .app__header .controls a .fa-volume-mute.editor.idle:after {
           opacity: .5; }
-        .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after {
+        .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after,
+        .app__header .controls a .fal.fa-expand-alt,
+        .app__header .controls a .editor-ui .fa-expand-alt.editor.loading:after,
+        .editor-ui .app__header .controls a .fa-expand-alt.editor.loading:after,
+        .app__header .controls a .editor-ui .fa-expand-alt.editor.idle:after,
+        .editor-ui .app__header .controls a .fa-expand-alt.editor.idle:after {
           opacity: .5; }
-        .app__header .controls button .fal.fa-comment-alt, .app__header .controls button .editor-ui .fa-comment-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-comment-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.idle:after {
+        .app__header .controls button .fal.fa-comment-alt, .app__header .controls button .editor-ui .fa-comment-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-comment-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.idle:after,
+        .app__header .controls a .fal.fa-comment-alt,
+        .app__header .controls a .editor-ui .fa-comment-alt.editor.loading:after,
+        .editor-ui .app__header .controls a .fa-comment-alt.editor.loading:after,
+        .app__header .controls a .editor-ui .fa-comment-alt.editor.idle:after,
+        .editor-ui .app__header .controls a .fa-comment-alt.editor.idle:after {
           opacity: .5; }
-      .app__header .controls button:focus {
+      .app__header .controls button .fa-cog,
+      .app__header .controls a .fa-cog {
+        opacity: .8; }
+      .app__header .controls button:focus,
+      .app__header .controls a:focus {
         outline: 0; }
-      .app__header .controls button:hover {
+      .app__header .controls button:hover,
+      .app__header .controls a:hover {
         cursor: pointer; }
-        .app__header .controls button:hover .fa-volume-mute {
+        .app__header .controls button:hover .fa-volume-mute,
+        .app__header .controls a:hover .fa-volume-mute {
           opacity: .8; }
-        .app__header .controls button:hover .fa-expand-alt {
+        .app__header .controls button:hover .fa-expand-alt,
+        .app__header .controls a:hover .fa-expand-alt {
           opacity: .8; }
-        .app__header .controls button:hover.fa-comment-alt-check {
+        .app__header .controls button:hover .fa-cog,
+        .app__header .controls a:hover .fa-cog {
+          opacity: 1; }
+        .app__header .controls button:hover.fa-comment-alt-check,
+        .app__header .controls a:hover.fa-comment-alt-check {
           opacity: .8; }
   .app__body {
     flex-basis: 100%;
