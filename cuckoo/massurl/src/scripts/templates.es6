@@ -21,13 +21,13 @@ Handlebars.registerHelper('join', arr => arr.join('\n'));
 Handlebars.registerHelper('status-icon', status => {
   switch(status) {
     case 'pending':
-      return '<i class="far fa-hourglass"></i>';
+      return `<i title= class="far fa-hourglass" title="${status}"></i>`;
     break;
     case 'running':
-      return '<i class="far fa-spinner-third fa-spin"></i>';
+      return `<i class="far fa-spinner-third fa-spin" title="${status}"></i>`;
     break;
     case 'completed':
-      return '<i class="far fa-check"></i>';
+      return `<i class="far fa-check" title="${status}"></i>`;
     break;
   }
 });
@@ -139,6 +139,7 @@ const Templates = {
 
   // template for url-editor
   editor: data => Handlebars.compile(`
+    {{log this}}
     <header>
       <div>
         <h3>{{{status-icon status}}} {{name}}</h3>
