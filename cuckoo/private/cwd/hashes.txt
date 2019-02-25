@@ -329,3 +329,4 @@ e6ebc011fdfe169de45f8ca789e3e3060228eeba analyzer/windows/lib/core/privileges.py
 96a3466e2efec0847fb2b6fbf682132b1c3c0585 analyzer/windows/modules/packages/ie.py
 fc3ee0a768d8a41faddd817a6dc86453ba5cd1cf elasticsearch/massurl-diary.json
 c06e07ba28230de640dc28025bebc7024aa8209f elasticsearch/massurl-requestlog.json
+06753a21c35be6faccb9856792f851678fd43e62 analyzer/windows/modules/packages/ie.py
