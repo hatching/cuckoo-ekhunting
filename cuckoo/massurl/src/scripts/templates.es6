@@ -31,6 +31,11 @@ Handlebars.registerHelper('status-icon', status => {
     break;
   }
 });
+// checks if a group has not status or is completed
+Handlebars.registerHelper('no-status', (group, opts) => {
+  if(!group.status || group.completed)
+    return opts.fn();
+});
 
 const Templates = {
 
@@ -140,10 +145,10 @@ const Templates = {
         <p>{{description}}</p>
       </div>
       <nav>
-        {{#if completed}}
+        {{#no-status this}}
           <button class="button icon-button" data-schedule-now>Scan now</button>
           <p>or</p>
-        {{/if}}
+        {{/no-status}}
         <div>
           <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
         </div>
