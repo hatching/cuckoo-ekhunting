@@ -42,10 +42,10 @@ export default class Paginator extends EventEmitter {
 
   next() {
     let { offset, limit } = this.props;
+    if(this.props.autoIncrement)
+      this.increment();
     this.request().then(response => {
       this.emit('payload', { offset, response });
-      if(this.props.autoIncrement)
-        this.increment();
     }).catch(err => this.emit('error', err));
   }
 
