@@ -7,9 +7,9 @@ import datetime
 from sqlalchemy import Column, ForeignKey, desc, asc, and_, func
 from sqlalchemy import Integer, String, Boolean, DateTime, Text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 
-from cuckoo.core.database import Database, Base
+from cuckoo.core.database import Database, Base, Tag
 from cuckoo.common.objects import Dictionary, URL as URLHashes
 from cuckoo.common.utils import json_encode
 from cuckoo.massurl.schedutil import schedule_time_next
@@ -88,6 +88,43 @@ class URLGroupTask(Base, ToDict):
     )
     task_id = Column(Integer(), ForeignKey("tasks.id"), nullable=False)
 
+class ProfileTag(Base, ToDict):
+    __tablename__ = "massurl_profile_tags"
+
+    profile_id = Column(
+        Integer(), ForeignKey("massurl_profiles.id", ondelete="CASCADE"),
+        nullable=False, primary_key=True
+    )
+    tag_id = Column(
+        Integer(), ForeignKey("tags.id"), nullable=False, primary_key=True
+    )
+
+class Profile(Base, ToDict):
+    __tablename__ = "massurl_profiles"
+    id = Column(Integer(), primary_key=True)
+    name = Column(String(255), nullable=False, unique=True)
+    browser = Column(String(255), nullable=False)
+    route = Column(String(255), nullable=False)
+    country = Column(String(255), nullable=True)
+    tags = relationship("Tag", secondary=ProfileTag.__table__, lazy="subquery")
+
+    def to_dict(self, dt=True):
+        dictionary = super(Profile, self).to_dict(dt)
+        dictionary["tags"] = [t.name for t in self.tags]
+        return dictionary
+
+class URLGroupProfile(Base, ToDict):
+    __tablename__ = "massurl_url_group_profiles"
+
+    profile_id = Column(
+        Integer(), ForeignKey("massurl_profiles.id"), primary_key=True,
+        nullable=False
+    )
+    group_id = Column(
+        Integer(), ForeignKey("massurl_url_groups.id"), primary_key=True,
+        nullable=False
+    )
+
 class URLGroup(Base, ToDict):
     """A group of URLs with a schedule"""
     __tablename__ = "massurl_url_groups"
@@ -97,17 +134,28 @@ class URLGroup(Base, ToDict):
     description = Column(Text(), nullable=False)
 
     max_parallel = Column(Integer(), default=30, nullable=False)
+    batch_size = Column(Integer(), default=5, nullable=False)
+    batch_time = Column(Integer(), default=25, nullable=False)
 
     schedule = Column(Text(), nullable=True)
     schedule_next = Column(DateTime, nullable=True)
     completed = Column(Boolean(), default=True, nullable=False)
     run = Column(Integer(), nullable=False, default=0)
     status = Column(String(24), nullable=True)
+    progress = Column(Integer(), nullable=True)
 
     urls = relationship("URL", secondary=URLGroupURL.__table__, lazy="dynamic")
     tasks = relationship(
         "Task", secondary=URLGroupTask.__table__, lazy="dynamic"
     )
+    profiles = relationship(
+        "Profile", secondary=URLGroupProfile.__table__, lazy="subquery"
+    )
+
+    def to_dict(self, dt=True):
+        dictionary = super(URLGroup, self).to_dict(dt)
+        dictionary["profiles"] = [p.to_dict() for p in self.profiles]
+        return dictionary
 
 #
 # Helper functions
@@ -457,3 +505,91 @@ def delete_alert(alert_id=None, group_name=None, level=None, clear=False):
             session.commit()
     finally:
         session.close()
+
+def add_profile(name, browser, route, country=None, tags=[]):
+    ses = db.Session()
+
+    profile = Profile(name=name, browser=browser, route=route, country=country)
+    try:
+        dbtags = ses.query(Tag).filter(Tag.name.in_(set(tags))).all()
+        profile.tags.extend(dbtags)
+        ses.add(profile)
+        ses.commit()
+        profile_id = profile.id
+        return profile_id
+    except IntegrityError:
+        raise KeyError("Profile with name '%s' exists" % name)
+    finally:
+        ses.close()
+
+def update_profile(profile_id, browser, route, country=None, tags=[]):
+    ses = db.Session()
+    try:
+        profile = ses.query(Profile).get(profile_id)
+        if not profile:
+            return
+        dbtags = ses.query(Tag).filter(Tag.name.in_(set(tags))).all()
+        profile.browser = browser
+        profile.route = route
+        profile.country = country
+        profile.tags = dbtags
+        ses.add(profile)
+        ses.commit()
+    finally:
+        ses.close()
+
+def list_profiles(limit=1000, offset=0):
+    ses = db.Session()
+    profiles = []
+    try:
+        profiles = ses.query(Profile).limit(limit).offset(offset).all()
+        ses.expunge_all()
+    finally:
+        ses.close()
+    return profiles
+
+def find_profile(profile_id=None, profile_name=None):
+    ses = db.Session()
+    profile = None
+    try:
+        q = ses.query(Profile)
+        if profile_id:
+            q = q.filter_by(id=profile_id)
+        elif profile_name:
+            q = q.filter_by(name=profile_name)
+
+        profile = q.first()
+        if profile:
+            ses.expunge(profile)
+    finally:
+        ses.close()
+    return profile
+
+def delete_profile(profile_id):
+    ses = db.Session()
+    try:
+        profile = ses.query(Profile).get(profile_id)
+        if not profile:
+            return
+        ses.delete(profile)
+    finally:
+        ses.close()
+
+def update_profile_group(profile_ids, group_id):
+    ses = db.Session()
+    try:
+        group = ses.query(URLGroup).get(group_id)
+        if not group:
+            return
+
+        profiles = ses.query(Profile).filter(
+            Profile.id.in_(set(profile_ids))
+        ).all()
+        if not profiles:
+            return
+
+        group.profiles = profiles
+        ses.add(group)
+        ses.commit()
+    finally:
+        ses.close()
