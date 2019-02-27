@@ -103,7 +103,7 @@ const profileFormTemplate = data => Handlebars.compile(`
       <ul>
         {{#each meta.tags}}
           <li>
-            <input type="checkbox" id="tag-{{id}}" name="tags[]" value="{{id}}" {{#hasTag id ../profile.tags}}checked{{/hasTag}} />
+            <input type="checkbox" id="tag-{{id}}" name="tags" value="{{id}}" {{#hasTag id ../profile.tags}}checked{{/hasTag}} />
             <label for="tag-{{id}}">{{name}}</label>
           </li>
         {{/each}}
@@ -172,7 +172,7 @@ function initForm(data, $form) {
     $route: $form.find('select[name="route"]'),
     $countrySocks: $form.find('select[name="country-socks5"]'),
     $countryVPN: $form.find('select[name="country-vpn"]'),
-    $tags: $form.find('input[name="tags[]"]'),
+    $tags: $form.find('input[name="tags"]'),
     $save: $form.find('button#save-profile'),
     $delete: $form.find('button#delete-profile')
   }
@@ -223,6 +223,9 @@ function initForm(data, $form) {
 
   // bind save listeners (new=add,not new=update)
   inputs.$save.on('click', e => {
+
+    data.profile.tags = data.profile.tags.join(',');
+
     if(data.meta.new) {
       // CREATE
       data.profile.name = inputs.$name.val();
@@ -242,13 +245,16 @@ function initForm(data, $form) {
           $(evt.currentTarget).addClass('active');
           selectProfile($(evt.currentTarget).attr('href').split(':')[1], $("#profiles"));
         }).click();
+        // reset string to array
+        data.profile.tags = data.profile.tags.split(',').forEach(t=>parseInt(t));
       }).catch(err => console.log(err));
     } else {
       // UPDATE
       api.call('update', data.profile.id, {
         ...data.profile
       }).then(response => {
-        console.log(response);
+        // reset string to array
+        data.profile.tags = data.profile.tags.split(',').forEach(t=>parseInt(t));
       }).catch(err => console.log(err));
     }
 
