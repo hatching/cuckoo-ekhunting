@@ -26,7 +26,7 @@ db = Database()
 submit_task = Task()
 
 OWNER = "cuckoo.massurl"
-DEFAULT_OPTIONS = "analysis=kernel,route=internet"
+DEFAULT_OPTIONS = "analysis=kernel"
 
 # TODO: call .set()/.clear() when the schedule changes (group add, delete,
 # schedule modify)
@@ -58,18 +58,16 @@ def next_group_task():
         s.close()
     return group
 
-def create_parallel_tasks(targets, max_parallel, options=None):
+def create_parallel_tasks(targets, max_parallel, **kwargs):
     urls = []
-    if not options:
-        options = DEFAULT_OPTIONS
 
     for t in targets:
         urls.append(t)
         if len(urls) >= max_parallel:
-            yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ie")
+            yield submit_task.add_massurl(urls, **kwargs)
             urls = []
     if urls:
-        yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ie")
+        yield submit_task.add_massurl(urls, **kwargs)
 
 def create_single_task(group_id, urls, run, **kwargs):
     if not kwargs.get("options"):
@@ -87,6 +85,25 @@ def create_single_task(group_id, urls, run, **kwargs):
     finally:
         s.close()
 
+def generate_task_args(profile, group):
+    options = DEFAULT_OPTIONS
+    options += ",route=%s" % profile.route
+
+    if profile.country:
+        if profile.route == "vpn":
+            options += ",vpn.country=%s" % profile.country
+        elif profile.route == "socks5":
+            options += ",socks5.country=%s" % profile.country
+
+    options += ",urlblocksize=%s" % group.batch_size
+    options += ",blocktime=%s" % group.batch_time
+    tags = ",".join([t.name for t in profile.tags])
+
+    return {
+        "options": options, "package": profile.browser, "tags": tags,
+        "owner": OWNER
+    }
+
 def insert_group_tasks(group):
     log.debug("Creating group tasks for %r", group["name"])
     group = massurldb.find_group(group_id=group.id)
@@ -94,12 +111,18 @@ def insert_group_tasks(group):
     run = group.run + 1
 
     groupid_task = []
-    for task_id in create_parallel_tasks(urls, group.max_parallel):
-        groupid_task.append({
-            "url_group_id": group.id,
-            "task_id": task_id,
-            "run": run
-        })
+    for profile in group.profiles:
+        log.debug(
+            "Creating tasks for group %r with profile %r",
+            group.name, profile.name
+        )
+        args = generate_task_args(profile, group)
+        for task_id in create_parallel_tasks(urls, group.max_parallel, **args):
+            groupid_task.append({
+                "url_group_id": group.id,
+                "task_id": task_id,
+                "run": run
+            })
 
     if groupid_task:
         s = db.Session()
@@ -354,7 +377,7 @@ def handle_massurldetection(message):
         create_single_task(
             group_id=group.id, urls=candidates, run=group.run, priority=999,
             owner=OWNER, machine=task.machine, package=task.package,
-            platform=task.platform, custom=task_id,
+            custom=task_id,
             options="analysis=kernel,urlblocksize=1,replay=%s" % cwd(
                 "dump.pcap", analysis=task_id
             )

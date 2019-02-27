@@ -424,10 +424,9 @@ def list_groups():
 
 @app.route("/api/group/<int:group_id>/profiles", methods=["POST"])
 def update_profile_group(group_id):
-    profile_ids = filter(None, request.form.getlist("profile_ids"))
-
-    if not isinstance(profile_ids, list):
-        return json_error(400, "profile_ids must be a list of integer ids")
+    profile_ids = filter(
+        None, [p for p in request.form.get("profile_ids", "").split(",")]
+    )
 
     try:
         profile_ids = [int(p) for p in profile_ids]
@@ -538,7 +537,7 @@ def add_profile():
     browser = request.form.get("browser", "").lower()
     route = request.form.get("route", "").lower()
     country = request.form.get("country", "").lower()
-    tags = filter(None, request.form.getlist("tags"))
+    tags = filter(None, [p for p in request.form.get("tags", "").split(",")])
 
     if not name:
         return json_error(400, "No name provided")
@@ -559,9 +558,6 @@ def add_profile():
                 400, "Route through country %r does not exist for route %r" %
                      (country, route)
             )
-
-    if not isinstance(tags, list):
-        return json_error(400, "tags must be a list of tag ids")
 
     try:
         tags = [int(t) for t in tags]
@@ -609,7 +605,7 @@ def update_profile(profile_id):
     browser = request.form.get("browser", "").lower()
     route = request.form.get("route", "").lower()
     country = request.form.get("country", "").lower()
-    tags = filter(None, request.form.getlist("tags"))
+    tags = filter(None, [p for p in request.form.get("tags", "").split(",")])
 
     if browser not in BROWSERS.values():
         return json_error(400, "%r is not a valid browser choice" % browser)
@@ -628,9 +624,6 @@ def update_profile(profile_id):
                      (country, route)
             )
 
-    if not isinstance(tags, list):
-        return json_error(400, "tags must be a list of tag ids")
-
     try:
         tags = [int(t) for t in tags]
     except ValueError:
@@ -638,8 +631,8 @@ def update_profile(profile_id):
 
     try:
         db.update_profile(
-            profile_id=profile_id, browser=browser, route=route, country=country,
-            tags=tags
+            profile_id=profile_id, browser=browser, route=route,
+            country=country, tags=tags
         )
     except KeyError:
         return json_error(404, "Profile %r does not exist" % profile_id)
