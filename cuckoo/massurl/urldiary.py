@@ -2,19 +2,17 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
-import io
 import json
 import logging
 import os
-import uuid
 import time
+import uuid
 
 import dpkt
 
 from elasticsearch import helpers
 from elasticsearch.exceptions import TransportError, ConnectionError
 from httpreplay.cut import http_handler, https_handler
-from httpreplay.exceptions import ReplayException
 from httpreplay.misc import read_tlsmaster
 from httpreplay.reader import PcapReader
 from httpreplay.smegma import TCPPacketStreamer
@@ -421,12 +419,12 @@ class RequestFinder(object):
                 requestlog = logs.setdefault(url, [])
                 requestlog.append({
                     "time": timestamp,
-                    "request": bytes(sent)[:self.MAX_REQUEST_SIZE],
-                    "response": bytes(recv)[:self.MAX_REQUEST_SIZE]
+                    "request": bytes(sent.raw)[:self.MAX_REQUEST_SIZE],
+                    "response": bytes(recv.raw)[:self.MAX_REQUEST_SIZE]
                 })
 
             return reports
-        except (ReplayException, dpkt.dpkt.Error) as e:
+        except Exception as e:
             log.exception("Failure while extracting requests from PCAP")
             return reports
 

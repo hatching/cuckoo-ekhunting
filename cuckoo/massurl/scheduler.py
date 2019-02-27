@@ -66,10 +66,10 @@ def create_parallel_tasks(targets, max_parallel, options=None):
     for t in targets:
         urls.append(t)
         if len(urls) >= max_parallel:
-            yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ff")
+            yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ie")
             urls = []
     if urls:
-        yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ff")
+        yield submit_task.add_massurl(urls, options=options, owner=OWNER, package="ie")
 
 def create_single_task(group_id, urls, run, **kwargs):
     if not kwargs.get("options"):
@@ -150,6 +150,7 @@ def task_checker():
             URLGroupTask.run == URLGroup.run,
             DbTask.status != "pending", DbTask.status != "completed"
         )
+
         if not tasks.count():
             return
 
@@ -324,16 +325,19 @@ def handle_massurldetection(message):
     log.info("Amount of targets in machine was %s", len(candidates))
     if len(candidates) > 1:
         content = "One or more URLs of group '%s' might be infected!" \
-                  " Re-analyzing all URLs one-by-one.\n" \
+                  " Re-analyzing all URLs one-by-one.\n " \
                   "URLs: %s.\n\n" \
-                  "Signatures: %s\n" % (
+                  "Signatures: %s\n\n"\
+                  "IoC: %s\n"% (
                       group.name,
                       "\n ".join(candidates),
-                      "\n ".join(s.get("signature") for s in signatures)
+                      "\n ".join(s.get("signature") for s in signatures),
+                      "\n ".join(s.get("ioc") for s in signatures)
                   )
 
     else:
-        content = "URL %s of group %s shows signs of malware infection!" % (
+        content = "URL %s of group '%s' shows signs of malware infection! " \
+                  "Detected by replaying the previous traffic capture." % (
             candidates[0], group.name
         )
 
@@ -350,7 +354,7 @@ def handle_massurldetection(message):
         create_single_task(
             group_id=group.id, urls=candidates, run=group.run, priority=999,
             owner=OWNER, machine=task.machine, package=task.package,
-            platform=task.platform,
+            platform=task.platform, custom=task_id,
             options="analysis=kernel,urlblocksize=1,replay=%s" % cwd(
                 "dump.pcap", analysis=task_id
             )

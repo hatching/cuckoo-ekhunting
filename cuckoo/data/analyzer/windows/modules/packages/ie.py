@@ -133,7 +133,8 @@ class IE(Package):
         pids = []
         for url in target:
             pid = self.execute(
-                iexplore, args=[url], maximize=True, mode="iexplore"
+                iexplore, args=["-nomerge", url], maximize=True,
+                mode="iexplore"
             )
 
             if pid:

@@ -15,6 +15,8 @@ import os
 import time
 import uuid
 
+from socks5man.manager import Manager
+
 from flask import Flask, request, jsonify, render_template, send_file
 from gevent.lock import BoundedSemaphore
 from gevent.pywsgi import WSGIServer
@@ -27,6 +29,7 @@ from cuckoo.massurl import db
 from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.massurl import schedutil
 from cuckoo.misc import cwd
+from cuckoo.common.config import config
 
 
 log = logging.getLogger(__name__)
@@ -35,12 +38,49 @@ alert_queue = Queue()
 app = Flask(__name__)
 lock = BoundedSemaphore(1)
 sockets = set()
+BROWSERS = {
+    "Internet Explorer": "ie",
+    "Firefox": "ff",
+    "Edge": "edge"
+}
 
 def json_error(status_code, message, *args):
     r = jsonify(success=False, message=message % args if args else message)
     r.status_code = status_code
     return r
 
+def get_available_routes():
+    routes = []
+    if config("routing:routing:internet") is not None or "none":
+        routes.append("internet")
+    if config("routing:vpn:enabled") and config("routing:vpn:vpns"):
+        routes.append("vpn")
+    if config("auxiliary:redsocks:enabled"):
+        if Manager().list_socks5(operational=True):
+            routes.append("socks5")
+
+    return routes
+
+def get_route_countries():
+    countries = {
+        "socks5": [],
+        "vpn": []
+    }
+    if config("routing:vpn:enabled"):
+        vpn_counties = set()
+        for vpn in config("routing:vpn:vpns"):
+            country = config("routing:%s:country" % vpn)
+            if country:
+                vpn_counties.add(country.lower())
+
+        countries["vpn"] = list(vpn_counties)
+
+    if config("auxiliary:redsocks:enabled"):
+        countries["socks5"] = list(set(
+            s.country.lower() for s in Manager().list_socks5(operational=True)
+        ))
+
+    return countries
 #
 # WEB VIEW ROUTES
 #
@@ -89,7 +129,11 @@ def settings_view():
 
 @app.route("/settings/profiles")
 def profiles_view():
-    return render_template("profiles.html")
+    return render_template(
+        "profiles.html", browsers=[{k:v} for k, v in BROWSERS.iteritems()],
+        tags=[t.to_dict() for t in db.db.list_tags()],
+        routes=get_available_routes(), route_countries=get_route_countries()
+    )
 
 #
 # API routes
@@ -447,6 +491,140 @@ def get_pcap(task_id):
     return send_file(
         pcap_path, attachment_filename="task%s-dump.pcap" % task_id
     )
+
+@app.route("/api/profile/add", methods=["POST"])
+def add_profile():
+    name = request.form.get("name")
+    browser = request.form.get("browser", "").lower()
+    route = request.form.get("route", "").lower()
+    country = request.form.get("country", "").lower()
+    tags = request.form.getlist("tags")
+
+    if not name:
+        return json_error(400, "No name provided")
+
+    if browser not in BROWSERS.values():
+        return json_error(400, "%r is not a valid browser choice" % browser)
+
+    available_routes = get_available_routes()
+    if route.lower() not in available_routes:
+        return json_error(
+            400, "Invalid route %r. Available routes: %s" %
+                 (route, available_routes)
+        )
+
+    if country and route != "internet":
+        if country not in get_route_countries()[route]:
+            return json_error(
+                400, "Route through country %r does not exist for route %r" %
+                     (country, route)
+            )
+
+    if not isinstance(tags, list):
+        return json_error(400, "tags must be a list of tag ids")
+
+    try:
+        tags = [int(t) for t in tags]
+    except ValueError:
+        return json_error(400, "tags must be a list of integer tag ids")
+
+    try:
+        profile_id = db.add_profile(
+            name=name, browser=browser, route=route, country=country, tags=tags
+        )
+    except KeyError:
+        return json_error(409, "Profile with name %r already exists" % name)
+
+    return jsonify({"profile_id": profile_id})
+
+@app.route("/api/profile/list")
+def list_profiles():
+    intargs = {
+        "limit": request.args.get("limit", 20),
+        "offset": request.args.get("offset", 0)
+    }
+
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
+    return jsonify([p.to_dict() for p in db.list_profiles(
+        limit=intargs.get("limit"), offset=intargs.get("offset")
+    )])
+
+@app.route("/api/profile/<name>")
+@app.route("/api/profile/<int:profile_id>")
+def find_profile(name=None, profile_id=None):
+    profile = db.find_profile(profile_id=profile_id, profile_name=name)
+
+    if not profile:
+        return json_error(404, "Profile not found")
+    return jsonify(profile.to_dict())
+
+@app.route("/api/profile/update/<int:profile_id>", methods=["POST"])
+def update_profile(profile_id):
+    browser = request.form.get("browser", "").lower()
+    route = request.form.get("route", "").lower()
+    country = request.form.get("country", "").lower()
+    tags = request.form.getlist("tags")
+
+    if browser not in BROWSERS.values():
+        return json_error(400, "%r is not a valid browser choice" % browser)
+
+    available_routes = get_available_routes()
+    if route.lower() not in available_routes:
+        return json_error(
+            400, "Invalid route %r. Available routes: %s" %
+                 (route, available_routes)
+        )
+
+    if country and route != "internet":
+        if country not in get_route_countries()[route]:
+            return json_error(
+                400, "Route through country %r does not exist for route %r" %
+                     (country, route)
+            )
+
+    if not isinstance(tags, list):
+        return json_error(400, "tags must be a list of tag ids")
+
+    try:
+        tags = [int(t) for t in tags]
+    except ValueError:
+        return json_error(400, "tags must be a list of integer tag ids")
+
+    try:
+        db.update_profile(
+            profile_id=profile_id, browser=browser, route=route, country=country,
+            tags=tags
+        )
+    except KeyError:
+        return json_error(404, "Profile %r does not exist" % profile_id)
+
+    return jsonify(message="success")
+
+@app.route("/api/profile/delete/<int:profile_id>", methods=["POST"])
+def delete_profiles(profile_id):
+    db.delete_profile(profile_id)
+    return jsonify(message="success")
+
+@app.route("/api/group/<int:group_id>/profiles", methods=["POST"])
+def update_profile_group(group_id):
+    profile_ids = request.form.getlist("profile_ids")
+
+    if not isinstance(profile_ids, list):
+        return json_error(400, "profile_ids must be a list of integer ids")
+
+    try:
+        profile_ids = [int(p) for p in profile_ids]
+    except ValueError:
+        return json_error(400, "profile_ids must be a list of integer ids")
+
+    db.update_profile_group(profile_ids=profile_ids, group_id=group_id)
+    return jsonify(message="success")
 
 def random_string(minimum, maximum=None):
     if maximum is None:

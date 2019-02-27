@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (C) 2015-2017 Cuckoo Foundation.
+# Copyright (C) 2015-2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -21,7 +21,7 @@ import zipfile
 import SimpleHTTPServer
 import SocketServer
 
-AGENT_VERSION = "0.9.1"
+AGENT_VERSION = "0.10"
 AGENT_FEATURES = [
     "execpy", "pinning", "logs", "largefile", "unicodepath",
 ]
@@ -96,7 +96,6 @@ class MiniHTTPServer(object):
         return register
 
     def handle(self, obj):
-
         if "client_ip" in state and request.client_ip != state["client_ip"]:
             if request.client_ip != "127.0.0.1":
                 return

@@ -1486,3 +1486,11 @@ class Database(object):
             log.exception("Error while updating target to analyzed. %s", e)
         finally:
             session.close()
+
+    def list_tags(self, limit=1000, offset=0):
+        """Return a list of all available tags"""
+        session = self.Session()
+        try:
+            return session.query(Tag).limit(limit).offset(offset).all()
+        finally:
+            session.close()

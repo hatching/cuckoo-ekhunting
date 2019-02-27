@@ -32,7 +32,7 @@ class MassURL(AnalysisManager):
 
     supports = ["massurl"]
     URL_BLOCKSIZE = 5
-    SECS_PER_BLOCK = 22
+    SECS_PER_BLOCK = 25
 
     def init(self, db):
         # If for some reason the task dir does not exist, stop the analysis
@@ -260,13 +260,14 @@ class MassURL(AnalysisManager):
             # do the database operations
             self.request_scheduler_action(for_status="stopurlblock")
 
+            # Store URL diaries
+            if len(self.curr_block) > 1:
+                for url, info in self.curr_block.iteritems():
+                    URLDiaries.store_diary(info.get("diary"))
+
             if signature_events:
                 self.request_scheduler_action(for_status="aborted")
                 return
-
-            # Store URL diaries
-            for url, info in self.curr_block.iteritems():
-                URLDiaries.store_diary(info.get("diary"))
 
             # Acquire the next block of URLs according to the defined URL
             # blocksize
@@ -296,16 +297,27 @@ class MassURL(AnalysisManager):
     def extract_requests(self, pid_target):
         flow_target = {}
         flows = {}
+        ppid_pid = {}
         for x in range(self.netflow_events.qsize()):
-            flow, pid = self.netflow_events.get(block=False)
+            flow, pid, ppid = self.netflow_events.get(block=False)
 
             if pid not in flows:
                 flows[pid] = []
             flows[pid].append(flow)
 
-            target = pid_target.get(pid)
-            if target:
-                flow_target[flow] = target
+            if ppid not in ppid_pid:
+                ppid_pid[ppid] = set()
+            ppid_pid[ppid].add(pid)
+
+        def walk_childprocs(pid, t):
+            for flow in flows.get(pid, []):
+                flow_target[flow] = t
+
+            for child in ppid_pid.get(pid, []):
+                walk_childprocs(child, t)
+                
+        for pid, target in pid_target.iteritems():
+            walk_childprocs(pid, target)
 
         reports = self.requestfinder.process(flow_target)
         for target_url, report in reports.iteritems():
@@ -331,6 +343,7 @@ class MassURL(AnalysisManager):
         # If IE was used, TLS master secrets van be extracted.
         # If not package is supplied, the analyzer will use IE.
         if not self.task.package or self.task.package.lower() == "ie":
+            log.debug("Running TLS key extraction for task #%s", self.task.id)
             self.task.process(
                 reporting=False, signatures=False, processing_modules=[
                     BehaviorAnalysis, NetworkAnalysis, TLSMasterSecrets
@@ -350,6 +363,7 @@ class MassURL(AnalysisManager):
             time.sleep(0.5)
 
         if self.netflow_events.qsize():
+            log.debug("Running request extraction for task: #%s", self.task.id)
             self.extract_requests(pid_target)
 
         # If no events were sent by Onemon, no signatures were triggered.
@@ -380,7 +394,7 @@ class MassURL(AnalysisManager):
         # A signature was triggered while only a single URL was opened. Update
         # and store the URL diary, and send a detection event.
         if len(self.curr_block) == 1:
-            diary = self.curr_block.itervalues().next().get("info")
+            diary = self.curr_block.itervalues().next().get("diary")
             diary.add_signature(sigs)
             diary_id = URLDiaries.store_diary(diary)
 
@@ -465,7 +479,7 @@ class MassURL(AnalysisManager):
         if not task_id or task_id != self.task.id:
             return
 
-        for k in ("srcip", "srcport", "dstip", "dstport", "pid"):
+        for k in ("srcip", "srcport", "dstip", "dstport", "pid", "ppid"):
             if k not in message["body"]:
                 return
 
@@ -475,7 +489,7 @@ class MassURL(AnalysisManager):
                 (
                     flow.get("srcip"), flow.get("srcport"), flow.get("dstip"),
                     flow.get("dstport")
-                ),  flow.get("pid")
+                ),  flow.get("pid"), flow.get("ppid")
             )
         )
 
