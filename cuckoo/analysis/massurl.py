@@ -6,6 +6,7 @@ import Queue
 import logging
 import threading
 import time
+import traceback
 
 from cuckoo.common.abstracts import AnalysisManager
 from cuckoo.common.exceptions import (
@@ -146,7 +147,17 @@ class MassURL(AnalysisManager):
             return False
 
         # Enable network routing
-        self.route.route_network()
+        if not self.route.route_network():
+            log.error("Failed to use chosen route for the analysis")
+            self.ev_client.send_event(
+                "massurltaskfailure", {
+                    "taskid": self.task.id,
+                    "error": "Failed to use chosen route '%s'. "
+                             "Inspect the log" % self.route.route,
+                    "status": self.analysis.status
+                }
+            )
+            return False
 
         # By the time start returns it will have fully started the Virtual
         # Machine. We can now safely release the machine lock.
@@ -189,7 +200,8 @@ class MassURL(AnalysisManager):
 
         # Wait for the guest manager wait to stop before stopping the machine.
         # We want any exception messages to be retrieved from the agent.
-        self.gm_wait_th.join(timeout=6)
+        if self.gm_wait_th.is_alive():
+            self.gm_wait_th.join(timeout=6)
 
         # Stop the analysis machine.
         try:
@@ -446,6 +458,17 @@ class MassURL(AnalysisManager):
             log.exception(
                 "Failure during analysis run of task #%s. %s", self.task.id, e
             )
+            try:
+                self.ev_client.send_event(
+                    "massurltaskfailure", {
+                        "taskid": self.task.id,
+                        "error": "%s" % traceback.format_exc(2),
+                        "status": self.analysis.status
+                    }
+                )
+            except Exception as e:
+                log.exception("Failed to send failure notification event")
+
         finally:
             try:
                 self.stop_and_wait()
