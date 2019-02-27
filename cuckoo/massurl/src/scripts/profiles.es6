@@ -34,6 +34,7 @@ Handlebars.registerHelper('propKey', (obj,opts) => Object.keys(obj)[0]);
 Handlebars.registerHelper('keyVal', (obj,opts) => obj[Object.keys(obj)[0]]);
 Handlebars.registerHelper('eq', (p,m,opts) => p == m ? opts.fn() : '');
 Handlebars.registerHelper('eqo', (p,m,opts) => p == m[Object.keys(m)[0]] ? opts.fn() : '');
+Handlebars.registerHelper('hasTag', (tag,tags,opts) => (tags.map(t=>t.id).indexOf(tag) !== -1) ? opts.fn() : '');
 
 const profileFormTemplate = data => Handlebars.compile(`
   <h2>
@@ -102,7 +103,7 @@ const profileFormTemplate = data => Handlebars.compile(`
       <ul>
         {{#each meta.tags}}
           <li>
-            <input type="checkbox" id="tag-{{id}}" name="tags" value="{{id}}" />
+            <input type="checkbox" id="tag-{{id}}" name="tags[]" value="{{id}}" {{#hasTag id ../profile.tags}}checked{{/hasTag}} />
             <label for="tag-{{id}}">{{name}}</label>
           </li>
         {{/each}}
@@ -171,7 +172,7 @@ function initForm(data, $form) {
     $route: $form.find('select[name="route"]'),
     $countrySocks: $form.find('select[name="country-socks5"]'),
     $countryVPN: $form.find('select[name="country-vpn"]'),
-    $tags: $form.find('input[name="tags"]'),
+    $tags: $form.find('input[name="tags[]"]'),
     $save: $form.find('button#save-profile'),
     $delete: $form.find('button#delete-profile')
   }
