@@ -145,8 +145,8 @@ def init_console_logging(level=logging.INFO):
     init_logger("console", level)
     init_logger("database")
 
-def init_logfile(logfile):
-    init_logger(logfile, logging.DEBUG)
+def init_logfile(logfile, level=logging.DEBUG):
+    init_logger(logfile, level)
 
 def init_tasks():
     """Check tasks and reschedule uncompleted ones."""

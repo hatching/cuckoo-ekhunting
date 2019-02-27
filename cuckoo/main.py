@@ -213,8 +213,8 @@ def cuckoo_main(max_analysis_count=0):
         sched.start()
     except KeyboardInterrupt:
         sched.stop()
-
-    Pidfile("cuckoo").remove()
+    finally:
+        Pidfile("cuckoo").remove()
 
 @click.group(invoke_without_command=True)
 @click.option("-d", "--debug", is_flag=True, help="Enable verbose logging")
@@ -418,8 +418,9 @@ def process(ctx, instance, report, maxcount, timeout):
     except KeyboardInterrupt:
         print(red("Aborting (re-)processing of your analyses.."))
 
-    if instance:
-        Pidfile(instance).remove()
+    finally:
+        if instance:
+            Pidfile(instance).remove()
 
 @main.command()
 @click.argument("socket", type=click.Path(readable=False, dir_okay=False), default="/tmp/cuckoo-rooter", required=False)
@@ -766,11 +767,23 @@ def massurl(ctx, host, port):
         cuckoo_create()
         sys.exit(0)
 
-    init_logging(ctx.parent.level)
-    Database().connect()
-
     init_console_logging(ctx.parent.level)
-    massurl_main(host, port)
+
+    pidfile = Pidfile("massurl")
+    if pidfile.exists():
+        log.error(red(
+            "Cuckoo massurl is already running. PID: %s\n"
+        ),  pidfile.pid)
+        sys.exit(1)
+
+    pidfile.create()
+
+    try:
+        init_logfile("massurl.log", ctx.parent.level)
+        Database().connect()
+        massurl_main(host, port)
+    finally:
+        pidfile.remove()
 
 @main.command("eventserver")
 @click.option("-H", "--host", default="localhost", help="Host to bind the event server on")
