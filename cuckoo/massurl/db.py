@@ -589,10 +589,23 @@ def update_profile_group(profile_ids, group_id):
         profiles = ses.query(Profile).filter(
             Profile.id.in_(set(profile_ids))
         ).all()
-        if not profiles:
-            return
 
         group.profiles = profiles
+        ses.add(group)
+        ses.commit()
+    finally:
+        ses.close()
+
+def update_settings_group(group_id, threshold, batch_size, batch_time):
+    ses = db.Session()
+    try:
+        group = ses.query(URLGroup).get(group_id)
+        if not group:
+            return
+
+        group.max_parallel = threshold or group.max_parallel
+        group.batch_size = batch_size or group.batch_size
+        group.batch_time = batch_time or group.batch_time
         ses.add(group)
         ses.commit()
     finally:
