@@ -152,8 +152,8 @@ class URLGroup(Base, ToDict):
         "Profile", secondary=URLGroupProfile.__table__, lazy="subquery"
     )
 
-    def to_dict(self, dt=True):
-        dictionary = super(URLGroup, self).to_dict(dt)
+    def to_dict(self, dt=True, additional=[]):
+        dictionary = super(URLGroup, self).to_dict(dt, additional)
         dictionary["profiles"] = [
             {"id": p.id, "name": p.name} for p in self.profiles
         ]
