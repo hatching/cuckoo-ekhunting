@@ -149,8 +149,8 @@ $(function() {
   }
 
   if($("#profiles").length) {
-    initProfiles().then(data => {
-      
+    initProfiles($("#profiles")).then(data => {
+
     });
   }
 
