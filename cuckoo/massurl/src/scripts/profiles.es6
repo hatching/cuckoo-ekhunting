@@ -236,11 +236,11 @@ function initForm(data, $form) {
         name: data.profile.name,
         ...data.profile
       }).then(response => {
-        let item = $(`
-          <li>
-            <a href="load:${response.profile_id}">${data.profile.name}</a>
+        let item = $(Handlebars.compile(`
+          <li data-filter-value="{{name}}">
+            <a href="load:{{id}}">{{name}}</a>
           </li>
-        `);
+        `)(data.profile));
         $("[data-profiles-list]").append(item);
         item.find('a').on('click', evt => {
           evt.preventDefault();
@@ -292,11 +292,11 @@ function initProfiles($view) {
       let list = $view.find('[data-profiles-list]');
       if(profileList.length) {
 
-        $.each(profileList, (i,profile) => list.append(`
-          <li data-filter-value="${profile.name}">
-            <a href="load:${profile.id}">${profile.name}</a>
+        $.each(profileList, (i,profile) => list.append(Handlebars.compile(`
+          <li data-filter-value="{{name}}">
+            <a href="load:{{id}}">{{name}}</a>
           </li>
-        `));
+        `)(profile)));
 
         list.find('a').on('click', e => {
           e.preventDefault();
