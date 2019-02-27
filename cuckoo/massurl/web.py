@@ -240,7 +240,7 @@ def schedule_group(group_id):
         return json_error(404, message="Group does not exist")
 
     if not group.profiles:
-        return json_error(400, "Group has not profiles. Cannot be scheduled")
+        return json_error(400, "Group has no profiles. Cannot be scheduled")
 
     if not schedule:
         db.remove_schedule(group_id)
@@ -422,6 +422,43 @@ def list_groups():
             )
         ])
 
+@app.route("/api/group/<int:group_id>/profiles", methods=["POST"])
+def update_profile_group(group_id):
+    profile_ids = filter(None, request.form.getlist("profile_ids"))
+
+    if not isinstance(profile_ids, list):
+        return json_error(400, "profile_ids must be a list of integer ids")
+
+    try:
+        profile_ids = [int(p) for p in profile_ids]
+    except ValueError:
+        return json_error(400, "profile_ids must be a list of integer ids.")
+
+    db.update_profile_group(profile_ids=profile_ids, group_id=group_id)
+    return jsonify(message="success")
+
+@app.route("/api/group/<int:group_id>/settings", methods=["POST"])
+def update_group_settings(group_id):
+    intargs = {
+        "threshold": request.form.get("threshold", 0),
+        "batch_size": request.form.get("batch_size", 0),
+        "batch_time": request.form.get("batch_time", 0)
+    }
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
+    db.update_settings_group(
+        group_id=group_id, threshold=intargs.get("threshold"),
+        batch_size=intargs.get("batch_size"),
+        batch_time=intargs.get("batch_time")
+    )
+
+    return jsonify(message="success")
+
 @app.route("/api/diary/url/<url_id>")
 def get_diaries_url(url_id):
     intargs = {
@@ -501,7 +538,7 @@ def add_profile():
     browser = request.form.get("browser", "").lower()
     route = request.form.get("route", "").lower()
     country = request.form.get("country", "").lower()
-    tags = request.form.getlist("tags")
+    tags = filter(None, request.form.getlist("tags"))
 
     if not name:
         return json_error(400, "No name provided")
@@ -572,7 +609,7 @@ def update_profile(profile_id):
     browser = request.form.get("browser", "").lower()
     route = request.form.get("route", "").lower()
     country = request.form.get("country", "").lower()
-    tags = request.form.getlist("tags")
+    tags = filter(None, request.form.getlist("tags"))
 
     if browser not in BROWSERS.values():
         return json_error(400, "%r is not a valid browser choice" % browser)
@@ -614,20 +651,6 @@ def delete_profiles(profile_id):
     db.delete_profile(profile_id)
     return jsonify(message="success")
 
-@app.route("/api/group/<int:group_id>/profiles", methods=["POST"])
-def update_profile_group(group_id):
-    profile_ids = request.form.getlist("profile_ids")
-
-    if not isinstance(profile_ids, list):
-        return json_error(400, "profile_ids must be a list of integer ids")
-
-    try:
-        profile_ids = [int(p) for p in profile_ids]
-    except ValueError:
-        return json_error(400, "profile_ids must be a list of integer ids")
-
-    db.update_profile_group(profile_ids=profile_ids, group_id=group_id)
-    return jsonify(message="success")
 
 def random_string(minimum, maximum=None):
     if maximum is None:
@@ -635,27 +658,6 @@ def random_string(minimum, maximum=None):
 
     count = random.randint(minimum, maximum)
     return "".join(random.choice(string.ascii_letters) for x in xrange(count))
-
-def random_date(start, end):
-    delta = end - start
-    int_delta = (delta.days * 24 * 60 * 60) + delta.seconds
-    random_second = random.randrange(int_delta)
-    return start + datetime.timedelta(seconds=random_second)
-
-def rand_sig(c=None):
-    s = ["JS eval()", "Suspicious JS", "JS iframe", "Flash file loaded",
-         "New URL detected", "Suspicious URL domain name", "JS in PDF",
-         "TOR url", "TOR gateway URL", "IE11 Exploit", "Edge Exploit",
-         "Firefox exploit", "Suspicious process created", "Browser exploited",
-         "Suspicious Java applet"]
-    s.extend([random_string(8, 17) for x in range(random.randint(4, 20))])
-    random.shuffle(s)
-    return [
-        {"signature": random.choice(s),
-         "description": random_string(10, 100),
-         "ioc": random_string(10, 100)
-         } for x in range(c or random.randint(0, 18))
-    ]
 
 @app.route("/api/genalert")
 def gen_alerts():
@@ -699,44 +701,6 @@ def gen_alerts():
         gevent.sleep(0.2)
 
     return jsonify(message="OK")
-
-@app.route("/api/gendiaries/<group_id>")
-def gen_diaries(group_id):
-    urls = db.find_urls_group(group_id=group_id, include_id=True)
-    if not urls:
-        return json_error(404, "Group with specified ID does not exist")
-
-    def gen_diary(url, url_id):
-        gen_urls = []
-        for x in range(random.randint(0, 100)):
-            u = "http://%s" % random_string(10, 60)
-            gen_urls.append({"url": u, "len": len(u)})
-
-        latest = URLDiaries.get_latest_diary(
-            url_id=url_id, return_fields="version"
-        ) or {}
-        return {
-            "url": url,
-            "url_id": url_id,
-            "datetime": int(time.time() * 1000),
-            "signatures": rand_sig(),
-            "javascript": [random_string(22, 6000) for x in range(
-                random.randint(0, 40)
-            )],
-            "requested_urls": gen_urls,
-            "related_documents": [],
-            "version": (latest.get("version") or 0) + 1
-        }
-
-    ids = []
-    for url in urls:
-        uid = uuid.uuid1()
-        URLDiaries.store_diary(
-            gen_diary(url.get("url"), url.get("id")), uid
-        )
-        ids.append(uid)
-
-    return jsonify(ids=ids)
 
 def ws_connect(ws):
     """Websocket connections for alerts are handled here. When a connection
