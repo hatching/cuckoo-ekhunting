@@ -110,7 +110,7 @@ class Profile(Base, ToDict):
 
     def to_dict(self, dt=True):
         dictionary = super(Profile, self).to_dict(dt)
-        dictionary["tags"] = [t.name for t in self.tags]
+        dictionary["tags"] = [{"id": t.id,"name":t.name} for t in self.tags]
         return dictionary
 
 class URLGroupProfile(Base, ToDict):
@@ -154,7 +154,9 @@ class URLGroup(Base, ToDict):
 
     def to_dict(self, dt=True):
         dictionary = super(URLGroup, self).to_dict(dt)
-        dictionary["profiles"] = [p.to_dict() for p in self.profiles]
+        dictionary["profiles"] = [
+            {"id": p.id, "name": p.name} for p in self.profiles
+        ]
         return dictionary
 
 #
@@ -511,7 +513,7 @@ def add_profile(name, browser, route, country=None, tags=[]):
 
     profile = Profile(name=name, browser=browser, route=route, country=country)
     try:
-        dbtags = ses.query(Tag).filter(Tag.name.in_(set(tags))).all()
+        dbtags = ses.query(Tag).filter(Tag.id.in_(set(tags))).all()
         profile.tags.extend(dbtags)
         ses.add(profile)
         ses.commit()
@@ -527,8 +529,9 @@ def update_profile(profile_id, browser, route, country=None, tags=[]):
     try:
         profile = ses.query(Profile).get(profile_id)
         if not profile:
-            return
-        dbtags = ses.query(Tag).filter(Tag.name.in_(set(tags))).all()
+            raise KeyError("Profile does not exist")
+
+        dbtags = ses.query(Tag).filter(Tag.id.in_(set(tags))).all()
         profile.browser = browser
         profile.route = route
         profile.country = country
@@ -572,6 +575,7 @@ def delete_profile(profile_id):
         if not profile:
             return
         ses.delete(profile)
+        ses.commit()
     finally:
         ses.close()
 
