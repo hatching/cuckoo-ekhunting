@@ -124,6 +124,11 @@ def init_logger(name, level=None):
         l.setFormatter(j)
         l.addFilter(j)
 
+    if name == "massurl.log":
+        l = logging.handlers.WatchedFileHandler(cwd("log", "massurl.log"))
+        l.setFormatter(formatter)
+        l.setLevel(level)
+
     if name == "console":
         l = ConsoleHandler()
         l.setFormatter(formatter)
