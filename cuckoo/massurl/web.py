@@ -239,6 +239,9 @@ def schedule_group(group_id):
     if not group:
         return json_error(404, message="Group does not exist")
 
+    if not group.profiles:
+        return json_error(400, "Group has not profiles. Cannot be scheduled")
+
     if not schedule:
         db.remove_schedule(group_id)
         return jsonify(message="OK")
