@@ -293,7 +293,7 @@ function initProfiles($view) {
       if(profileList.length) {
 
         $.each(profileList, (i,profile) => list.append(`
-          <li>
+          <li data-filter-value="${profile.name}">
             <a href="load:${profile.id}">${profile.name}</a>
           </li>
         `));
@@ -310,6 +310,11 @@ function initProfiles($view) {
         list.find('a').first().click();
 
       }
+    });
+
+    $view.find('input[name="filter-profiles"]').on('keyup', e => {
+      let val = $(e.currentTarget).val();
+      $view.find('[data-profiles-list]').filterList(val);
     });
 
     // new profile handler

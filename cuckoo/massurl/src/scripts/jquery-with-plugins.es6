@@ -53,8 +53,7 @@ $.fn.sortElements = (function(){
 $.fn.filterList = (function(){
   return function(str) {
     $(this).find('li[data-filter-value]').each((i,el) => {
-      console.log(el);
-      if($(el).attr('data-filter-value').indexOf(str.toLowerCase()) == -1) {
+      if($(el).attr('data-filter-value').toLowerCase().indexOf(str.toLowerCase()) == -1) {
         $(el).css('display','none');
       } else {
         $(el).removeAttr('style');
