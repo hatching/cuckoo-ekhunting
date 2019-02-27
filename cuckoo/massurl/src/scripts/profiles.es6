@@ -177,6 +177,8 @@ function initForm(data, $form) {
     $delete: $form.find('button#delete-profile')
   }
 
+  data.profile.tags = data.profile.tags.map(t=>t.id);
+
   // set country property
   let setCountry = e => data.profile.country = $(e.currentTarget).val();
   inputs.$countrySocks.on('change', setCountry);
