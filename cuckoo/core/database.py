@@ -194,6 +194,15 @@ class Tag(Base):
     def __init__(self, name):
         self.name = name
 
+    def to_dict(self):
+        """Converts object to dict.
+        @return: dict
+        """
+        d = {}
+        for column in self.__table__.columns:
+            d[column.name] = getattr(self, column.name)
+        return d
+
 class Submit(Base):
     """Submitted files details."""
     __tablename__ = "submit"
@@ -1491,6 +1500,9 @@ class Database(object):
         """Return a list of all available tags"""
         session = self.Session()
         try:
-            return session.query(Tag).limit(limit).offset(offset).all()
+            tags = session.query(Tag).limit(limit).offset(offset).all()
+            if tags:
+                session.expunge_all()
+            return tags
         finally:
             session.close()
