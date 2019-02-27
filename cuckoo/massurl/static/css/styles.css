@@ -7285,6 +7285,8 @@ table.table {
       margin-left: -25px;
       padding: 0 25px;
       box-sizing: border-box; }
+      .configure-content .multi-select ul {
+        padding-left: 0; }
     .configure-content .scroll-vertical {
       overflow-y: auto; }
     .configure-content .flex-v {
@@ -7292,6 +7294,18 @@ table.table {
       display: flex;
       flex-direction: column; }
       .configure-content .flex-v .multi-select {
-        flex-basis: 100%; }
+        flex-basis: 100%;
+        margin-top: 10px; }
+    .configure-content .flex-h {
+      display: flex;
+      justify-content: space-between; }
+    .configure-content .overlap-control {
+      position: relative;
+      align-self: flex-end;
+      margin: 0;
+      font-size: 14px;
+      padding: 5px; }
+      .configure-content .overlap-control:not([value=""]) {
+        background-color: #fff; }
 
 /*# sourceMappingURL=styles.css.map */

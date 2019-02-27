@@ -258,6 +258,7 @@
       margin-left: -25px;
       padding: 0 25px;
       box-sizing: border-box;
+      ul { padding-left: 0; }
     }
 
     .scroll-vertical { overflow-y: auto; }
@@ -269,7 +270,22 @@
 
       .multi-select {
         flex-basis: 100%;
+        margin-top: 10px;
       }
+    }
+
+    .flex-h {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .overlap-control {
+      position: relative;
+      align-self: flex-end;
+      margin: 0;
+      font-size: 14px;
+      padding: 5px;
+      &:not([value=""]) { background-color: #fff; }
     }
 
   }

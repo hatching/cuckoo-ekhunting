@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import $ from './jquery-with-plugins';
 import Handlebars from 'handlebars';
 
 /*
@@ -49,7 +49,7 @@ const profileFormTemplate = data => Handlebars.compile(`
       <div class="configure-block">
         <h4 class="configure-block__label">Name:</h4>
         <p class="configure-block__description">Type a name for this profile.</p>
-        <input type="text" class="configure-block__control" value="{{profile.name}}" name="profile-name" />
+        <input type="text" class="configure-block__control" placeholder="Type a name" name="profile-name" />
       </div>
     {{/if}}
     <div class="configure-block">
@@ -94,15 +94,17 @@ const profileFormTemplate = data => Handlebars.compile(`
     </div>
   </div>
   <div class="flex-v">
-    <div class="configure-block free">
-      <h4 class="configure-block__label">Tags</h4>
-      <p class="configure-block__description">Select multiple tags for the analyzer</p>
-      <input type="text" class="configure-block__control auto" placeholder="Type to filter tag names" />
+    <div class="configure-block flex-h free">
+      <div>
+        <h4 class="configure-block__label">Tags</h4>
+        <p class="configure-block__description">Select multiple tags for the analyzer</p>
+      </div>
+      <input type="text" class="configure-block__control overlap-control auto" placeholder="Type to filter tag names" name="filter-tags" />
     </div>
     <div class="multi-select scroll-vertical">
       <ul>
         {{#each meta.tags}}
-          <li>
+          <li data-filter-value="{{name}}">
             <input type="checkbox" id="tag-{{id}}" name="tags" value="{{id}}" {{#hasTag id ../profile.tags}}checked{{/hasTag}} />
             <label for="tag-{{id}}">{{name}}</label>
           </li>
@@ -173,6 +175,7 @@ function initForm(data, $form) {
     $countrySocks: $form.find('select[name="country-socks5"]'),
     $countryVPN: $form.find('select[name="country-vpn"]'),
     $tags: $form.find('input[name="tags"]'),
+    $tagFilters: $form.find('input[name="filter-tags"]'),
     $save: $form.find('button#save-profile'),
     $delete: $form.find('button#delete-profile')
   }
@@ -266,6 +269,14 @@ function initForm(data, $form) {
       $form.empty();
     });
   });
+
+  inputs.$tagFilters.on('keyup', e => {
+    let val = $(e.currentTarget).val();
+    inputs.$tags.parents('ul').filterList(val);
+  });
+
+  if(data.meta.new)
+    inputs.$name.focus();
 
 }
 
