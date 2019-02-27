@@ -10,8 +10,8 @@ import gevent
 
 from cuckoo.core.database import (
     Database, Task as DbTask, Target, TASK_FAILED_ANALYSIS,
-    TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING, TASK_ABORTED, TASK_PENDING,
-    TASK_COMPLETED, TASK_RUNNING, TASK_REPORTED
+    TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING, TASK_ABORTED, TASK_RUNNING,
+    TASK_REPORTED
 )
 from cuckoo.core.task import Task
 from cuckoo.massurl import db as massurldb
@@ -383,8 +383,32 @@ def handle_massurldetection(message):
             )
         )
 
+def handle_massurltaskfailure(message):
+    message = validate_message(message, ["error"])
+    if not message:
+        return
+
+    task_id = message["body"].get("taskid")
+    error = message["body"].get("error")
+    group = massurldb.find_group_task(task_id)
+    if not group:
+        log.debug(
+            "Received alert for task that is not for any of the existing"
+            " groups"
+        )
+        return
+
+    web.send_alert(
+        title="Group '%s' task #%s encountered a fatal error" %
+              (group.name, task_id),
+        content="Task #%s encountered a fatal error that caused the task to "
+                "fail. Error: %s." % (task_id, error),
+        url_group_name=group.name, level=2
+    )
+
 def massurl_scheduler():
     # TODO: increase delays
     gevent.spawn(run_with_minimum_delay, task_creator, 5.0)
     gevent.spawn(run_with_minimum_delay, task_checker, 5.0)
     ev_client.subscribe(handle_massurldetection, "massurldetection")
+    ev_client.subscribe(handle_massurltaskfailure, "massurltaskfailure")

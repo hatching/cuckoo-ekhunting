@@ -51,6 +51,7 @@ class Route(object):
                 self.task.options["route"] = "none"
                 self.interface = None
                 self.rt_table = None
+                return False
 
             elif not self.task.options.get("socks5.localport"):
                 log.warning(
@@ -66,6 +67,7 @@ class Route(object):
                 self.task.options["route"] = "none"
                 self.interface = None
                 self.rt_table = None
+                return False
 
         elif self.route == "internet":
             if config("routing:routing:internet") == "none":
@@ -81,10 +83,11 @@ class Route(object):
                 self.task.options["route"] = "none"
                 self.interface = None
                 self.rt_table = None
+                return False
             else:
                 self.interface = config("routing:routing:internet")
                 self.rt_table = config("routing:routing:rt_table")
-        elif self.route == "vpn":
+        elif self.route == "vpn" and VPNManager.vpns:
             country = self.task.options.get("vpn.country")
             name = self.task.options.get("vpn.name")
             vpn = VPNManager.acquire(country=country, name=name)
@@ -92,7 +95,7 @@ class Route(object):
             self.rt_table = vpn.get("rt_table")
             self.task.options["route"] = name
 
-        elif self.route in config("routing:vpn:vpns"):
+        elif self.route in config("routing:vpn:vpns") and VPNManager.vpns:
             vpn = VPNManager.acquire(name=self.route)
             self.interface = vpn.get("interface")
             self.rt_table = vpn.get("rt_table")
@@ -109,6 +112,7 @@ class Route(object):
             self.task.options["route"] = "none"
             self.interface = None
             self.rt_table = None
+            return False
 
         # Check if the network interface is still available. If a VPN dies for
         # some reason, its tunX interface will no longer be available.
@@ -126,6 +130,7 @@ class Route(object):
             self.task.options["route"] = "none"
             self.interface = None
             self.rt_table = None
+            return False
 
         # For now this doesn't work yet in combination with tor routing.
         if self.route == "drop" or self.route == "internet":
@@ -171,6 +176,8 @@ class Route(object):
             rooter(
                 "srcroute_enable", self.rt_table, self.machine.ip
             )
+
+        return True
 
     def unroute_network(self):
         """Disable any enabled network routing."""
