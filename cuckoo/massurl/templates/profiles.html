@@ -9,20 +9,17 @@
       <div class="split-view--vertical configure-ui">
         <div class="split-view">
           <aside class="split-view-container one-third configure-aside">
-
             <div class="configure-block">
               <h4 class="configure-block__label">
                 Profiles
-                <a href="#">New profile</a>
+                <a href="#" id="new-profile">New profile</a>
               </h4>
               <p class="configure-block__description">Select a profile from the list below or create a new profile.</p>
             </div>
-
             <div class="configure-block vertical-select">
               <input type="text" class="configure-block__control" placeholder="Type here to filter by name" required />
               <ul class="vertical-select__list" data-profiles-list></ul>
             </div>
-
           </aside>
           <div class="split-view-container configure-content" data-profiles-form>
             <!-- Injected by handlebars -->
@@ -35,11 +32,11 @@
 </main>
 
 <script type="text/javascript">
-  window.EKpageContent = {
-    browsers: {{browsers | safe}},
-    tags: {{tags | safe}},
-    routes: {{routes | safe}},
-    countries: {{route_countries | safe}}
+  window.EKPageContent = {
+    browsers: {{browsers | tojson}},
+    tags: {{tags | tojson}},
+    routes: {{routes | tojson}},
+    countries: {{route_countries | tojson}}
   };
 </script>
 
