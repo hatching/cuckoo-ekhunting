@@ -538,7 +538,7 @@ def add_profile():
     browser = request.form.get("browser", "").lower()
     route = request.form.get("route", "").lower()
     country = request.form.get("country", "").lower()
-    tags = filter(None, request.form.getlist("tags[]"))
+    tags = filter(None, request.form.getlist("tags"))
 
     if not name:
         return json_error(400, "No name provided")
@@ -609,7 +609,7 @@ def update_profile(profile_id):
     browser = request.form.get("browser", "").lower()
     route = request.form.get("route", "").lower()
     country = request.form.get("country", "").lower()
-    tags = filter(None, request.form.getlist("tags[]"))
+    tags = filter(None, request.form.getlist("tags"))
 
     if browser not in BROWSERS.values():
         return json_error(400, "%r is not a valid browser choice" % browser)
