@@ -53,12 +53,12 @@ class MassURL(AnalysisManager):
 
         self.rt = RealTimeHandler()
         self.ev_client = EventClient()
-        self.URL_BLOCKSIZE = self.task.options.get(
+        self.URL_BLOCKSIZE = int(self.task.options.get(
             "urlblocksize", self.URL_BLOCKSIZE
-        )
-        self.SECS_PER_BLOCK = self.task.options.get(
+        ))
+        self.SECS_PER_BLOCK = int(self.task.options.get(
             "blocktime", self.SECS_PER_BLOCK
-        )
+        ))
         self.aborted = False
         self.completed = False
 
