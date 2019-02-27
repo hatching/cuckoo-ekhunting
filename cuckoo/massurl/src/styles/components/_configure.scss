@@ -1,0 +1,143 @@
+.configure {
+
+  /*
+    <ConfigureBlock>
+      <ConfigureBlockLabel>
+        <Text />
+        <ConfigureBlockLabelRight:optional />
+      </ConfigureBlockLabel>
+      <ConfigureBlockLabelDescription />
+      <ConfigureBlockField>
+       <ConfigureBlockInput />
+      </ConfigureBlockField>
+    </ConfigureBlock>
+   */
+
+  &-block {
+
+    padding: 15px 10px 0 10px;
+    box-sizing: border-box;
+    font-size: 16px;
+
+    &__label {
+      display: block;
+      color: #141414;
+      margin: 6px 0;
+      font-weight: 500;
+      a {
+        float: right;
+        color: #4A6FA5;
+      }
+    }
+
+    &__description {
+      color: #7E7E7E;
+      margin: 0 0 10px 0;
+      font-weight: 400;
+    }
+
+    &__control {
+      -webkit-appearance: none;
+      display: block;
+      background-color: #E4E4E4;
+      border: 1px solid transparent;
+      font-family: "Roboto";
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+      width: 100%;
+      border-radius: 4px;
+      margin: 0 0 10px 0;
+
+      &:focus,
+      &:valid {
+        outline: none;
+        border-color: #ddd;
+        background-color: #eee;
+      }
+    }
+
+    &__container {
+      position: relative;
+      margin-left: -15px;
+      .configure-block {
+        display: inline-block;
+        vertical-align: top;
+        padding: 0;
+        margin: 0 15px;
+      }
+    }
+
+  }
+
+  &-ui {
+    background-color: rgba(255,255,255,.95);
+  }
+
+  &-aside {
+    border-right: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+
+    .vertical-select {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      flex-basis: 100%;
+      overflow: hidden;
+      background-color: #E2ECFA;
+
+      .configure-block__control {
+        background-color: #fff;
+        margin-bottom: 15px;
+        &:focus,&:valid { border-color: #C7D3E3; }
+      }
+
+      &__list {
+        position: relative;
+        width: calc(100% + 20px);
+        margin: 0 0 0 -20px;
+        flex-basis: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        list-style: none;
+        padding: 5px 5px ;
+        background-color: #EBF3FF;
+
+        li {
+          margin: 10px 0;
+          padding: 0 5px 0 15px;
+          a {
+            display: block;
+            font-weight: 400;
+            background-color: #B7CDEF;
+            border-radius: 4px;
+            padding: 10px;
+            color: #141414;
+            text-decoration: none;
+            &:hover { background-color: shade(#B7CDEF, 4%); }
+            &.active {
+              font-weight: 500;
+              color: #fff;
+              background-color: #4A6FA5;
+              width: calc(100% + 10px);
+              border-top-right-radius: 0;
+              border-bottom-right-radius: 0;
+            }
+          }
+        }
+      }
+
+    }
+
+  }
+
+  &-content {
+    padding: 0 25px;
+    & > h2 {
+      font-weight: 400;
+      font-size: 32px;
+    }
+  }
+
+}

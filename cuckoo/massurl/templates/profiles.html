@@ -2,17 +2,53 @@
 {% block content %}
 
 <main class="viewport">
-  <div class="foreground app">
+  <div class="foreground app" id="profiles">
     {% include 'partials/header.html' %}
     <section class="app__body editor-body expanded">
       {% include 'partials/settings-nav.html' %}
-      <div class="split-view--vertical editor-ui">
+      <div class="split-view--vertical configure-ui">
         <div class="split-view">
-          <div class="split-view-container one-third editor-ui-left">
+          <aside class="split-view-container one-third configure-aside">
 
-          </div>
-          <div class="split-view-container editor ready">
-            Profiles
+            <div class="configure-block">
+              <h4 class="configure-block__label">
+                Profiles
+                <a href="#">New profile</a>
+              </h4>
+              <p class="configure-block__description">Select a profile from the list below or create a new profile.</p>
+            </div>
+
+            <div class="configure-block vertical-select">
+              <input type="text" class="configure-block__control" placeholder="Type here to filter by name" required />
+              <ul class="vertical-select__list">
+                <li><a href="#">Name</a></li>
+                <li><a class="active" href="#">Name</a></li>
+              </ul>
+            </div>
+
+          </aside>
+          <div class="split-view-container configure-content">
+
+            <h2>Profile title</h2>
+
+            <div class="configure-block__container">
+
+              <div class="configure-block">
+                <h4 class="configure-block__label">Browser</h4>
+                <p class="configure-block__description">The browser to use within the analyzer</p>
+                <input type="text" class="configure-block__control" placeholder="Select" required />
+              </div>
+
+              <div class="configure-block">
+                <h4 class="configure-block__label">Route</h4>
+                <p class="configure-block__description">Type of network routing for the VM</p>
+                <input type="text" class="configure-block__control" placeholder="Select" required />
+                <p class="configure-block__description">Via:</p>
+                <input type="text" class="configure-block__control" placeholder="Select" required />
+              </div>
+
+            </div>
+
           </div>
         </div>
       </div>

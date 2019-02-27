@@ -101,7 +101,11 @@
       &.fa-comment-alt { opacity: .5; }
     }
 
-    .fa-cog { opacity: .8; }
+    .fa-cog {
+      position: relative;
+      top: 4px;
+      opacity: .8;
+    }
 
     &:focus { outline: 0; }
     &:hover {
