@@ -603,6 +603,15 @@ def update_settings_group(group_id, threshold, batch_size, batch_time):
         if not group:
             return
 
+        if threshold and threshold < 10:
+            threshold = 10
+
+        if batch_size and batch_size < 1:
+            batch_size = 1
+
+        if batch_time and batch_time < 5:
+            batch_time = 5
+
         group.max_parallel = threshold or group.max_parallel
         group.batch_size = batch_size or group.batch_size
         group.batch_time = batch_time or group.batch_time
