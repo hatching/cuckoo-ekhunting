@@ -21,7 +21,7 @@ Handlebars.registerHelper('join', arr => arr.join('\n'));
 Handlebars.registerHelper('status-icon', status => {
   switch(status) {
     case 'pending':
-      return `<i title= class="far fa-hourglass" title="${status}"></i>`;
+      return `<i class="far fa-hourglass" title="${status}"></i>`;
     break;
     case 'running':
       return `<i class="far fa-spinner-third fa-spin" title="${status}"></i>`;
@@ -32,12 +32,12 @@ Handlebars.registerHelper('status-icon', status => {
   }
 });
 // checks if a group has not status or is completed
-Handlebars.registerHelper('running', (group, opts) => {
-  if(group.status || group.completed === false || group.profiles.length == 0) {
-    return opts.fn();
-  } else {
-    return opts.inverse();
-  }
+Handlebars.registerHelper('can-schedule', (group, opts) => {
+  let canSchedule = true;
+  if(group.status == "pending" || group.status == "running") canSchedule = false;
+  if(group.profiles.length == 0) canSchedule = false;
+  if(group.urls.length == 0) canSchedule = false;
+  if(!canSchedule) return 'disabled';
 });
 // checks if a profile has already been selected
 Handlebars.registerHelper('didSelectProfile', (pid,sid,o) => (sid.map(p=>p.id).indexOf(pid) > -1) ? o.fn() : '');
@@ -150,10 +150,10 @@ const Templates = {
         <p>{{description}}</p>
       </div>
       <nav>
-        <button class="button icon-button" data-schedule-now {{#running this}}disabled{{/running}}>Scan now</button>
+        <button class="button icon-button" data-schedule-now {{{can-schedule this}}}>Scan now</button>
         <p>or</p>
         <div>
-          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler" {{#running this}}disabled{{/running}}><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
+          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler" {{{can-schedule this}}}><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
         </div>
         <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
         <button class="button icon-button" data-settings><i class="fas fa-ellipsis-v"></i></button>
