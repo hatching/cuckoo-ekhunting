@@ -188,7 +188,9 @@ const Templates = {
         </div>
         <div class="configure-block flex">
           <a href="/settings/profiles"><small>Edit profiles</small></a>
-          <button class="button" id="save-group-profiles">Set profiles</button>
+          <div>
+            <button class="button" id="save-group-profiles">Set profiles</button>
+          </div>
         </div>
         <div class="configure-block">
           <h4 class="configure-block__label">Treshold</h4>

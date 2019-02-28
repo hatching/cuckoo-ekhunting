@@ -87,8 +87,6 @@ function scheduleReset(id) {
 // opens a pane for group settings
 function editorSettings($editor, data) {
 
-  console.log(data);
-
   $.get('/api/profile/list').done(profiles => {
 
     data.profiles = profiles;
@@ -104,7 +102,12 @@ function editorSettings($editor, data) {
           return sel.join(',');
         }())
       }).done(response => {
-
+        $settings.find('#save-group-profiles').after('<i class="fas fa-check"></i>');
+        $settings.find('#save-group-profiles').text('Saved');
+        setTimeout(() => {
+          $settings.find('#save-group-profiles').parent().find('i').remove();
+          $settings.find('#save-group-profiles').text('Set profiles');
+        }, 2500);
       }).fail(err => {
 
       })

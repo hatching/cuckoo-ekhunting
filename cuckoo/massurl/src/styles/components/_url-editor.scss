@@ -404,6 +404,12 @@
         .configure-block.flex {
           display: flex;
           justify-content: space-between;
+          align-items: center;
+
+          & > div > i {
+            margin-left: 5px;
+            color: #B7CDEF;
+          }
         }
       }
 

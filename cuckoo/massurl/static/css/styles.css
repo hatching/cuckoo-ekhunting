@@ -6771,7 +6771,11 @@ table.table {
             margin: 0; }
         .editor-ui .editor-settings section .configure-block.flex {
           display: flex;
-          justify-content: space-between; }
+          justify-content: space-between;
+          align-items: center; }
+          .editor-ui .editor-settings section .configure-block.flex > div > i {
+            margin-left: 5px;
+            color: #B7CDEF; }
     .editor-ui .editor.flex {
       display: flex;
       flex-direction: column; }
