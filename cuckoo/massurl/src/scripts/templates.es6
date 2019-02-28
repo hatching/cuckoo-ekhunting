@@ -217,7 +217,9 @@ const Templates = {
           </div>
         </div>
         <div class="configure-block flex">
-          <button class="button" id="save-group-profiles">Save</button>
+          <div>
+            <button class="button" id="save-group-settings">Save settings</button>
+          </div>
         </div>
       </section>
     </div>

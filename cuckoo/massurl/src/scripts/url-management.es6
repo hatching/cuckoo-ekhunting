@@ -108,9 +108,27 @@ function editorSettings($editor, data) {
           $settings.find('#save-group-profiles').parent().find('i').remove();
           $settings.find('#save-group-profiles').text('Set profiles');
         }, 2500);
-      }).fail(err => {
+      }).fail(err => console.log(err));
+    });
 
-      })
+    $settings.find("#save-group-settings").on('click', e => {
+      let values = {
+        treshold: $settings.find('input[name="group-treshold"]').val(),
+        batch_size: $settings.find('input[name="batch-size"]').val(),
+        batch_time: $settings.find('input[name="batch-time"]').val()
+      }
+      $.post(`/api/group/${data.group.id}/settings`, values).done(response => {
+        data.group.treshold = values.treshold;
+        data.group.batch_size = values.batch_size;
+        data.group.batch_time = values.batch_time;
+
+        $settings.find("#save-group-settings").after('<i class="fas fa-check"></i>');
+        $settings.find("#save-group-settings").text('Saved');
+        setTimeout(() => {
+          $settings.find('#save-group-settings').parent().find('i').remove();
+          $settings.find('#save-group-settings').text('Save settings');
+        }, 2500);
+      }).fail(err => console.log(err));
     });
 
     $settings.find('header [data-close]').on('click', e => {
