@@ -84,6 +84,12 @@ def get_route_countries():
 #
 # WEB VIEW ROUTES
 #
+
+@app.after_request
+def add_headers(response):
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
+
 @app.route("/")
 def index():
     return render_template("index.html")
