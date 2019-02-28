@@ -139,7 +139,6 @@ const Templates = {
 
   // template for url-editor
   editor: data => Handlebars.compile(`
-    {{log this}}
     <header>
       <div>
         <h3>{{{status-icon status}}} {{name}}</h3>
@@ -154,12 +153,52 @@ const Templates = {
           <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
         </div>
         <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
+        <button class="button icon-button" data-settings><i class="fas fa-ellipsis-v"></i></button>
         <button class="button icon-button" data-close><i class="fal fa-times"></i></button>
       </nav>
     </header>
     <hr />
     <div class="url-area">
       <textarea placeholder="Type urls here">{{join urls}}</textarea>
+    </div>
+  `)(data),
+
+  groupSettings: data => Handlebars.compile(`
+    <div class="editor-settings configure">
+      <header>
+        <h4>Settings</h4>
+        <a data-close href="#"><i class="far fa-times"></i></a>
+      </header>
+      <section>
+        <div class="configure-block">
+          <h4 class="configure-block__label">Profiles</h4>
+          <p class="configure-block__description">Analyses within this group are processed with the profiles listed underneath. Select the profiles this group has to use during analysis.</p>
+        </div>
+        <div class="multi-select blue" id="select-profiles">
+          <ul>
+            {{#each profiles}}
+              <li>
+                <input type="checkbox" id="profile-{{id}}" name="profile" value="{{id}}" />
+                <label for="profile-{{id}}">{{name}}</label>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+        <div class="configure-block flex">
+          <a href="/settings/profiles"><small>Manage profiles</small></a>
+          <button class="button" id="save-group-profiles">Save</button>
+        </div>
+        <!--
+        <div class="configure-block">
+          <h4 class="configure-block__label">Batch Size</h4>
+          <p class="configure-block__description">The amount of urls per batch. Less amount in chunk size means a higher (but slower) performance.</p>
+          <div class="configure-block__control--wrapper inline">
+            <input type="text" value="{{group.batch_size}}" class="configure-block__control mini" />
+            <p class="configure-block__description">URLs</p>
+          </div>
+        </div>
+        -->
+      </section>
     </div>
   `)(data),
 

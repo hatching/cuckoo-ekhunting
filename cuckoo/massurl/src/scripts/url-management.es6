@@ -26,11 +26,8 @@ function loadGroup(id) {
   return new Promise((resolve, reject) => {
     $.get(urls.view_groups(id), group => {
       loadUrlsForGroup(group.id).then((u = {urls:null}) => {
-        // group.urls = u.urls || [];
         group.urls = [];
-        if(u.urls) {
-          group.urls = u.urls.map(url => url.url);
-        }
+        if(u.urls) group.urls = u.urls.map(url => url.url);
         resolve({
           group,
           template: $(Templates.editor(group))
@@ -72,7 +69,6 @@ function setSchedule(id, schedule='now') {
   return new Promise((resolve, reject) => {
     if(!id) return reject({message:'no ID for schedule'});
     $.post(urls.schedule_group(id), (!schedule ? {} : {schedule}), response => {
-      console.log(response);
       resolve(response);
     }).fail(err => reject(err))
   });
@@ -88,6 +84,27 @@ function scheduleReset(id) {
   return setSchedule(id,false);
 }
 
+function editorSettings($editor, data) {
+  $.get('/api/profile/list').done(profiles => {
+
+    data.profiles = profiles;
+    let settings = $(Templates.groupSettings(data));
+    $editor.append(settings);
+
+    settings.find('#select-profiles input').on('change', e => {
+      settings.find('#select-profiles input').filter('checked').each((i,el) => {
+        
+      });
+    });
+
+    settings.find('header [data-close]').on('click', e => {
+      e.preventDefault();
+      settings.remove();
+    });
+
+  }).fail(err => console.log(err));
+}
+
 // initializes and renders a url editor for a group
 function initEditor(data = {}, $editor) {
 
@@ -95,6 +112,7 @@ function initEditor(data = {}, $editor) {
   $editor.html(data.template);
   let $textfield = $editor.find('textarea');
   let scan = $editor.find('button[data-schedule-now]');
+
   // initialize textarea auto-type-resizer
   autosize($textfield);
 
@@ -133,6 +151,10 @@ function initEditor(data = {}, $editor) {
         }).catch(e => console.log(e));
       }).catch(e => console.log(e));
     }
+  });
+
+  $editor.find('[data-settings]').on('click', e => {
+    editorSettings($editor, data);
   });
 
   // initialize scheduler button

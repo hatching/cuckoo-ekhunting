@@ -49,9 +49,8 @@
       border-radius: 4px;
       margin: 0 0 10px 0;
 
-      &.auto {
-        width: auto;
-      }
+      &.auto { width: auto; }
+      &.mini { width: 100px; }
 
       &:focus,
       &:valid {
@@ -78,8 +77,12 @@
           display: flex;
           align-items: center;
           & > p { margin: 0 10px 0 0; }
+
           & > input,
-          & > select { margin-bottom: 0; }
+          & > select {
+            margin-bottom: 0;
+            & + p { margin-left: 10px; }
+          }
           margin-bottom: 10px;
         }
       }
@@ -103,6 +106,7 @@
 
     & + .multi-select {
       background-color: #fff;
+      &.blue { background-color: #E2ECFA; }
       & > ul {
         list-style: none;
         padding: 15px 15px 0 15px;

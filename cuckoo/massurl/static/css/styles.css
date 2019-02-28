@@ -6579,6 +6579,7 @@ table.table {
     content: "Loading...";
     color: #ccc; }
   .editor-ui .editor {
+    position: relative;
     overflow-y: auto; }
     .editor-ui .editor.loading, .editor-ui .editor.idle {
       display: flex;
@@ -6742,6 +6743,33 @@ table.table {
             font-size: .9em;
             margin: 0;
             margin-left: 10px; }
+    .editor-ui .editor-settings {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 320px;
+      height: calc(100% - 30px);
+      background-color: rgba(255, 255, 255, 0.99);
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column; }
+      .editor-ui .editor-settings header {
+        background-color: rgba(0, 0, 0, 0.05);
+        margin-top: 0; }
+        .editor-ui .editor-settings header h4 {
+          margin: 10px 0; }
+      .editor-ui .editor-settings section {
+        flex-basis: 100%;
+        overflow-y: auto; }
+        .editor-ui .editor-settings section .multi-select {
+          overflow-y: auto; }
+          .editor-ui .editor-settings section .multi-select ul {
+            margin: 0; }
+        .editor-ui .editor-settings section .configure-block.flex {
+          display: flex;
+          justify-content: space-between; }
     .editor-ui .editor.flex {
       display: flex;
       flex-direction: column; }
@@ -7112,6 +7140,8 @@ table.table {
       margin: 0 0 10px 0; }
       .configure-block__control.auto {
         width: auto; }
+      .configure-block__control.mini {
+        width: 100px; }
       .configure-block__control:focus, .configure-block__control:valid {
         outline: none;
         border-color: #ddd;
@@ -7142,6 +7172,9 @@ table.table {
           .configure-block__control--wrapper.inline:not([hidden]) > input,
           .configure-block__control--wrapper.inline:not([hidden]) > select {
             margin-bottom: 0; }
+            .configure-block__control--wrapper.inline:not([hidden]) > input + p,
+            .configure-block__control--wrapper.inline:not([hidden]) > select + p {
+              margin-left: 10px; }
     .configure-block__container {
       position: relative;
       margin-left: -15px; }
@@ -7155,6 +7188,8 @@ table.table {
       padding-right: 0; }
     .configure-block + .multi-select {
       background-color: #fff; }
+      .configure-block + .multi-select.blue {
+        background-color: #E2ECFA; }
       .configure-block + .multi-select > ul {
         list-style: none;
         padding: 15px 15px 0 15px; }
