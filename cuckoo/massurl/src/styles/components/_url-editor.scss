@@ -393,9 +393,11 @@
       section {
         flex-basis: 100%;
         overflow-y: auto;
+        padding-bottom: 10px;
 
         .multi-select {
           overflow-y: auto;
+          max-height: 200px;
           ul { margin: 0; }
         }
 

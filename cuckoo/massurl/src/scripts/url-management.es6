@@ -84,25 +84,39 @@ function scheduleReset(id) {
   return setSchedule(id,false);
 }
 
+// opens a pane for group settings
 function editorSettings($editor, data) {
+
+  console.log(data);
+
   $.get('/api/profile/list').done(profiles => {
 
     data.profiles = profiles;
-    let settings = $(Templates.groupSettings(data));
-    $editor.append(settings);
 
-    settings.find('#select-profiles input').on('change', e => {
-      settings.find('#select-profiles input').filter('checked').each((i,el) => {
-        
-      });
+    let $settings = $(Templates.groupSettings(data));
+    $editor.append($settings);
+
+    $settings.find('#save-group-profiles').on('click', e => {
+      $.post(`/api/group/${data.group.id}/profiles`, {
+        profile_ids: (function() {
+          let sel = [];
+          $settings.find('#select-profiles input:checked').each((i,p) => sel.push($(p).val()));
+          return sel.join(',');
+        }())
+      }).done(response => {
+
+      }).fail(err => {
+
+      })
     });
 
-    settings.find('header [data-close]').on('click', e => {
+    $settings.find('header [data-close]').on('click', e => {
       e.preventDefault();
-      settings.remove();
+      $settings.remove();
     });
 
   }).fail(err => console.log(err));
+
 }
 
 // initializes and renders a url editor for a group

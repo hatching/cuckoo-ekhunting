@@ -36,6 +36,8 @@ Handlebars.registerHelper('no-status', (group, opts) => {
   if(!group.status || group.completed)
     return opts.fn();
 });
+// checks if a profile has already been selected
+Handlebars.registerHelper('didSelectProfile', (pid,sid,o) => (sid.map(p=>p.id).indexOf(pid) > -1) ? o.fn() : '');
 
 const Templates = {
 
@@ -178,26 +180,43 @@ const Templates = {
           <ul>
             {{#each profiles}}
               <li>
-                <input type="checkbox" id="profile-{{id}}" name="profile" value="{{id}}" />
+                <input type="checkbox" id="profile-{{id}}" name="profile" value="{{id}}" {{#didSelectProfile id ../group.profiles}}checked{{/didSelectProfile}} />
                 <label for="profile-{{id}}">{{name}}</label>
               </li>
             {{/each}}
           </ul>
         </div>
         <div class="configure-block flex">
-          <a href="/settings/profiles"><small>Manage profiles</small></a>
-          <button class="button" id="save-group-profiles">Save</button>
+          <a href="/settings/profiles"><small>Edit profiles</small></a>
+          <button class="button" id="save-group-profiles">Set profiles</button>
         </div>
-        <!--
         <div class="configure-block">
-          <h4 class="configure-block__label">Batch Size</h4>
-          <p class="configure-block__description">The amount of urls per batch. Less amount in chunk size means a higher (but slower) performance.</p>
+          <h4 class="configure-block__label">Treshold</h4>
+          <p class="configure-block__description">The amount of URLs per created task when analyzing a group.</p>
           <div class="configure-block__control--wrapper inline">
-            <input type="text" value="{{group.batch_size}}" class="configure-block__control mini" />
+            <input type="text" value="{{group.treshold}}" class="configure-block__control mini" name="group-treshold" />
             <p class="configure-block__description">URLs</p>
           </div>
         </div>
-        -->
+        <div class="configure-block">
+          <h4 class="configure-block__label">Batch size</h4>
+          <p class="configure-block__description">The amount of URLs opened at the same time inside of a VM</p>
+          <div class="configure-block__control--wrapper inline">
+            <input type="text" value="{{group.batch_size}}" class="configure-block__control mini" name="batch-size" />
+            <p class="configure-block__description">URLs</p>
+          </div>
+        </div>
+        <div class="configure-block">
+          <h4 class="configure-block__label">Batch timeout</h4>
+          <p class="configure-block__description">The amount of seconds the URLs batch remains opened before the next batch is opened.</p>
+          <div class="configure-block__control--wrapper inline">
+            <input type="text" value="{{group.batch_time}}" class="configure-block__control mini" name="batch-time" />
+            <p class="configure-block__description">Seconds</p>
+          </div>
+        </div>
+        <div class="configure-block flex">
+          <button class="button" id="save-group-profiles">Save</button>
+        </div>
       </section>
     </div>
   `)(data),
