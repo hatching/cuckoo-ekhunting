@@ -102,12 +102,7 @@ function editorSettings($editor, data) {
           return sel.join(',');
         }())
       }).done(response => {
-        $settings.find('#save-group-profiles').after('<i class="fas fa-check"></i>');
-        $settings.find('#save-group-profiles').text('Saved');
-        setTimeout(() => {
-          $settings.find('#save-group-profiles').parent().find('i').remove();
-          $settings.find('#save-group-profiles').text('Set profiles');
-        }, 2500);
+        $(`.url-groups a[href="open:${data.group.id}"]`).click();
       }).fail(err => console.log(err));
     });
 
@@ -118,16 +113,7 @@ function editorSettings($editor, data) {
         batch_time: parseInt($settings.find('input[name="batch-time"]').val())
       }
       $.post(`/api/group/${data.group.id}/settings`, values).done(response => {
-        data.group.max_parallel = values.threshold;
-        data.group.batch_size = values.batch_size;
-        data.group.batch_time = values.batch_time;
-
-        $settings.find("#save-group-settings").after('<i class="fas fa-check"></i>');
-        $settings.find("#save-group-settings").text('Saved');
-        setTimeout(() => {
-          $settings.find('#save-group-settings').parent().find('i').remove();
-          $settings.find('#save-group-settings').text('Save settings');
-        }, 2500);
+        $(`.url-groups a[href="open:${data.group.id}"]`).click();
       }).fail(err => console.log(err));
     });
 
@@ -173,6 +159,7 @@ function initEditor(data = {}, $editor) {
           loadUrlsForGroup(data.group.id).then(u => {
             // update state
             state.urls = u.urls;
+            $(`.url-groups a[href="open:${data.group.id}"]`).click();
           }).catch(e => console.log(e));
         }).catch(e => console.log(e));
       }).catch(e => {
@@ -183,6 +170,7 @@ function initEditor(data = {}, $editor) {
         loadUrlsForGroup(data.group.id).then(u => {
           // update state
           state.urls = u.urls;
+          $(`.url-groups a[href="open:${data.group.id}"]`).click();
         }).catch(e => console.log(e));
       }).catch(e => console.log(e));
     }
