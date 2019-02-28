@@ -6377,6 +6377,8 @@ table.table {
     border-color: #ddd; }
     .button[disabled]:hover {
       cursor: default; }
+    .button[disabled] i {
+      color: #4A6FA5; }
 
 .tabs {
   margin-bottom: 15px;

@@ -32,9 +32,12 @@ Handlebars.registerHelper('status-icon', status => {
   }
 });
 // checks if a group has not status or is completed
-Handlebars.registerHelper('no-status', (group, opts) => {
-  if(!group.status || group.completed)
+Handlebars.registerHelper('running', (group, opts) => {
+  if(group.status || group.completed === false || !group.profiles) {
     return opts.fn();
+  } else {
+    return opts.inverse();
+  }
 });
 // checks if a profile has already been selected
 Handlebars.registerHelper('didSelectProfile', (pid,sid,o) => (sid.map(p=>p.id).indexOf(pid) > -1) ? o.fn() : '');
@@ -147,12 +150,10 @@ const Templates = {
         <p>{{description}}</p>
       </div>
       <nav>
-        {{#no-status this}}
-          <button class="button icon-button" data-schedule-now>Scan now</button>
-          <p>or</p>
-        {{/no-status}}
+        <button class="button icon-button" data-schedule-now {{#running this}}disabled{{/running}}>Scan now</button>
+        <p>or</p>
         <div>
-          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
+          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler" {{#running this}}disabled{{/running}}><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
         </div>
         <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
         <button class="button icon-button" data-settings><i class="fas fa-ellipsis-v"></i></button>
