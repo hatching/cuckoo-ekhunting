@@ -113,12 +113,12 @@ function editorSettings($editor, data) {
 
     $settings.find("#save-group-settings").on('click', e => {
       let values = {
-        treshold: $settings.find('input[name="group-treshold"]').val(),
-        batch_size: $settings.find('input[name="batch-size"]').val(),
-        batch_time: $settings.find('input[name="batch-time"]').val()
+        treshold: parseInt($settings.find('input[name="group-treshold"]').val()),
+        batch_size: parseInt($settings.find('input[name="batch-size"]').val()),
+        batch_time: parseInt($settings.find('input[name="batch-time"]').val())
       }
       $.post(`/api/group/${data.group.id}/settings`, values).done(response => {
-        data.group.treshold = values.treshold;
+        data.group.max_parallel = values.treshold;
         data.group.batch_size = values.batch_size;
         data.group.batch_time = values.batch_time;
 

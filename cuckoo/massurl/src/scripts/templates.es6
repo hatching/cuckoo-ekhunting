@@ -197,7 +197,8 @@ const Templates = {
           <h4 class="configure-block__label">Treshold</h4>
           <p class="configure-block__description">The amount of URLs per created task when analyzing a group.</p>
           <div class="configure-block__control--wrapper inline">
-            <input type="text" value="{{group.treshold}}" class="configure-block__control mini" name="group-treshold" />
+            {{log this.group.max_parallel}}
+            <input type="text" value="{{group.max_parallel}}" class="configure-block__control mini" name="group-treshold" />
             <p class="configure-block__description">URLs</p>
           </div>
         </div>
