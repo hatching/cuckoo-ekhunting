@@ -26,11 +26,8 @@ function loadGroup(id) {
   return new Promise((resolve, reject) => {
     $.get(urls.view_groups(id), group => {
       loadUrlsForGroup(group.id).then((u = {urls:null}) => {
-        // group.urls = u.urls || [];
         group.urls = [];
-        if(u.urls) {
-          group.urls = u.urls.map(url => url.url);
-        }
+        if(u.urls) group.urls = u.urls.map(url => url.url);
         resolve({
           group,
           template: $(Templates.editor(group))
@@ -72,7 +69,6 @@ function setSchedule(id, schedule='now') {
   return new Promise((resolve, reject) => {
     if(!id) return reject({message:'no ID for schedule'});
     $.post(urls.schedule_group(id), (!schedule ? {} : {schedule}), response => {
-      console.log(response);
       resolve(response);
     }).fail(err => reject(err))
   });
@@ -88,6 +84,62 @@ function scheduleReset(id) {
   return setSchedule(id,false);
 }
 
+// opens a pane for group settings
+function editorSettings($editor, data) {
+
+  $.get('/api/profile/list').done(profiles => {
+
+    data.profiles = profiles;
+
+    let $settings = $(Templates.groupSettings(data));
+    $editor.append($settings);
+
+    $settings.find('#save-group-profiles').on('click', e => {
+      $.post(`/api/group/${data.group.id}/profiles`, {
+        profile_ids: (function() {
+          let sel = [];
+          $settings.find('#select-profiles input:checked').each((i,p) => sel.push($(p).val()));
+          return sel.join(',');
+        }())
+      }).done(response => {
+        $settings.find('#save-group-profiles').after('<i class="fas fa-check"></i>');
+        $settings.find('#save-group-profiles').text('Saved');
+        setTimeout(() => {
+          $settings.find('#save-group-profiles').parent().find('i').remove();
+          $settings.find('#save-group-profiles').text('Set profiles');
+        }, 2500);
+      }).fail(err => console.log(err));
+    });
+
+    $settings.find("#save-group-settings").on('click', e => {
+      let values = {
+        threshold: parseInt($settings.find('input[name="group-threshold"]').val()),
+        batch_size: parseInt($settings.find('input[name="batch-size"]').val()),
+        batch_time: parseInt($settings.find('input[name="batch-time"]').val())
+      }
+      $.post(`/api/group/${data.group.id}/settings`, values).done(response => {
+        data.group.max_parallel = values.threshold;
+        data.group.batch_size = values.batch_size;
+        data.group.batch_time = values.batch_time;
+
+        $settings.find("#save-group-settings").after('<i class="fas fa-check"></i>');
+        $settings.find("#save-group-settings").text('Saved');
+        setTimeout(() => {
+          $settings.find('#save-group-settings').parent().find('i').remove();
+          $settings.find('#save-group-settings').text('Save settings');
+        }, 2500);
+      }).fail(err => console.log(err));
+    });
+
+    $settings.find('header [data-close]').on('click', e => {
+      e.preventDefault();
+      $settings.remove();
+    });
+
+  }).fail(err => console.log(err));
+
+}
+
 // initializes and renders a url editor for a group
 function initEditor(data = {}, $editor) {
 
@@ -95,6 +147,7 @@ function initEditor(data = {}, $editor) {
   $editor.html(data.template);
   let $textfield = $editor.find('textarea');
   let scan = $editor.find('button[data-schedule-now]');
+
   // initialize textarea auto-type-resizer
   autosize($textfield);
 
@@ -133,6 +186,10 @@ function initEditor(data = {}, $editor) {
         }).catch(e => console.log(e));
       }).catch(e => console.log(e));
     }
+  });
+
+  $editor.find('[data-settings]').on('click', e => {
+    editorSettings($editor, data);
   });
 
   // initialize scheduler button

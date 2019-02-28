@@ -6,6 +6,7 @@ import { initUrlManagement } from './url-management';
 import { initUrlGroupView } from './url-group-view';
 import { initDiary } from './diary';
 import { initSearch } from './search';
+import { initProfiles } from './profiles';
 
 // util - string bool to bool
 function stringToBoolean(val){
@@ -143,6 +144,12 @@ $(function() {
   // specific inits for search
   if($("#search-content").length) {
     initSearch($("#search-content"), $("#result-container")).then(data => {
+
+    });
+  }
+
+  if($("#profiles").length) {
+    initProfiles($("#profiles")).then(data => {
 
     });
   }

@@ -32,10 +32,15 @@ Handlebars.registerHelper('status-icon', status => {
   }
 });
 // checks if a group has not status or is completed
-Handlebars.registerHelper('no-status', (group, opts) => {
-  if(!group.status || group.completed)
+Handlebars.registerHelper('running', (group, opts) => {
+  if(group.status || group.completed === false || group.profiles.length == 0) {
     return opts.fn();
+  } else {
+    return opts.inverse();
+  }
 });
+// checks if a profile has already been selected
+Handlebars.registerHelper('didSelectProfile', (pid,sid,o) => (sid.map(p=>p.id).indexOf(pid) > -1) ? o.fn() : '');
 
 const Templates = {
 
@@ -139,27 +144,85 @@ const Templates = {
 
   // template for url-editor
   editor: data => Handlebars.compile(`
-    {{log this}}
     <header>
       <div>
         <h3>{{{status-icon status}}} {{name}}</h3>
         <p>{{description}}</p>
       </div>
       <nav>
-        {{#no-status this}}
-          <button class="button icon-button" data-schedule-now>Scan now</button>
-          <p>or</p>
-        {{/no-status}}
+        <button class="button icon-button" data-schedule-now {{#running this}}disabled{{/running}}>Scan now</button>
+        <p>or</p>
         <div>
-          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler"><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
+          <button class="button icon-button" data-schedule="{{id}}" id="toggle-scheduler" {{#running this}}disabled{{/running}}><i class="fal fa-calendar{{#if schedule}}-check{{/if}}"></i> <span>Schedule{{#if schedule}}d at {{schedule_next}}{{/if}}</span></button>
         </div>
         <button class="button icon-button" data-save="{{id}}"><i class="fal fa-save"></i> Save</button>
+        <button class="button icon-button" data-settings><i class="fas fa-ellipsis-v"></i></button>
         <button class="button icon-button" data-close><i class="fal fa-times"></i></button>
       </nav>
     </header>
     <hr />
     <div class="url-area">
       <textarea placeholder="Type urls here">{{join urls}}</textarea>
+    </div>
+  `)(data),
+
+  groupSettings: data => Handlebars.compile(`
+    <div class="editor-settings configure">
+      <header>
+        <h4>Settings</h4>
+        <a data-close href="#" title="Close dialog"><i class="far fa-times"></i></a>
+      </header>
+      <section>
+        <div class="configure-block">
+          <h4 class="configure-block__label">Profiles</h4>
+          <p class="configure-block__description">Analyses within this group are processed with the profiles listed underneath. Select the profiles this group has to use during analysis.</p>
+        </div>
+        <div class="multi-select blue" id="select-profiles">
+          <ul>
+            {{#each profiles}}
+              <li>
+                <input type="checkbox" id="profile-{{id}}" name="profile" value="{{id}}" {{#didSelectProfile id ../group.profiles}}checked{{/didSelectProfile}} />
+                <label for="profile-{{id}}">{{name}}</label>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+        <div class="configure-block flex">
+          <a href="/settings/profiles"><small>Edit profiles</small></a>
+          <div>
+            <button class="button" id="save-group-profiles">Set profiles</button>
+          </div>
+        </div>
+        <div class="configure-block">
+          <h4 class="configure-block__label">Threshold</h4>
+          <p class="configure-block__description">The amount of URLs per created task when analyzing a group.</p>
+          <div class="configure-block__control--wrapper inline">
+            <input type="text" value="{{group.max_parallel}}" class="configure-block__control mini" name="group-threshold" />
+            <p class="configure-block__description">URLs</p>
+          </div>
+        </div>
+        <div class="configure-block">
+          <h4 class="configure-block__label">Batch size</h4>
+          <p class="configure-block__description">The amount of URLs opened at the same time inside of a VM</p>
+          <div class="configure-block__control--wrapper inline">
+            <input type="text" value="{{group.batch_size}}" class="configure-block__control mini" name="batch-size" />
+            <p class="configure-block__description">URLs</p>
+          </div>
+        </div>
+        <div class="configure-block">
+          <h4 class="configure-block__label">Batch timeout</h4>
+          <p class="configure-block__description">The amount of seconds the URLs batch remains opened before the next batch is opened.</p>
+          <div class="configure-block__control--wrapper inline">
+            <input type="text" value="{{group.batch_time}}" class="configure-block__control mini" name="batch-time" />
+            <p class="configure-block__description">Seconds</p>
+          </div>
+        </div>
+        <div class="configure-block flex">
+          <div>
+            <button class="button" id="save-group-settings">Save settings</button>
+          </div>
+        </div>
+      </section>
     </div>
   `)(data),
 

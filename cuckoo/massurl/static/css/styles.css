@@ -625,11 +625,15 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label:before,
+.configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label:before,
+.configure-block__control--wrapper.caret:after,
 .far,
 .diary-ui .data-list li button.expand:hover i,
 .fal,
 .editor-ui .editor.loading:after,
 .editor-ui .editor.idle:after,
+.configure-block + .multi-select > ul > li label:before,
 .fab {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
@@ -718,11 +722,15 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.loa
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-left.editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-left.editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label.fa-pull-left:before,
+.configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label.fa-pull-left:before,
+.fa-pull-left.configure-block__control--wrapper.caret:after,
 .far.fa-pull-left,
 .diary-ui .data-list li button.expand:hover i.fa-pull-left,
 .fal.fa-pull-left,
 .editor-ui .fa-pull-left.editor.loading:after,
 .editor-ui .fa-pull-left.editor.idle:after,
+.configure-block + .multi-select > ul > li label.fa-pull-left:before,
 .fab.fa-pull-left {
   margin-right: .3em; }
 
@@ -735,11 +743,15 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.lo
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-right.editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-right.editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label.fa-pull-right:before,
+.configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label.fa-pull-right:before,
+.fa-pull-right.configure-block__control--wrapper.caret:after,
 .far.fa-pull-right,
 .diary-ui .data-list li button.expand:hover i.fa-pull-right,
 .fal.fa-pull-right,
 .editor-ui .fa-pull-right.editor.loading:after,
 .editor-ui .fa-pull-right.editor.idle:after,
+.configure-block + .multi-select > ul > li label.fa-pull-right:before,
 .fab.fa-pull-right {
   margin-left: .3em; }
 
@@ -4940,7 +4952,10 @@ table.table tbody tr.expanded > td.icon-cell .fal,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
-.editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after {
+.editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label:before,
+.configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label:before,
+.configure-block__control--wrapper.caret:after {
   font-family: 'Font Awesome 5 Pro';
   font-weight: 900; }
 
@@ -4975,7 +4990,8 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
 
 .fal,
 .editor-ui .editor.loading:after,
-.editor-ui .editor.idle:after {
+.editor-ui .editor.idle:after,
+.configure-block + .multi-select > ul > li label:before {
   font-family: 'Font Awesome 5 Pro';
   font-weight: 300; }
 
@@ -5919,37 +5935,47 @@ body {
       color: #fff;
       background: rgba(29, 32, 34, 0.5);
       padding: 3px 0 0; }
-      .app__header .controls button .fal, .app__header .controls button .editor-ui .editor.loading:after, .editor-ui .app__header .controls button .editor.loading:after, .app__header .controls button .editor-ui .editor.idle:after, .editor-ui .app__header .controls button .editor.idle:after,
+      .app__header .controls button .fal, .app__header .controls button .editor-ui .editor.loading:after, .editor-ui .app__header .controls button .editor.loading:after, .app__header .controls button .editor-ui .editor.idle:after, .editor-ui .app__header .controls button .editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label:before, .configure-block + .multi-select > ul > li .app__header .controls button label:before,
       .app__header .controls a .fal,
       .app__header .controls a .editor-ui .editor.loading:after,
       .editor-ui .app__header .controls a .editor.loading:after,
       .app__header .controls a .editor-ui .editor.idle:after,
-      .editor-ui .app__header .controls a .editor.idle:after {
+      .editor-ui .app__header .controls a .editor.idle:after,
+      .app__header .controls a .configure-block + .multi-select > ul > li label:before,
+      .configure-block + .multi-select > ul > li .app__header .controls a label:before {
         font-size: 16px;
         transition: opacity 100ms linear; }
-        .app__header .controls button .fal.fa-volume-mute, .app__header .controls button .editor-ui .fa-volume-mute.editor.loading:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.loading:after, .app__header .controls button .editor-ui .fa-volume-mute.editor.idle:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.idle:after,
+        .app__header .controls button .fal.fa-volume-mute, .app__header .controls button .editor-ui .fa-volume-mute.editor.loading:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.loading:after, .app__header .controls button .editor-ui .fa-volume-mute.editor.idle:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-volume-mute:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-volume-mute:before,
         .app__header .controls a .fal.fa-volume-mute,
         .app__header .controls a .editor-ui .fa-volume-mute.editor.loading:after,
         .editor-ui .app__header .controls a .fa-volume-mute.editor.loading:after,
         .app__header .controls a .editor-ui .fa-volume-mute.editor.idle:after,
-        .editor-ui .app__header .controls a .fa-volume-mute.editor.idle:after {
+        .editor-ui .app__header .controls a .fa-volume-mute.editor.idle:after,
+        .app__header .controls a .configure-block + .multi-select > ul > li label.fa-volume-mute:before,
+        .configure-block + .multi-select > ul > li .app__header .controls a label.fa-volume-mute:before {
           opacity: .5; }
-        .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after,
+        .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-expand-alt:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-expand-alt:before,
         .app__header .controls a .fal.fa-expand-alt,
         .app__header .controls a .editor-ui .fa-expand-alt.editor.loading:after,
         .editor-ui .app__header .controls a .fa-expand-alt.editor.loading:after,
         .app__header .controls a .editor-ui .fa-expand-alt.editor.idle:after,
-        .editor-ui .app__header .controls a .fa-expand-alt.editor.idle:after {
+        .editor-ui .app__header .controls a .fa-expand-alt.editor.idle:after,
+        .app__header .controls a .configure-block + .multi-select > ul > li label.fa-expand-alt:before,
+        .configure-block + .multi-select > ul > li .app__header .controls a label.fa-expand-alt:before {
           opacity: .5; }
-        .app__header .controls button .fal.fa-comment-alt, .app__header .controls button .editor-ui .fa-comment-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-comment-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.idle:after,
+        .app__header .controls button .fal.fa-comment-alt, .app__header .controls button .editor-ui .fa-comment-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-comment-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-comment-alt:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-comment-alt:before,
         .app__header .controls a .fal.fa-comment-alt,
         .app__header .controls a .editor-ui .fa-comment-alt.editor.loading:after,
         .editor-ui .app__header .controls a .fa-comment-alt.editor.loading:after,
         .app__header .controls a .editor-ui .fa-comment-alt.editor.idle:after,
-        .editor-ui .app__header .controls a .fa-comment-alt.editor.idle:after {
+        .editor-ui .app__header .controls a .fa-comment-alt.editor.idle:after,
+        .app__header .controls a .configure-block + .multi-select > ul > li label.fa-comment-alt:before,
+        .configure-block + .multi-select > ul > li .app__header .controls a label.fa-comment-alt:before {
           opacity: .5; }
       .app__header .controls button .fa-cog,
       .app__header .controls a .fa-cog {
+        position: relative;
+        top: 4px;
         opacity: .8; }
       .app__header .controls button:focus,
       .app__header .controls a:focus {
@@ -6274,7 +6300,7 @@ table.table {
     font-weight: 700; }
     table.table tbody tr.expanded > td:not(.fill-base) {
       background-color: rgba(0, 0, 0, 0.05); }
-    table.table tbody tr.expanded > td.icon-cell .fal, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after {
+    table.table tbody tr.expanded > td.icon-cell .fal, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after, table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label:before, .configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label:before {
       position: relative;
       top: 1px;
       margin-top: 1px;
@@ -6351,6 +6377,8 @@ table.table {
     border-color: #ddd; }
     .button[disabled]:hover {
       cursor: default; }
+    .button[disabled] i {
+      color: #4A6FA5; }
 
 .tabs {
   margin-bottom: 15px;
@@ -6553,6 +6581,7 @@ table.table {
     content: "Loading...";
     color: #ccc; }
   .editor-ui .editor {
+    position: relative;
     overflow-y: auto; }
     .editor-ui .editor.loading, .editor-ui .editor.idle {
       display: flex;
@@ -6716,6 +6745,39 @@ table.table {
             font-size: .9em;
             margin: 0;
             margin-left: 10px; }
+    .editor-ui .editor-settings {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 320px;
+      height: calc(100% - 30px);
+      background-color: rgba(255, 255, 255, 0.99);
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column; }
+      .editor-ui .editor-settings header {
+        background-color: rgba(0, 0, 0, 0.05);
+        margin-top: 0; }
+        .editor-ui .editor-settings header h4 {
+          margin: 10px 0; }
+      .editor-ui .editor-settings section {
+        flex-basis: 100%;
+        overflow-y: auto;
+        padding-bottom: 10px; }
+        .editor-ui .editor-settings section .multi-select {
+          overflow-y: auto;
+          max-height: 200px; }
+          .editor-ui .editor-settings section .multi-select ul {
+            margin: 0; }
+        .editor-ui .editor-settings section .configure-block.flex {
+          display: flex;
+          justify-content: space-between;
+          align-items: center; }
+          .editor-ui .editor-settings section .configure-block.flex > div > i {
+            margin-left: 5px;
+            color: #B7CDEF; }
     .editor-ui .editor.flex {
       display: flex;
       flex-direction: column; }
@@ -7042,5 +7104,261 @@ table.table {
       border-radius: 6px; }
       .content-overlay .network-body textarea:hover {
         background-color: rgba(255, 255, 255, 0.9); }
+
+.configure {
+  /*
+    <ConfigureBlock>
+      <ConfigureBlockLabel>
+        <Text />
+        <ConfigureBlockLabelRight:optional />
+      </ConfigureBlockLabel>
+      <ConfigureBlockLabelDescription />
+      <ConfigureBlockField>
+       <ConfigureBlockInput />
+      </ConfigureBlockField>
+    </ConfigureBlock>
+   */ }
+  .configure-block {
+    padding: 15px 10px 0 10px;
+    box-sizing: border-box;
+    font-size: 16px; }
+    .configure-block__label {
+      display: block;
+      color: #141414;
+      margin: 6px 0;
+      font-weight: 500; }
+      .configure-block__label a {
+        float: right;
+        color: #4A6FA5; }
+    .configure-block__description {
+      color: #7E7E7E;
+      margin: 0 0 10px 0;
+      font-weight: 400; }
+    .configure-block__control {
+      -webkit-appearance: none;
+      display: block;
+      background-color: #E4E4E4;
+      border: 1px solid transparent;
+      font-family: "Roboto";
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+      width: 100%;
+      border-radius: 4px;
+      margin: 0 0 10px 0; }
+      .configure-block__control.auto {
+        width: auto; }
+      .configure-block__control.mini {
+        width: 100px; }
+      .configure-block__control:focus, .configure-block__control:valid {
+        outline: none;
+        border-color: #ddd;
+        background-color: #eee; }
+      .configure-block__control--wrapper {
+        position: relative; }
+        .configure-block__control--wrapper.caret:after {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          display: inline-block;
+          font-style: normal;
+          font-variant: normal;
+          font-weight: normal;
+          line-height: 1;
+          vertical-align: -.125em;
+          font-weight: 900;
+          content: "\f0d7";
+          position: absolute;
+          right: 10px;
+          bottom: 13px;
+          color: #999; }
+        .configure-block__control--wrapper.inline:not([hidden]) {
+          display: flex;
+          align-items: center;
+          margin-bottom: 10px; }
+          .configure-block__control--wrapper.inline:not([hidden]) > p {
+            margin: 0 10px 0 0; }
+          .configure-block__control--wrapper.inline:not([hidden]) > input,
+          .configure-block__control--wrapper.inline:not([hidden]) > select {
+            margin-bottom: 0; }
+            .configure-block__control--wrapper.inline:not([hidden]) > input + p,
+            .configure-block__control--wrapper.inline:not([hidden]) > select + p {
+              margin-left: 10px; }
+    .configure-block__container {
+      position: relative;
+      margin-left: -15px; }
+      .configure-block__container .configure-block {
+        display: inline-block;
+        vertical-align: top;
+        padding: 0;
+        margin: 0 15px; }
+    .configure-block.free {
+      padding-left: 0;
+      padding-right: 0; }
+    .configure-block + .multi-select {
+      background-color: #fff; }
+      .configure-block + .multi-select.blue {
+        background-color: #E2ECFA; }
+      .configure-block + .multi-select > ul {
+        list-style: none;
+        padding: 15px 15px 0 15px; }
+        .configure-block + .multi-select > ul > li {
+          display: inline-block;
+          margin-right: 15px;
+          margin-bottom: 15px; }
+          .configure-block + .multi-select > ul > li label {
+            display: block;
+            background-color: #B7CDEF;
+            color: #141414;
+            padding: 8px 12px 8px 8px;
+            box-sizing: border-box;
+            border-radius: 3px; }
+            .configure-block + .multi-select > ul > li label:before {
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+              display: inline-block;
+              font-style: normal;
+              font-variant: normal;
+              font-weight: normal;
+              line-height: 1;
+              vertical-align: -.125em;
+              content: "";
+              display: inline-block;
+              width: 16px;
+              height: 16px;
+              background-color: #fff;
+              border: 1px solid #96A1B1;
+              vertical-align: middle;
+              margin-right: 5px;
+              border-radius: 3px; }
+            .configure-block + .multi-select > ul > li label:hover {
+              cursor: pointer; }
+          .configure-block + .multi-select > ul > li input[type="radio"],
+          .configure-block + .multi-select > ul > li input[type="checkbox"] {
+            display: none; }
+            .configure-block + .multi-select > ul > li input[type="radio"]:checked + label,
+            .configure-block + .multi-select > ul > li input[type="checkbox"]:checked + label {
+              background-color: #4A6FA5;
+              color: #fff; }
+              .configure-block + .multi-select > ul > li input[type="radio"]:checked + label:before,
+              .configure-block + .multi-select > ul > li input[type="checkbox"]:checked + label:before {
+                border-color: #203E6B;
+                content: "\f00c";
+                color: #141414; }
+  .configure-ui {
+    background-color: rgba(255, 255, 255, 0.95); }
+  .configure-aside {
+    border-right: 1px solid #ccc;
+    display: flex;
+    flex-direction: column; }
+    .configure-aside .vertical-select {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      flex-basis: 100%;
+      overflow: hidden;
+      background-color: #E2ECFA; }
+      .configure-aside .vertical-select .configure-block__control {
+        background-color: #fff;
+        margin-bottom: 15px; }
+        .configure-aside .vertical-select .configure-block__control:focus, .configure-aside .vertical-select .configure-block__control:valid {
+          border-color: #C7D3E3; }
+      .configure-aside .vertical-select__list {
+        position: relative;
+        width: calc(100% + 20px);
+        margin: 0 0 0 -20px;
+        flex-basis: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        list-style: none;
+        padding: 5px 5px;
+        background-color: #EBF3FF; }
+        .configure-aside .vertical-select__list li {
+          margin: 10px 0;
+          padding: 0 5px 0 15px; }
+          .configure-aside .vertical-select__list li a {
+            display: block;
+            font-weight: 400;
+            background-color: #B7CDEF;
+            border-radius: 4px;
+            padding: 10px;
+            color: #141414;
+            text-decoration: none; }
+            .configure-aside .vertical-select__list li a:hover {
+              background-color: #b0c5e5; }
+            .configure-aside .vertical-select__list li a.active {
+              font-weight: 500;
+              color: #fff;
+              background-color: #4A6FA5;
+              width: calc(100% + 10px);
+              border-top-right-radius: 0;
+              border-bottom-right-radius: 0; }
+            .configure-aside .vertical-select__list li a i {
+              margin-right: 5px; }
+  .configure-content {
+    display: flex;
+    flex-direction: column;
+    padding: 0 25px; }
+    .configure-content > h2 {
+      font-weight: 400;
+      font-size: 32px; }
+    .configure-content footer {
+      width: calc(100% + 50px);
+      margin-left: -25px;
+      flex-basis: 50px;
+      flex-shrink: 0;
+      background-color: #4A6FA5;
+      display: flex;
+      justify-content: space-between; }
+      .configure-content footer.align-right {
+        justify-content: flex-end; }
+      .configure-content footer button {
+        -webkit-appearance: none;
+        border: 0;
+        font-family: "Roboto";
+        padding: 0 30px;
+        background-color: #285596;
+        color: #fff;
+        font-weight: 500;
+        font-size: 16px; }
+        .configure-content footer button:hover {
+          background-color: #244d87;
+          cursor: pointer; }
+        .configure-content footer button:focus {
+          outline: 0; }
+    .configure-content .multi-select {
+      width: calc(100% + 50px);
+      margin-left: -25px;
+      padding: 0 25px;
+      box-sizing: border-box; }
+      .configure-content .multi-select ul {
+        padding-left: 0; }
+    .configure-content .scroll-vertical {
+      overflow-y: auto; }
+    .configure-content .flex-v {
+      flex-basis: 100%;
+      display: flex;
+      flex-direction: column; }
+      .configure-content .flex-v .multi-select {
+        flex-basis: 100%;
+        margin-top: 10px; }
+    .configure-content .flex-h {
+      display: flex;
+      justify-content: space-between; }
+    .configure-content .overlap-control {
+      position: relative;
+      align-self: flex-end;
+      margin: 0;
+      font-size: 14px;
+      padding: 5px; }
+      .configure-content .overlap-control:not([value=""]) {
+        background-color: #fff; }
+    .configure-content .message-box {
+      display: block;
+      background-color: #B7CDEF;
+      margin-top: 25px;
+      border-radius: 4px;
+      padding: 0 15px; }
+      .configure-content .message-box .close {
+        float: right; }
 
 /*# sourceMappingURL=styles.css.map */
