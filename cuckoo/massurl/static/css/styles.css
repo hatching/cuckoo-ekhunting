@@ -7284,6 +7284,8 @@ table.table {
               width: calc(100% + 10px);
               border-top-right-radius: 0;
               border-bottom-right-radius: 0; }
+            .configure-aside .vertical-select__list li a i {
+              margin-right: 5px; }
   .configure-content {
     display: flex;
     flex-direction: column;
@@ -7342,5 +7344,13 @@ table.table {
       padding: 5px; }
       .configure-content .overlap-control:not([value=""]) {
         background-color: #fff; }
+    .configure-content .message-box {
+      display: block;
+      background-color: #B7CDEF;
+      margin-top: 25px;
+      border-radius: 4px;
+      padding: 0 15px; }
+      .configure-content .message-box .close {
+        float: right; }
 
 /*# sourceMappingURL=styles.css.map */

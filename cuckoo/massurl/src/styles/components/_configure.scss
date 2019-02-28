@@ -200,6 +200,7 @@
             padding: 10px;
             color: #141414;
             text-decoration: none;
+
             &:hover { background-color: shade(#B7CDEF, 4%); }
             &.active {
               font-weight: 500;
@@ -209,6 +210,8 @@
               border-top-right-radius: 0;
               border-bottom-right-radius: 0;
             }
+
+            i { margin-right: 5px; }
           }
         }
       }
@@ -290,6 +293,15 @@
       font-size: 14px;
       padding: 5px;
       &:not([value=""]) { background-color: #fff; }
+    }
+
+    .message-box {
+      display: block;
+      background-color: #B7CDEF;
+      margin-top: 25px;
+      border-radius: 4px;
+      padding: 0 15px;
+      .close { float: right; }
     }
 
   }

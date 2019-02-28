@@ -120,6 +120,26 @@ const profileFormTemplate = data => Handlebars.compile(`
   </footer>
 `)(data);
 
+function displayMessage(message, type='info') {
+  let template = $(Handlebars.compile(`
+    <div class="message-box {{type}}">
+      <p>
+        {{#eq type "info"}}<i class="far fa-info-square"></i>{{/eq}}
+        {{#eq type "success"}}<i class="far fa-check"></i>{{/eq}}
+        {{message}}
+        <a href="#" class="close"><i class="far fa-times"></i></a>
+      </p>
+    </div>
+  `)({message,type}));
+  return {
+    render: function(parent,method='prepend') {
+      if(parent.find('.message-box')) parent.find('.message-box').remove();
+      parent[method](template);
+      template.find('.close').on('click', e => template.remove());
+    }
+  }
+}
+
 /*
   Load a profile
  */
@@ -161,6 +181,20 @@ function selectProfile(id, $view) {
       res(form);
     }
   })
+}
+
+/*
+  click handler for profiles from the menu
+ */
+function selectProfileHandler(e) {
+  e.preventDefault();
+  let id = $(e.currentTarget).attr('href').split(':')[1];
+  $(e.currentTarget).prepend(`<i class="fas fa-spinner-third fa-spin"></i>`);
+  selectProfile(id, $("#profiles")).then(() => {
+    $(e.currentTarget).parents('ul').find('.active').removeClass('active');
+    $(e.currentTarget).addClass('active');
+    $(e.currentTarget).find('i').remove();
+  });
 }
 
 /*
@@ -228,6 +262,7 @@ function initForm(data, $form) {
   inputs.$save.on('click', e => {
 
     data.profile.tags = data.profile.tags.join(',');
+    $(e.currentTarget).html(`<i class="fas fa-spinner-third fa-spin"></i>`);
 
     if(data.meta.new) {
       // CREATE
@@ -236,20 +271,18 @@ function initForm(data, $form) {
         name: data.profile.name,
         ...data.profile
       }).then(response => {
+
+        data.profile.id = response.profile_id;
+
         let item = $(Handlebars.compile(`
           <li data-filter-value="{{name}}">
             <a href="load:{{id}}">{{name}}</a>
           </li>
         `)(data.profile));
+
         $("[data-profiles-list]").append(item);
-        item.find('a').on('click', evt => {
-          evt.preventDefault();
-          $(evt.currentTarget).parents('ul').find('.active').removeClass('active');
-          $(evt.currentTarget).addClass('active');
-          selectProfile($(evt.currentTarget).attr('href').split(':')[1], $("#profiles"));
-        }).click();
-        // reset string to array
-        data.profile.tags = data.profile.tags.split(',').forEach(t=>parseInt(t));
+        item.find('a').on('click', selectProfileHandler).click();
+
       }).catch(err => console.log(err));
     } else {
       // UPDATE
@@ -257,13 +290,16 @@ function initForm(data, $form) {
         ...data.profile
       }).then(response => {
         // reset string to array
-        data.profile.tags = data.profile.tags.split(',').forEach(t=>parseInt(t));
+        data.profile.tags = data.profile.tags.split(',').map(t=>parseInt(t));
+        $(e.currentTarget).text('Save');
+        displayMessage(`${data.profile.name} is saved.`).render($form);
       }).catch(err => console.log(err));
     }
 
   });
 
   inputs.$delete.on('click', e => {
+    $(e.currentTarget).html(`<i class="fas fa-spinner-third fa-spin"></i>`);
     api.call('delete', data.profile.id).then(response => {
       $("[data-profiles-list]").find('a.active').remove();
       $form.empty();
@@ -298,14 +334,7 @@ function initProfiles($view) {
           </li>
         `)(profile)));
 
-        list.find('a').on('click', e => {
-          e.preventDefault();
-          let id = $(e.currentTarget).attr('href').split(':')[1];
-          selectProfile(id, $view).then(() => {
-            list.find('.active').removeClass('active');
-            $(e.currentTarget).addClass('active');
-          });
-        });
+        list.find('a').on('click', selectProfileHandler);
 
         list.find('a').first().click();
 
