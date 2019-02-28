@@ -16,7 +16,9 @@ from cuckoo.core.database import (
 from cuckoo.core.task import Task
 from cuckoo.massurl import db as massurldb
 from cuckoo.massurl import web
-from cuckoo.massurl.db import URLGroup, URLGroupTask, URLGroupURL
+from cuckoo.massurl.db import (
+    URLGroup, URLGroupTask, URLGroupURL, URLGroupProfile
+)
 from cuckoo.massurl.realtime import ev_client
 from cuckoo.massurl.schedutil import schedule_time_next
 from cuckoo.misc import cwd
@@ -50,6 +52,7 @@ def next_group_task():
     try:
         group = s.query(URLGroup).filter(
             URLGroup.schedule_next != None, URLGroup.completed.is_(True),
+            URLGroupProfile.group_id==URLGroup.id,
             URLGroupURL.url_group_id == URLGroup.id
         ).order_by(URLGroup.schedule_next).first()
         if group:
@@ -137,7 +140,7 @@ def insert_group_tasks(group):
             s.commit()
         finally:
             s.close()
-    log.debug("Tasks created: %s", groupid_task)
+        log.debug("Tasks created: %s", groupid_task)
 
 def task_creator():
     """Creates tasks"""
