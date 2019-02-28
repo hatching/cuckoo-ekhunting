@@ -33,7 +33,7 @@ Handlebars.registerHelper('status-icon', status => {
 });
 // checks if a group has not status or is completed
 Handlebars.registerHelper('running', (group, opts) => {
-  if(group.status || group.completed === false || !group.profiles) {
+  if(group.status || group.completed === false || group.profiles.length == 0) {
     return opts.fn();
   } else {
     return opts.inverse();
@@ -170,7 +170,7 @@ const Templates = {
     <div class="editor-settings configure">
       <header>
         <h4>Settings</h4>
-        <a data-close href="#"><i class="far fa-times"></i></a>
+        <a data-close href="#" title="Close dialog"><i class="far fa-times"></i></a>
       </header>
       <section>
         <div class="configure-block">
@@ -194,11 +194,10 @@ const Templates = {
           </div>
         </div>
         <div class="configure-block">
-          <h4 class="configure-block__label">Treshold</h4>
+          <h4 class="configure-block__label">Threshold</h4>
           <p class="configure-block__description">The amount of URLs per created task when analyzing a group.</p>
           <div class="configure-block__control--wrapper inline">
-            {{log this.group.max_parallel}}
-            <input type="text" value="{{group.max_parallel}}" class="configure-block__control mini" name="group-treshold" />
+            <input type="text" value="{{group.max_parallel}}" class="configure-block__control mini" name="group-threshold" />
             <p class="configure-block__description">URLs</p>
           </div>
         </div>
