@@ -463,6 +463,7 @@ def find_group_task(task_id):
     group = None
     try:
         group = session.query(URLGroup).filter(
+            URLGroupTask.url_group_id==URLGroup.id,
             URLGroupTask.task_id==task_id
         ).first()
 
