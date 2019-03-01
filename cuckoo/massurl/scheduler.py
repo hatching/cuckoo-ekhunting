@@ -260,7 +260,7 @@ def task_checker():
                 continue
 
             have_tasks = s.query(DbTask).filter(
-                URLGroupTask.url_group_id==URLGroup.id,
+                URLGroupTask.url_group_id==group_id,
                 URLGroupTask.task_id == DbTask.id,
                 URLGroupTask.run == URLGroup.run,
                 URLGroupTask.resubmitted.is_(False),
