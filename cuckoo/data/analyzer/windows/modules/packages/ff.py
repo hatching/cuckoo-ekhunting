@@ -110,10 +110,8 @@ user_pref("xpinstall.whitelist.required", false);"""
 
         pids = []
         for url in target:
-            profilename = random_string(4, 15)
+            profilename = random_string(8, 15)
             profile_path = os.path.join(os.getenv("TEMP"), profilename)
-            if not os.path.exists(profile_path):
-                os.mkdir(profile_path)
 
             subprocess.call([
                 firefox,
