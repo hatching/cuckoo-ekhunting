@@ -604,6 +604,25 @@ def cuckoo_status():
 
     return jsonify(response)
 
+@app.route("/cuckoo/probe")
+def cuckoo_probe():
+    resp = ""
+    resp += "# TYPE cuckoo_total_machines gauge\n" \
+            "cuckoo_total_machines %s\n" % len(db.list_machines())
+    resp += "# TYPE cuckoo_available_machines gauge\n" \
+            "cuckoo_available_machines %s\n" % db.count_machines_available()
+    resp += "# TYPE cuckoo_total_tasks gauge\n" \
+            "cuckoo_total_tasks %s\n" % db.count_tasks()
+    resp += "# TYPE cuckoo_pending_tasks gauge\n" \
+            "cuckoo_pending_tasks %s\n" % db.count_tasks("pending")
+    resp += "# TYPE cuckoo_running_tasks gauge\n" \
+            "cuckoo_running_tasks %s\n" % db.count_tasks("running")
+    resp += "# TYPE cuckoo_completed_tasks gauge\n" \
+            "cuckoo_completed_tasks %s\n" % db.count_tasks("completed")
+    resp += "# TYPE cuckoo_reported_tasks gauge\n" \
+            "cuckoo_reported_tasks %s\n" % db.count_tasks("reported")
+    return resp
+
 @app.route("/memory/list/<int:task_id>")
 def memorydumps_list(task_id):
     folder_path = cwd("storage", "analyses", "%s" % task_id, "memory")
