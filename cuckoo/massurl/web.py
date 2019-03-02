@@ -504,10 +504,7 @@ def search_diaries(item):
     diary_list = URLDiaries.search_diaries(
         item, return_fields="datetime,url,version", size=intargs.get("limit"),
         offset=intargs.get("offset")
-    )
-
-    if diary_list is None:
-        return json_error(500, "Error retrieving URL diaries")
+    ) or []
 
     return jsonify(diary_list)
 
