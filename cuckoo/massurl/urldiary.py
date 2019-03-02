@@ -258,24 +258,12 @@ class URLDiaries(object):
         @param offset: search for smaller than the provided the millisecond
         time stamp
         """
-        query = {
-            "query": {
-                "bool": {
-                    "must": {
-                        "query_string": {"query": "%s" % needle[:128]}
-                    }
-                }
-            }
-        }
-        if offset:
-            query["query"]["bool"]["filter"] = {
-                "range": {"datetime": {"lt": offset}}
-        }
         try:
             res = elasticmassurl.client.search(
                 timeout="60s", index=cls.DIARY_INDEX,
                 _source_include=return_fields, sort="datetime:desc", size=size,
-                doc_type=cls.DIARY_MAPPING, body=query
+                doc_type=cls.DIARY_MAPPING,
+                body=build_search_query(needle, offset)
             )
         except TransportError as e:
             log.exception("Error while searching diaries. %s", e)
@@ -301,6 +289,65 @@ class URLDiaries(object):
             return ret
 
         return [r.get("_source") for r in hits.get("hits", [])]
+
+def _get_nested_query(path, needle):
+    return {
+        "nested": {
+            "path": path,
+            "query": {
+                "bool": {
+                    "must": [
+                        {"query_string": {"query": "%s" % needle[:256]}}
+                    ]
+                }
+            }
+        }
+    }
+
+def build_search_query(item, offset):
+    must = []
+
+    nested_ops = {
+        "requests": "requested_urls",
+        "signatures": "signatures"
+    }
+
+    normal_ops = ["url", "javascript"]
+
+    searches = [s.strip() for s in item.split("AND")]
+    for fields in searches:
+        fields = fields.split(":",1)
+        if len(fields) != 2:
+            continue
+
+        op, search = fields
+        log.info("OP is: %s. search is %s", op, search)
+
+        if search and op in nested_ops:
+            must.append(_get_nested_query(nested_ops.get(op), search))
+        elif search and op in normal_ops:
+            must.append({
+                "query_string": {
+                    "default_field": op,
+                    "query": "%s" % search[:256]
+                }
+            })
+
+    if not must:
+        must = {"query_string": {"query": "%s" % item[:256]}}
+
+    query = {
+        "query": {
+            "bool": {
+                "must": must
+            }
+        }
+    }
+    if offset:
+        query["query"]["bool"]["filter"] = {
+                "range": {"datetime": {"lt": offset}}
+    }
+    return query
 
 class URLDiary(object):
     def __init__(self, url, url_id):
