@@ -226,7 +226,7 @@ class MassURL(AnalysisManager):
             log.debug("Uploaded new block of %d URLs", len(self.curr_block))
 
             pkg_info = {}
-            tries = len(self.curr_block) + 5
+            tries = len(self.curr_block) * 10
             while not pkg_info:
                 try:
                     pkg_info = self.rt.send_command_blocking(
