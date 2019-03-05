@@ -276,7 +276,7 @@ def group_add_url():
     urls = request.form.get("urls", "")
     name = request.form.get("group_name", "")
     group_id = request.form.get("group_id")
-    seperator = request.form.get("seperator", "\n")
+    separator = request.form.get("separator", "\n")
 
     if not group_id and not name:
         return json_error(400, "No valid group name or id specified")
@@ -287,7 +287,7 @@ def group_add_url():
 
         group_id = int(group_id)
 
-    urls = filter(None, [url.strip() for url in urls.split(seperator)])
+    urls = filter(None, [url.strip() for url in urls.split(separator)])
     if not urls:
         return json_error(400, "No URLs specified")
 
@@ -298,6 +298,39 @@ def group_add_url():
             info="Added new URLs to group %s" % group_id
         )
     return json_error(404, "Specified group does not exist")
+
+@app.route("/api/group/<int:group_id>/url/add", methods=["POST"])
+def group_bulk_url(group_id):
+    group = db.find_group(group_id=group_id)
+    separator = request.args.get("separator", "\n")
+
+    if not group:
+        return json_error(404, "Group does not exist")
+
+    urldata = request.files.get("urls")
+    if not urldata:
+        return json_error(404, "URLs not provided")
+
+    if not urldata.mimetype in ("text/plain"):
+        return json_error(
+            400, "URLs file can only be text/plain. Not %r" % urldata.mimetype
+        )
+
+    urls = []
+    try:
+        urls = urldata.read().split(separator)
+        urls = filter(
+            None, [
+                url.strip() for url in urls if len(url) <= 2048
+            ]
+        )
+    except UnicodeDecodeError:
+        return json_error(400, "Invalid URLs file provided")
+
+    db.mass_group_add(urls, group_id=group_id)
+    return jsonify(
+        message="Added %d URLs to group %s" % (len(urls), group.name)
+    )
 
 @app.route("/api/group/view/<int:group_id>")
 @app.route("/api/group/view/<name>")
@@ -371,7 +404,7 @@ def group_delete_url():
     name = request.form.get("group_name", "")
     group_id = request.form.get("group_id")
     delall = request.form.get("delall", False)
-    seperator = request.form.get("seperator", "\n")
+    separator = request.form.get("separator", "\n")
 
     if not group_id and not name:
         return json_error(400, "No valid group name or id specified")
@@ -386,7 +419,7 @@ def group_delete_url():
     if not group:
         return json_error(404, "Specified group does not exist")
 
-    urls = filter(None, [url.strip() for url in urls.split(seperator)])
+    urls = filter(None, [url.strip() for url in urls.split(separator)])
     if not urls and not delall:
         return json_error(400, "No URLs specified")
 
