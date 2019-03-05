@@ -757,9 +757,38 @@ def server(ctx, host, port, uwsgi, nginx):
 @main.command("massurl")
 @click.option("-H", "--host", default="localhost", help="Host to bind the MassURL server on")
 @click.option("-p", "--port", default=8080, help="Port to bind the MassURL server on")
+@click.option("--nginx", is_flag=True, help="Dump NGINX HTTP Proxy pass configuration")
 @click.pass_context
-def massurl(ctx, host, port):
-    """Start the mass URL and event dashboard"""
+def massurl(ctx, host, port, nginx):
+    """Start the mass URL and event dashboard (WSGI)"""
+    if nginx:
+        import cuckoo
+        print "server {"
+        print "    listen 80;"
+        print "    access_log /var/log/nginx/massurl-access.log;"
+        print
+        print "    location /static {"
+        dirpath = os.path.join(cuckoo.__path__[0], "massurl", "static")
+        print "        alias %s;" % dirpath
+        print "    }"
+        print
+        print "    location / {"
+        print "        proxy_pass http://localhost:8080;"
+        print "        proxy_set_header Host $host;"
+        print "        proxy_set_header X-Real-IP $remote_addr;"
+        print "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+        print "        proxy_set_header X-Forwarded-Proto $scheme;"
+        print "        proxy_read_timeout 120s;"
+        print
+        print "        # Required headers for websockets to work"
+        print "        proxy_http_version 1.1;"
+        print "        proxy_set_header Upgrade $http_upgrade;"
+        print "        proxy_set_header Connection \"Upgrade\";"
+        print "    }"
+        print "}"
+
+        return
+
     from cuckoo.massurl.main import massurl_main
     import cuckoo.massurl.db   # NOQA
 
