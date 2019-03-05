@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Cuckoo Foundation.
+# Copyright (C) 2018-2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - https://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -12,8 +12,6 @@ import logging
 import random
 import string
 import os
-import time
-import uuid
 
 from socks5man.manager import Manager
 
@@ -531,7 +529,8 @@ def get_pcap(task_id):
         return json_error(404, message="PCAP for given task does not exist")
 
     return send_file(
-        pcap_path, attachment_filename="task%s-dump.pcap" % task_id
+        pcap_path, attachment_filename="task%s-dump.pcap" % task_id,
+        as_attachment=True
     )
 
 @app.route("/api/profile/add", methods=["POST"])
@@ -694,7 +693,7 @@ def gen_alerts():
         }
         send_alert(notify=notify, **alert)
 
-        gevent.sleep(0.2)
+        gevent.sleep(0.05)
 
     return jsonify(message="OK")
 
@@ -757,23 +756,22 @@ ws_routes = {
     "/ws/alerts": ws_connect
 }
 
+# Determines what handler should be used
+def xapp(environ, start_response):
+    uri = environ["PATH_INFO"]
+    ws_handler = ws_routes.get(uri)
+
+    if ws_handler and "wsgi.websocket" in environ:
+        return ws_handler(environ["wsgi.websocket"])
+    return app(environ, start_response)
+
 def run_server(host, port):
     """Run the server. This handles websocket and HTTP requests"""
     log.info("Starting server for %r on %s:%s", app, host, port)
 
     gevent.spawn(handle_alerts)
 
-    # Determines what handler should be u
-    def xapp(environ, start_response):
-        uri = environ["PATH_INFO"]
-        ws_handler = ws_routes.get(uri)
-
-        if ws_handler and "wsgi.websocket" in environ:
-            return ws_handler(environ["wsgi.websocket"])
-        return app(environ, start_response)
-
     server = WSGIServer(
         (host, int(port)), application=xapp, handler_class=WebSocketHandler
     )
-    logging.getLogger("geventwebsocket.handler").setLevel(logging.DEBUG)
     server.serve_forever()
