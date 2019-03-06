@@ -1,31 +1,32 @@
 # Copyright (C) 2012-2013 Claudio Guarnieri.
-# Copyright (C) 2014-2018 Cuckoo Foundation.
+# Copyright (C) 2014-2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
 import datetime
 import json
 import logging
+import operator
 import sys
 import threading
-import operator
+
+from sqlalchemy import ForeignKey, Text, Index, Table, TypeDecorator
+from sqlalchemy import Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import create_engine, Column, not_, func
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import sessionmaker, relationship, joinedload
+from sqlalchemy.schema import MetaData
 
 from cuckoo.common.colors import green
 from cuckoo.common.config import config, parse_options, emit_options
 from cuckoo.common.exceptions import CuckooDatabaseError
-from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.exceptions import CuckooDependencyError
+from cuckoo.common.exceptions import CuckooOperationalError
 from cuckoo.common.objects import Dictionary
 from cuckoo.common.utils import Singleton, classlock, json_encode
 from cuckoo.misc import cwd, format_command
-
-from sqlalchemy import create_engine, Column, not_, func
-from sqlalchemy import Integer, String, Boolean, DateTime, Enum
-from sqlalchemy import ForeignKey, Text, Index, Table, TypeDecorator
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import sessionmaker, relationship, joinedload
 
 Base = declarative_base()
 
@@ -632,9 +633,16 @@ class Database(object):
 
     @classlock
     def drop(self):
-        """Drop all tables."""
+        """Delete all rows and drop all tables."""
+        meta = MetaData()
+        meta.reflect(bind=self.engine)
         try:
-            Base.metadata.drop_all(self.engine)
+            for table in reversed(meta.sorted_tables):
+                self.engine.execute(table.delete())
+
+            Base.metadata.drop_all(
+                self.engine, tables=reversed(meta.sorted_tables)
+            )
         except SQLAlchemyError as e:
             raise CuckooDatabaseError(
                 "Unable to drop all tables of the database: %s" % e
