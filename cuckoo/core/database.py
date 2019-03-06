@@ -294,7 +294,7 @@ class Target(Base):
         """
         d = {}
         for column in self.__table__.columns:
-            if column not in exclude:
+            if column.name not in exclude:
                 d[column.name] = getattr(self, column.name)
         return d
 
