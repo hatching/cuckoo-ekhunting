@@ -2,8 +2,8 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
-import errno
 import Queue
+import errno
 import json
 import logging
 import select
@@ -473,7 +473,8 @@ class EventMessageServer(object):
                     self.insocks, [], [], 1
                 )
             except select.error as e:
-                log.exception(e)
+                if e.errno != errno.EINTR:
+                    log.exception("Error handling sockets", e)
 
             if not self.mesqueue.empty():
                 _i, outsocks, _e = select.select([], self.outsocks, [], 1)

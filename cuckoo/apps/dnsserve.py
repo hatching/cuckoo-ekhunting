@@ -1,7 +1,8 @@
-# Copyright (C) 2016-2018 Cuckoo Foundation.
+# Copyright (C) 2016-2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
+import errno
 import logging
 import socket
 import sys
@@ -25,7 +26,13 @@ def cuckoo_dnsserve(host, port, nxdomain, hardcode):
     log.info("Listening for DNS queries at %s:%d", host, port)
 
     while True:
-        data, addr = udps.recvfrom(1024)
+        try:
+            data, addr = udps.recvfrom(1024)
+        except socket.error as e:
+            if e.errno != errno.EINTR:
+                log.exception("Error while reading socket. %s", e)
+                raise
+            continue
 
         p = DNS(data)
         rp = DNS(id=p.id, qr=1, qdcount=p.qdcount, ancount=1, rcode=0)
