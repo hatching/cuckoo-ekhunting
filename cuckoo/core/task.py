@@ -287,7 +287,8 @@ class Task(object):
             if len(targets) > 1:
                 # Bulk add targets
                 db.engine.execute(
-                    DbTarget.__table__.insert(), [t.to_dict() for t in targets]
+                    DbTarget.__table__.insert(),
+                    [t.to_dict(exclude=["id"]) for t in targets]
                 )
             elif targets:
                 session.add(targets[0])

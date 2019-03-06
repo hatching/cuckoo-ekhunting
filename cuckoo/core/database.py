@@ -287,13 +287,14 @@ class Target(Base):
             self.id, self.category, self.sha256, self.task_id
         )
 
-    def to_dict(self):
+    def to_dict(self, exclude=[]):
         """Converts object to dict.
         @return: dict
         """
         d = {}
         for column in self.__table__.columns:
-            d[column.name] = getattr(self, column.name)
+            if column not in exclude:
+                d[column.name] = getattr(self, column.name)
         return d
 
     def to_json(self):
