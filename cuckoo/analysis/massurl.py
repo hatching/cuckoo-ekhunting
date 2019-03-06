@@ -14,6 +14,7 @@ from cuckoo.common.exceptions import (
     CuckooGuestCriticalTimeout, RealtimeError
 )
 from cuckoo.common.objects import Analysis
+from cuckoo.common.config import config
 from cuckoo.core.database import (
     TASK_REPORTED, TASK_FAILED_ANALYSIS, TASK_ABORTED
 )
@@ -355,12 +356,15 @@ class MassURL(AnalysisManager):
         # If IE was used, TLS master secrets van be extracted.
         # If not package is supplied, the analyzer will use IE.
         if not self.task.package or self.task.package.lower() == "ie":
-            log.debug("Running TLS key extraction for task #%s", self.task.id)
-            self.task.process(
-                reporting=False, signatures=False, processing_modules=[
-                    BehaviorAnalysis, NetworkAnalysis, TLSMasterSecrets
-                ]
-            )
+            if config("massurl:massurl:extract_tls"):
+                log.debug(
+                    "Running TLS key extraction for task #%s", self.task.id
+                )
+                self.task.process(
+                    reporting=False, signatures=False, processing_modules=[
+                        BehaviorAnalysis, NetworkAnalysis, TLSMasterSecrets
+                    ]
+                )
 
         waited = 0
         while not self.realtime_finished:
