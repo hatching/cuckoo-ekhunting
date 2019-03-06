@@ -926,6 +926,7 @@ class Config(object):
         "massurl": {
             "massurl": {
                 "enabled": Boolean(False),
+                "extract_tls": Boolean(True),
             },
             "elasticsearch": {
                 "hosts": List(String, "127.0.0.1:9200"),
