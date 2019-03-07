@@ -472,9 +472,11 @@ class EventMessageServer(object):
                 insocks, _o, _e = select.select(
                     self.insocks, [], [], 1
                 )
+            except socket.error as (code, msg):
+                if code != errno.EINTR:
+                    log.exception("Error while handling socket: %s", msg)
             except select.error as e:
-                if e.errno != errno.EINTR:
-                    log.exception("Error handling sockets", e)
+                log.exception("Select error: %s", e)
 
             if not self.mesqueue.empty():
                 _i, outsocks, _e = select.select([], self.outsocks, [], 1)
