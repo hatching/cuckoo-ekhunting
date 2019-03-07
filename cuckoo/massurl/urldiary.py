@@ -321,8 +321,6 @@ def build_search_query(item, offset):
             continue
 
         op, search = fields
-        log.info("OP is: %s. search is %s", op, search)
-
         if search and op in nested_ops:
             must.append(_get_nested_query(nested_ops.get(op), search))
         elif search and op in normal_ops:

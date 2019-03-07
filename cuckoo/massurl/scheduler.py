@@ -115,7 +115,7 @@ def insert_group_tasks(group):
 
     groupid_task = []
     for profile in group.profiles:
-        log.debug(
+        log.info(
             "Creating tasks for group %r with profile %r",
             group.name, profile.name
         )
@@ -140,7 +140,9 @@ def insert_group_tasks(group):
             s.commit()
         finally:
             s.close()
-        log.debug("Tasks created: %s", groupid_task)
+        log.debug(
+            "Created %s new tasks for group %s", len(groupid_task), group.name
+        )
 
 def task_creator():
     """Creates tasks"""
