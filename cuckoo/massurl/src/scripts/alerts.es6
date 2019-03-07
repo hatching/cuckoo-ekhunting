@@ -4,7 +4,7 @@ import stream from './socket-handler';
 import sound from './sounds';
 
 const baseUrl = `${window.location.origin}/api/alerts`;
-const socketBase = `ws://${window.location.host}/ws/alerts`;
+const socketBase = `${window.location.protocol == 'http:' ? 'ws' : 'wss'}://${window.location.host}/ws/alerts`;
 
 function parseGroupName() {
   if(window.location.search) {
