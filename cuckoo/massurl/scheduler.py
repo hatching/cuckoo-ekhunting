@@ -140,6 +140,7 @@ def insert_group_tasks(group):
             s.commit()
         finally:
             s.close()
+
         log.debug(
             "Created %s new tasks for group %s", len(groupid_task), group.name
         )
