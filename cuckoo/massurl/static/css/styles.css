@@ -6489,8 +6489,12 @@ table.table {
     border-radius: 0; }
   .editor-ui-left {
     border-right: 1px solid #ccc;
-    overflow-y: auto; }
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column; }
   .editor-ui .url-groups {
+    flex-basis: 100%;
+    overflow-y: auto;
     align-items: stretch;
     padding: 15px 0; }
     .editor-ui .url-groups > li {
@@ -6554,6 +6558,9 @@ table.table {
             right: 2px; }
         .editor-ui .url-groups > li .events-badge:hover {
           cursor: pointer; }
+  .editor-ui-nav-foot {
+    padding: 10px;
+    border-top: 1px solid #ccc; }
   .editor-ui > header {
     padding: 0 20px;
     border-bottom: 1px solid #ccc; }

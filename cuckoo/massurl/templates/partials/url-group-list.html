@@ -1,0 +1,19 @@
+<div class="configure-block">
+  <input class="configure-block__control" placeholder="Type to filter groups by name" id="filter-group-names" />
+</div>
+<ul class="url-groups" data-group-list>
+{% for group in groups %}
+  <li data-id="{{group.id}}" data-name="{{group.name}}" data-filter-value="{{group.name}}">
+    <a href="open:{{group.id}}">
+      {{group.name}} <em class="url-count">{{group.urlcount}}</em>
+      {% if group.schedule_next %}
+        <span><i class="fal fa-calendar-check"></i> {{group.schedule_next}}</span>
+      {% endif %}
+      <div title="View alerts" class="events-badge {% if group.highalert > 0 %}has-critical{% endif %}">{{ group.unread }}</div>
+    </a>
+  </li>
+{% endfor %}
+</ul>
+<nav class="editor-ui-nav-foot">
+
+</nav>
