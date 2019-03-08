@@ -1,13 +1,22 @@
 import $ from './jquery-with-plugins';
 import Templates from './templates';
 
-const APIUrl = (endpoint=false) => `/api/group/${endpoint ? endpoint : '/'}`;
+const APIUrl = (endpoint=false,suf=false) => `/api/group${suf?'s':''}/${endpoint ? endpoint : '/'}`;
+const state = {
+  g_offset: 0,
+  g_limit: 50
+}
 
 const urls = {
   add: () => APIUrl(`add`),
   add_url: () => APIUrl('add/url'),
-  view: (id, d = 0) => APIUrl(`view/${id}?details=${d}`),
-  delete: () => APIUrl('delete')
+  view: (id, d=0) => APIUrl(`view/${id}?details=${d}`),
+  delete: () => APIUrl('delete'),
+  list: () => {
+    state.g_offset += 1;
+    let offset = state.g_offset * state.g_limit;
+    return APIUrl(`list?offset=${offset}`,true);
+  }
 }
 
 // displays an error in the form above the input
@@ -139,6 +148,19 @@ function initUrlGroups($form) {
 
     // group filters in form
     $form.find('#filter-group-name').on('keyup', e => $form.find('tbody').filterList($(e.currentTarget).val()));
+
+    $form.find('#load-more-groups').on('click', e => {
+      e.preventDefault();
+      $.get(urls.list()).done(groups => {
+        if(groups.length) {
+          groups.forEach(group => {
+            let $row = $(Templates.urlGroup(group));
+            $form.find('tbody').append($row);
+            rowHandler($row, $form);
+          });
+        }
+      });
+    });
 
     // default form submission handler
     $form.on('submit', e => {
