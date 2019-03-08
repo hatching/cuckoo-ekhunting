@@ -4,9 +4,18 @@ import autosize from 'autosize';
 import Scheduler from './scheduler';
 import Templates from './templates';
 
-const APIUrl = (endpoint=false) => `/api/group/${endpoint ? endpoint : '/'}`;
+const APIUrl = (endpoint=false,suf=false) => `/api/group${suf?'s':''}/${endpoint ? endpoint : '/'}`;
+const state = {
+  g_offset: 0,
+  g_limit: 50
+}
 
 const urls = {
+  list_groups: () => {
+    state.g_offset += 1;
+    let offset = state.g_offset * state.g_limit;
+    return APIUrl(`list?offset=${offset}&details=1`,true);
+  },
   view_groups: (group_id, l = 1000, o = 0) => APIUrl(`view/${group_id}?limit=${l}&offset=${o}&details=1`),
   view_urls: group_id => APIUrl(`view/${group_id}/urls`),
   save_urls: () => APIUrl(`add/url`),
@@ -259,21 +268,25 @@ function initUrlManagement($editor) {
   let $links = $editor.find('.url-groups a[href^="open:"]');
   let detailID = window.EK_Group_ID || false;
 
+  let linkClickHandler = e => {
+
+    let id = parseInt($(e.currentTarget).attr('href').split(':')[1]);
+    $editor.find('.editor').empty().removeClass('idle').addClass('loading');
+    $(e.currentTarget).parents('ul').find('.active').removeClass('active');
+    $(e.currentTarget).addClass('active');
+    loadGroup(id)
+      .then(data => {
+        initEditor(data, $editor.find('#url-edit'));
+        $editor.find('#url-edit').removeClass('loading idle');
+      })
+      .catch(err => console.log(err));
+    return false;
+
+  }
+
   return new Promise((resolve, reject) => {
 
-    $links.on('click', e => {
-      e.preventDefault();
-      let id = parseInt($(e.currentTarget).attr('href').split(':')[1]);
-      $editor.find('.editor').empty().removeClass('idle').addClass('loading');
-      $links.removeClass('active');
-      $(e.currentTarget).addClass('active');
-      loadGroup(id)
-        .then(data => {
-          initEditor(data, $editor.find('#url-edit'));
-          $editor.find('#url-edit').removeClass('loading idle');
-        })
-        .catch(err => console.log(err));
-    });
+    $links.on('click', e => linkClickHandler(e));
 
     $links.find('.events-badge').on('click', function() {
       let gn = $(this).parents('li').data('name');
@@ -285,6 +298,23 @@ function initUrlManagement($editor) {
     $editor.find('#filter-group-names').on('keyup', e => {
       let val = $(e.currentTarget).val();
       $editor.find('[data-group-list]').filterList(val);
+    });
+
+    $editor.find('#load-more-groups').on('click', e => {
+      e.preventDefault();
+      $.get(urls.list_groups()).done(groups => {
+        if(groups.length) {
+          groups.forEach(group => {
+            let g = $(Templates.groupListItem(group));
+            $editor.find('.url-groups').append(g);
+            g.find('a').on('click', linkClickHandler);
+            g.find('.events-badge').on('click', function() {
+              let gn = $(this).parents('li').data('name');
+              window.location = `/?group=${gn}`;
+            });
+          });
+        }
+      });
     });
 
     if(openAt) {

@@ -1,12 +1,23 @@
 import $ from './jquery-with-plugins';
 import moment from 'moment';
 import Paginator from './paginator';
+import Templates from './templates';
 const APIUrl = (endpoint=false) => `/api${endpoint ? endpoint : '/'}`;
+
+const state = {
+  g_offset: 0,
+  g_limit: 50
+};
 
 const urls = {
   groups: () => APIUrl(`/groups/list`),
   groupUrls: gid => APIUrl(`/group/view/${gid}/urls`),
-  diaries: id => APIUrl(`/diary/url/${id}`)
+  diaries: id => APIUrl(`/diary/url/${id}`),
+  groupsList: () => {
+    state.g_offset += 1;
+    let offset = state.g_offset * state.g_limit;
+    return APIUrl(`/groups/list?offset=${offset}&details=1`);
+  }
 }
 
 function loadGroups() {
@@ -154,21 +165,28 @@ function initUrlGroupView($el) {
   const pre = [];
   let $groupFilter = $el.find('#filter-group-names');
   let $groups = $el.find('.url-groups');
+  let $moreGroups = $el.find('#load-more-groups');
   let $urls = $el.find('.url-list');
+
+  let linkClickHandler = e => {
+
+    e.preventDefault();
+
+    $groups.find('a').removeClass('active');
+    $(e.currentTarget).addClass('active');
+
+    let id = e.currentTarget.getAttribute('href').split(':')[1];
+
+    loadUrlsForGroup(id).then(d => {
+      populateUrls(d.urls, $urls);
+    }).catch(err => console.log(err));
+
+    return false;
+  }
 
   return new Promise((resolve, reject) => {
 
-    $el.find('.url-groups a[href^="open:"]').on('click', e => {
-      $groups.find('a').removeClass('active');
-      $(e.currentTarget).addClass('active');
-      e.preventDefault();
-      let id = e.currentTarget.getAttribute('href').split(':')[1];
-
-      loadUrlsForGroup(id).then(d => {
-        populateUrls(d.urls, $urls);
-      }).catch(err => console.log(err));
-
-    });
+    $el.find('.url-groups a[href^="open:"]').on('click', linkClickHandler);
 
     $el.find('.url-groups li').each(function() {
       $(this).find('.events-badge').on('click', function() {
@@ -180,6 +198,23 @@ function initUrlGroupView($el) {
     $groupFilter.on('keyup', e => {
       let val = $(e.currentTarget).val();
       $el.find('[data-group-list]').filterList(val);
+    });
+
+    $moreGroups.on('click', e => {
+      e.preventDefault();
+      $.get(urls.groupsList()).done(groups => {
+        if(groups.length) {
+          groups.forEach(group => {
+            let g = $(Templates.groupListItem(group));
+            $el.find('.url-groups').append(g);
+            g.find('a').on('click', linkClickHandler);
+            g.find('.events-badge').on('click', function() {
+              let gn = $(this).parents('li').data('name');
+              window.location = `/?group=${gn}`;
+            });
+          });
+        }
+      });
     });
 
     let show = detectTarget();

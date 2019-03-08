@@ -133,6 +133,20 @@ const Templates = {
     </tr>
   `)(data),
 
+  // renders a list entry for the group list view
+  groupListItem: data => Handlebars.compile(`
+    {{log this}}
+    <li data-id="{{id}}" data-name="{{name}}" data-filter-value="{{name}}">
+      <a href="open:{{id}}">
+        {{name}} <em class="url-count">{{urlcount}}</em>
+        {{#if schedule_next}}
+          <span><i class="fal fa-calendar-check"></i> {{schedule_next}}</span>
+        {{/if}}
+        <div title="View alerts" class="events-badge {{#if highalert}}has-critical{{/if}}">{{unread}}</div>
+      </a>
+    </li>
+  `)(data),
+
   // template for a table-error
   ajaxError: data => Handlebars.compile(`
     <tr class="error-row">
@@ -252,7 +266,7 @@ const Templates = {
         {{/each}}
       </div>
     </div>
-  `)(data)
+  `)(data),
 
 };
 
