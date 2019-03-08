@@ -4,7 +4,9 @@ import Templates from './templates';
 const APIUrl = (endpoint=false,suf=false) => `/api/group${suf?'s':''}/${endpoint ? endpoint : '/'}`;
 const state = {
   g_offset: 0,
-  g_limit: 50
+  g_limit: 50,
+  g_loading: false,
+  g_content_end: false
 }
 
 const urls = {
@@ -144,6 +146,25 @@ function initUrlGroups($form) {
   // pre-init available rows
   rowHandler(null, $form);
 
+  let loadMoreGroups = () => {
+    if(state.g_loading === true || state.g_content_end === true) return;
+    state.g_loading = true;
+    $.get(urls.list()).done(groups => {
+      if(groups.length) {
+        groups.forEach(group => {
+          let $row = $(Templates.urlGroup(group));
+          $form.find('tbody').append($row);
+          rowHandler($row, $form);
+        });
+        if(groups.length < state.g_limit)
+          state.g_content_end = true;
+      } else {
+        state.g_content_end = true;
+      }
+      state.g_loading = false;
+    });
+  }
+
   return new Promise((resolve, reject) => {
 
     // group filters in form
@@ -151,15 +172,13 @@ function initUrlGroups($form) {
 
     $form.find('#load-more-groups').on('click', e => {
       e.preventDefault();
-      $.get(urls.list()).done(groups => {
-        if(groups.length) {
-          groups.forEach(group => {
-            let $row = $(Templates.urlGroup(group));
-            $form.find('tbody').append($row);
-            rowHandler($row, $form);
-          });
-        }
-      });
+      loadMoreGroups();
+    });
+
+    // lazyload
+    $(".app__body").on('scroll', () => {
+      if($(".app__body").scrollTop() + $(window).height() > $(".app__body")[0].scrollHeight)
+        loadMoreGroups();
     });
 
     // default form submission handler

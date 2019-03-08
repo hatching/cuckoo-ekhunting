@@ -135,7 +135,6 @@ const Templates = {
 
   // renders a list entry for the group list view
   groupListItem: data => Handlebars.compile(`
-    {{log this}}
     <li data-id="{{id}}" data-name="{{name}}" data-filter-value="{{name}}">
       <a href="open:{{id}}">
         {{name}} <em class="url-count">{{urlcount}}</em>

@@ -7,7 +7,9 @@ import Templates from './templates';
 const APIUrl = (endpoint=false,suf=false) => `/api/group${suf?'s':''}/${endpoint ? endpoint : '/'}`;
 const state = {
   g_offset: 0,
-  g_limit: 50
+  g_limit: 50,
+  g_loading: false,
+  g_content_end: false
 }
 
 const urls = {
@@ -300,8 +302,9 @@ function initUrlManagement($editor) {
       $editor.find('[data-group-list]').filterList(val);
     });
 
-    $editor.find('#load-more-groups').on('click', e => {
-      e.preventDefault();
+    let loadMoreGroups = () => {
+      if(state.g_loading === true || state.g_content_end === true) return;
+      state.g_loading = true;
       $.get(urls.list_groups()).done(groups => {
         if(groups.length) {
           groups.forEach(group => {
@@ -313,8 +316,23 @@ function initUrlManagement($editor) {
               window.location = `/?group=${gn}`;
             });
           });
+          if(groups.length < state.g_limit)
+            state.g_content_end = true;
+        } else {
+          state.g_content_end = true;
         }
+        state.g_loading = false;
       });
+    }
+
+    $editor.find('#load-more-groups').on('click', e => {
+      e.preventDefault();
+      loadMoreGroups();
+    });
+
+    $(".url-groups").on('scroll', () => {
+      if($(".url-groups").scrollTop() + $(window).height() > $(".url-groups")[0].scrollHeight)
+        loadMoreGroups();
     });
 
     if(openAt) {
