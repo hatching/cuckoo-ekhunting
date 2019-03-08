@@ -118,7 +118,7 @@ const Templates = {
 
   // template for url group
   urlGroup: data => Handlebars.compile(`
-    <tr data-group-id="{{id}}">
+    <tr data-group-id="{{id}}" data-group-name="{{name}}" data-filter-value="{{name}}">
       <td class="centerize">{{id}}</td>
       <td>{{name}}</td>
       <td>{{description}}</td>

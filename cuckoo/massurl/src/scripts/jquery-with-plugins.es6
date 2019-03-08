@@ -52,7 +52,7 @@ $.fn.sortElements = (function(){
 //
 $.fn.filterList = (function(){
   return function(str) {
-    $(this).find('li[data-filter-value]').each((i,el) => {
+    $(this).find('[data-filter-value]').each((i,el) => {
       if($(el).attr('data-filter-value').toLowerCase().indexOf(str.toLowerCase()) == -1) {
         $(el).css('display','none');
       } else {

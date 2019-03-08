@@ -17,6 +17,12 @@
             </thead>
             <tbody>
               <tr class="input-row">
+                <td><i class="fas fa-filter"></i></td>
+                <td colspan="3">
+                  <input type="text" placeholder="Filter groups by name" id="filter-group-name" />
+                </td>
+              </tr>
+              <tr class="input-row">
                 <td class="centerize">
                   <i class="fas fa-plus"></i>
                 </td>
@@ -36,7 +42,7 @@
                 </td>
               </tr>
               {% for group in groups %}
-                <tr data-group-id="{{group.id}}" data-group-name="{{group.name}}">
+                <tr data-group-id="{{group.id}}" data-group-name="{{group.name}}" data-filter-value="{{group.name}}">
                   <td class="centerize">{{group.id}}</td>
                   <td>{{group.name}}</td>
                   <td>{{group.description}}</td>

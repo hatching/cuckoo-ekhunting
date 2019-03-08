@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import $ from './jquery-with-plugins';
 import Templates from './templates';
 
 const APIUrl = (endpoint=false) => `/api/group/${endpoint ? endpoint : '/'}`;
@@ -137,6 +137,9 @@ function initUrlGroups($form) {
 
   return new Promise((resolve, reject) => {
 
+    // group filters in form
+    $form.find('#filter-group-name').on('keyup', e => $form.find('tbody').filterList($(e.currentTarget).val()));
+
     // default form submission handler
     $form.on('submit', e => {
 
@@ -151,7 +154,7 @@ function initUrlGroups($form) {
 
         // update UI with things
         let el = response.jq();
-        $form.find('table > tbody > .input-row').after(el);
+        $form.find('table > tbody > .input-row').last().after(el);
         rowHandler(el, $form);
         $form.find('#group-name, #group-description').val('');
         $form.find('#group-name').focus(); // autofocus name field again
