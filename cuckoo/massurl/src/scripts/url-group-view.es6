@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import $ from './jquery-with-plugins';
 import moment from 'moment';
 import Paginator from './paginator';
 const APIUrl = (endpoint=false) => `/api${endpoint ? endpoint : '/'}`;
@@ -152,6 +152,7 @@ function populateUrls(u,el) {
 function initUrlGroupView($el) {
 
   const pre = [];
+  let $groupFilter = $el.find('#filter-group-names');
   let $groups = $el.find('.url-groups');
   let $urls = $el.find('.url-list');
 
@@ -174,6 +175,11 @@ function initUrlGroupView($el) {
         let gn = $(this).parents('li').data('name');
         window.location = `/?group=${gn}`;
       });
+    });
+
+    $groupFilter.on('keyup', e => {
+      let val = $(e.currentTarget).val();
+      $el.find('[data-group-list]').filterList(val);
     });
 
     let show = detectTarget();

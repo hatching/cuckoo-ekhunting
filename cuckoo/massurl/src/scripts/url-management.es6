@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import $ from './jquery-with-plugins';
 import moment from 'moment';
 import autosize from 'autosize';
 import Scheduler from './scheduler';
@@ -281,6 +281,11 @@ function initUrlManagement($editor) {
     });
 
     $editor.find('.editor').removeClass('loading');
+
+    $editor.find('#filter-group-names').on('keyup', e => {
+      let val = $(e.currentTarget).val();
+      $editor.find('[data-group-list]').filterList(val);
+    });
 
     if(openAt) {
       $editor.find(`.url-groups a[href="open:${openAt}"]`).trigger('click');

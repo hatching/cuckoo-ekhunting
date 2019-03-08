@@ -8,9 +8,12 @@
         <div class="split-view--vertical editor-ui">
           <div class="split-view">
             <div class="split-view-container one-third editor-ui-left">
-              <ul class="url-groups">
+              <div class="configure-block">
+                <input class="configure-block__control" placeholder="Type to filter" id="filter-group-names" />
+              </div>
+              <ul class="url-groups" data-group-list>
               {% for group in groups %}
-                <li data-id="{{group.id}}" data-name="{{group.name}}">
+                <li data-id="{{group.id}}" data-name="{{group.name}}" data-filter-value="{{group.name}}">
                   <a href="open:{{group.id}}">
                     {{group.name}} <em class="url-count">{{group.urlcount}}</em>
                     {% if group.schedule_next %}
