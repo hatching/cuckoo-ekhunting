@@ -201,13 +201,17 @@ def find_group(name=None, group_id=None, details=False):
     return group
 
 
+def get_chunks(it, max):
+    for c in range(0, len(it), max):
+        yield it[c:c+max]
+
 def mass_group_add(urls, group_name=None, group_id=None):
     """Bulk add a list of url strings to a provided group.
     If no target exists for a provided urls, it will be created.
     @param urls: A list of URLs, may be of existing targets.
     @param group_name: A group name to add the targets to.
     @param group_id: A group identifier to add the targets to."""
-    urls = set(URLHashes(url) for url in set(urls))
+    urls = [(url, URLHashes(url).get_sha256()) for url in set(urls)]
 
     session = db.Session()
     try:
@@ -219,39 +223,50 @@ def mass_group_add(urls, group_name=None, group_id=None):
         if not group_id:
             return False
 
+        existing_sha256 = []
         # Find URLs from the given list that already exist.
-        existing_sha256 = session.query(URL.id).filter(
-            URL.id.in_([url.get_sha256() for url in urls])
-        ).all()
+        for chunk in get_chunks(urls, 5000):
+            existing = [
+                url.id for url in session.query(URL.id).filter(
+                    URL.id.in_([sha256 for url, sha256 in chunk])
+                ).all()
+            ]
+            existing_sha256.extend(existing)
 
-        existing_sha256 = [url.id for url in existing_sha256]
-
+        existing_sha256 = set(existing_sha256)
         # Create new entries for URLs that do not exist
         new_urls = [
-            dict(id=url.get_sha256(), target=url.url)
-            for url in urls if url.get_sha256() not in existing_sha256
+            dict(id=sha256, target=url)
+            for url, sha256 in urls if sha256 not in existing_sha256
         ]
 
         if new_urls:
-            db.engine.execute(URL.__table__.insert(), new_urls)
+            for chunk in get_chunks(new_urls, 5000):
+                db.engine.execute(URL.__table__.insert(), chunk)
 
         # See if any of the existing URLs already belong to the specified
         # URL group
-        url_in_group = session.query(URLGroupURL.url_id).filter(
-            URLGroupURL.url_group_id == group_id,
-            URLGroupURL.url_id.in_(existing_sha256)
-        ).all()
+        url_in_group = []
+        for chunk in get_chunks(list(existing_sha256), 5000):
+            in_group = [
+                group.url_id for group in session.query(
+                    URLGroupURL.url_id).filter(
+                        URLGroupURL.url_group_id == group_id,
+                        URLGroupURL.url_id.in_(chunk)
+                    ).all()
+            ]
+            url_in_group.extend(in_group)
 
-        url_in_group = [group.url_id for group in url_in_group]
-
+        url_in_group = set(url_in_group)
         # Add URLs to the specified group of the do not belong to it yet.
         group_add = [
-            dict(url_id=url.get_sha256(), url_group_id=group_id)
-            for url in urls if not url.get_sha256() in url_in_group
+            dict(url_id=sha256, url_group_id=group_id)
+            for url, sha256 in urls if not sha256 in url_in_group
         ]
 
         if group_add:
-            db.engine.execute(URLGroupURL.__table__.insert(), group_add)
+            for chunk in get_chunks(group_add, 5000):
+                db.engine.execute(URLGroupURL.__table__.insert(), chunk)
 
         return group_id
 
