@@ -933,6 +933,7 @@ class Config(object):
                 "timeout": Int(300),
                 "diary_index": String("urldiary"),
                 "related_index": String("related"),
+                "request_store": Int(16384),
             },
             "eventserver": {
                 "ip": String("127.0.0.1"),

@@ -252,18 +252,25 @@ class URLDiaries(object):
 
     @classmethod
     def search_diaries(cls, needle, return_fields="datetime,url,version",
-                       size=50, offset=0):
+                       size=50, offset=0, body=None):
         """Search all URL diaries for needle and return a list objs
         containing return_fields
         @param offset: search for smaller than the provided the millisecond
         time stamp
         """
+        if not body:
+            body = build_search_query(needle)
+
+        if offset:
+            body["query"]["bool"]["filter"] = {
+                "range": {"datetime": {"lt": offset}}
+            }
         try:
             res = elasticmassurl.client.search(
                 timeout="60s", index=cls.DIARY_INDEX,
                 _source_include=return_fields, sort="datetime:desc", size=size,
                 doc_type=cls.DIARY_MAPPING,
-                body=build_search_query(needle, offset)
+                body=body
             )
         except TransportError as e:
             log.exception("Error while searching diaries. %s", e)
@@ -290,30 +297,57 @@ class URLDiaries(object):
 
         return [r.get("_source") for r in hits.get("hits", [])]
 
-def _get_nested_query(path, needle):
-    return {
-        "nested": {
-            "path": path,
-            "query": {
-                "bool": {
-                    "must": [
-                        {"query_string": {"query": "%s" % needle[:256]}}
-                    ]
+diary_nested_ops = {
+    "requests": "requested_urls",
+    "signatures": "signatures"
+}
+diary_normal_ops = ["url", "javascript"]
+
+requestlog_nested_ops = {
+    "requestdata": "log"
+}
+requestlog_normal_ops = ["url"]
+
+def get_nested_query(path, needles, _or=False, _and=False, query={}):
+    if not isinstance(needles, list):
+        needles = [needles]
+
+    if _or:
+        _or = "OR"
+    elif _and:
+        _and = "AND"
+
+    searchstr = ""
+    for n in needles:
+        searchstr += "%s" % n[:256]
+        if n != needles[-1]:
+            if _or:
+                searchstr = "%s %s" % (searchstr, _or)
+            elif _and:
+                searchstr = "%s %s" % (searchstr, _and)
+
+    if query:
+        query["nested"]["query"]["bool"]["must"].append(
+            {"query_string": {"query": searchstr}}
+        )
+        return query
+    else:
+        return {
+            "nested": {
+                "path": path,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"query_string": {"query": searchstr}}
+                        ]
+                    }
                 }
             }
         }
-    }
 
-def build_search_query(item, offset):
+
+def build_search_query(item):
     must = []
-
-    nested_ops = {
-        "requests": "requested_urls",
-        "signatures": "signatures"
-    }
-
-    normal_ops = ["url", "javascript"]
-
     searches = [s.strip() for s in item.split("AND")]
     for fields in searches:
         fields = fields.split(":",1)
@@ -321,9 +355,9 @@ def build_search_query(item, offset):
             continue
 
         op, search = fields
-        if search and op in nested_ops:
-            must.append(_get_nested_query(nested_ops.get(op), search))
-        elif search and op in normal_ops:
+        if search and op in diary_nested_ops:
+            must.append(get_nested_query(diary_nested_ops.get(op), search))
+        elif search and op in diary_normal_ops:
             must.append({
                 "query_string": {
                     "default_field": op,
@@ -341,11 +375,9 @@ def build_search_query(item, offset):
             }
         }
     }
-    if offset:
-        query["query"]["bool"]["filter"] = {
-                "range": {"datetime": {"lt": offset}}
-    }
+
     return query
+
 
 class URLDiary(object):
     def __init__(self, url, url_id):
@@ -410,19 +442,19 @@ class URLDiary(object):
 
 class RequestFinder(object):
 
-    MAX_REQUEST_SIZE = 2048
+    MAX_REQUEST_SIZE = 4096
 
     def __init__(self, task_id):
         self.task_id = task_id
         self.offset = 0
         self.pcapheader = None
         self.handlers = {}
+        self.MAX_REQUEST_SIZE = config("massurl:elasticsearch:request_store")
 
     def process(self, flowmapping):
         """Reads a PCAP and adds the reqeusts that match the flow mapping
         to a dictionary of reports it will return. Reports will contain
         all found requests made for a url
-
         @param flowmapping: a dictionary of netflow:url values"""
         tlspath = cwd("tlsmaster.txt", analysis=self.task_id)
         tlsmaster = {}
@@ -461,11 +493,14 @@ class RequestFinder(object):
                 if url not in requested:
                     requested.append(url)
 
+                if not isinstance(recv, dpkt.http.Response):
+                    recv = recv.raw
+
                 requestlog = logs.setdefault(url, [])
                 requestlog.append({
                     "time": timestamp,
-                    "request": bytes(sent.raw)[:self.MAX_REQUEST_SIZE],
-                    "response": bytes(recv.raw)[:self.MAX_REQUEST_SIZE]
+                    "request": bytes(sent)[:self.MAX_REQUEST_SIZE],
+                    "response": bytes(recv)[:self.MAX_REQUEST_SIZE]
                 })
 
             return reports
