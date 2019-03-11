@@ -3,5 +3,8 @@
     <li>
       <a {% if request.endpoint == "profiles_view" %}class="active"{% endif %} href="/settings/profiles">Profiles</a>
     </li>
+    <li>
+      <a {% if request.endpoint == "signatures_view" %}class="active"{% endif %} href="/settings/signatures">Signatures</a>
+    </li>
   </ul>
 </nav>

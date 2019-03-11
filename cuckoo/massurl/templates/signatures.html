@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+
+<main class="viewport">
+  <div class="foreground app" id="signatures">
+    {% include 'partials/header.html' %}
+    <section class="app__body editor-body expanded">
+      {% include 'partials/settings-nav.html' %}
+      <div class="split-view--vertical configure-ui">
+        <div class="split-view">
+          <aside class="split-view-container one-third configure-aside">
+            <div class="configure-block">
+              <h4 class="configure-block__label">
+                Signatures
+                <a href="#" id="new-profile">New signature</a>
+              </h4>
+              <p class="configure-block__description">Select a signature</p>
+            </div>
+            <div class="configure-block vertical-select">
+              <input type="text" class="configure-block__control" placeholder="Type here to filter by name" name="filter-profiles" required />
+              <ul class="vertical-select__list" data-profiles-list></ul>
+            </div>
+          </aside>
+          <div class="split-view-container configure-content" data-profiles-form>
+            <!-- Injected by handlebars -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="background pattern-small-steps" id="app-background"></div>
+</main>
+
+{% endblock %}

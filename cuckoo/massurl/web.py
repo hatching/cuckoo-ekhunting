@@ -139,6 +139,12 @@ def profiles_view():
         routes=get_available_routes(), route_countries=get_route_countries()
     )
 
+@app.route("/settings/signatures")
+def signatures_view():
+    return render_template(
+        "signatures.html"
+    )
+
 #
 # API routes
 #
