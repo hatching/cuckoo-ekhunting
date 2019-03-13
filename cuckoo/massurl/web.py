@@ -28,6 +28,7 @@ from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.massurl import schedutil
 from cuckoo.misc import cwd
 from cuckoo.common.config import config
+from cuckoo.massurl.signatures import verify_sig, run_signature
 
 
 log = logging.getLogger(__name__)
@@ -679,6 +680,121 @@ def delete_profiles(profile_id):
     db.delete_profile(profile_id)
     return jsonify(message="success")
 
+@app.route("/api/signatures/list")
+def list_signatures():
+
+    signatures = db.list_signatures()
+
+    for sig in signatures:
+        try:
+            sig.content = json.loads(sig.content)
+        except ValueError:
+            return json_error(500, "Invalid signature: %s" % sig.name)
+
+    return jsonify([sig.to_dict() for sig in signatures])
+
+@app.route("/api/signature/add", methods=["POST"])
+def add_signature():
+    body = request.get_json()
+    if not body:
+        return json_error(400, "Invalid JSON body")
+
+    min_keys = ["name", "content", "level", "enabled"]
+    for k in min_keys:
+        if k not in body:
+            return json_error(400, "Missing key %s" % k)
+
+    name = body.get("name")
+    content = body.get("content")
+    level = body.get("level", 1)
+    enabled = body.get("enabled", False)
+
+    if not isinstance(content, dict):
+        return json_error(400, "'Content' must be a json object")
+
+    if level > 3 or level < 1:
+        return json_error(400, "'level' can be 1-3")
+
+    if enabled not in (True, False, 1, 0):
+        return json_error(400, "Enabled must be a boolean")
+
+    if not verify_sig(content):
+        return json_error(400, "Invalid signature")
+
+    try:
+        sig_id = db.add_signature(name, json.dumps(content), level, enabled)
+    except KeyError:
+        return json_error(409, "Signature name '%s' already exists" % name)
+
+    return jsonify(signature_id=sig_id)
+
+@app.route("/api/signature/update/<int:signature_id>", methods=["POST"])
+def update_signature(signature_id):
+    body = request.get_json()
+    if not body:
+        return json_error(400, "Invalid JSON body")
+
+    min_keys = ["content", "level", "enabled"]
+    for k in min_keys:
+        if k not in body:
+            return json_error(400, "Missing key %s" % k)
+
+    content = body.get("content")
+    level = body.get("level", 1)
+    enabled = body.get("enabled", False)
+
+    if not isinstance(content, dict):
+        return json_error(400, "'Content' must be a json object")
+
+    if level > 3 or level < 1:
+        return json_error(400, "'level' can be 1-3")
+
+    if enabled not in (True, False, 1, 0):
+        return json_error(400, "Enabled must be a boolean")
+
+    if not verify_sig(content):
+        return json_error(400, "Invalid signature")
+
+    try:
+        db.update_signature(signature_id, json.dumps(content), level, enabled)
+    except KeyError:
+        return json_error(404, "Signature does not exist")
+
+    return jsonify(message="success")
+
+@app.route("/api/signature/delete/<int:signature_id>", methods=["POST"])
+def delete_signature(signature_id):
+    try:
+        db.delete_signature(signature_id)
+    except KeyError:
+        return json_error(404, "Signature does not exist")
+
+    return jsonify(message="success")
+
+@app.route("/api/signature/<int:signature_id>")
+def find_signature(signature_id):
+    signature = db.find_signature(signature_id)
+    if not signature:
+        return json_error(404, "Signature does not exist")
+
+    try:
+        signature.content = json.loads(signature.content)
+    except ValueError:
+        return json_error(500, "Invalid signature")
+
+    return jsonify(signature.to_dict())
+
+@app.route("/api/signature/run/<int:signature_id>", methods=["POST"])
+def signature_run(signature_id):
+    signature = db.find_signature(signature_id)
+    if not signature:
+        return json_error(404, "Signature does not exist")
+
+    signature = verify_sig(signature.content)
+    if not signature:
+        return json_error(400, "The signature is invalid")
+
+    return jsonify(run_signature(signature))
 
 def random_string(minimum, maximum=None):
     if maximum is None:
@@ -769,7 +885,8 @@ def handle_alerts():
             lock.release()
 
 def send_alert(level=1, title="", content="", task_id=None, url_group_name="",
-               timestamp=None, target=None, diary_id=None, notify=False):
+               timestamp=None, target=None, diary_id=None, notify=False,
+               signature=None):
     alert = {
         "level": level,
         "title": title,
@@ -778,7 +895,8 @@ def send_alert(level=1, title="", content="", task_id=None, url_group_name="",
         "url_group_name": url_group_name,
         "timestamp": timestamp or datetime.datetime.now(),
         "target": target,
-        "diary_id": diary_id
+        "diary_id": diary_id,
+        "signature": signature
     }
     db.add_alert(**alert)
     alert["notify"] = notify
