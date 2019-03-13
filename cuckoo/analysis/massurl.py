@@ -4,17 +4,18 @@
 
 import Queue
 import logging
+import os
 import threading
 import time
 import traceback
 
 from cuckoo.common.abstracts import AnalysisManager
+from cuckoo.common.config import config
 from cuckoo.common.exceptions import (
     CuckooMachineSnapshotError, CuckooMachineError, CuckooGuestError,
     CuckooGuestCriticalTimeout, RealtimeError
 )
 from cuckoo.common.objects import Analysis
-from cuckoo.common.config import config
 from cuckoo.core.database import (
     TASK_REPORTED, TASK_FAILED_ANALYSIS, TASK_ABORTED
 )
@@ -24,9 +25,7 @@ from cuckoo.core.plugins import RunAuxiliary
 from cuckoo.core.realtime import EventClient, RealTimeHandler, RealTimeMessages
 from cuckoo.core.resultserver import ResultServer
 from cuckoo.massurl.urldiary import URLDiary, URLDiaries, RequestFinder
-from cuckoo.processing.behavior import BehaviorAnalysis
-from cuckoo.processing.dumptls import TLSMasterSecrets
-from cuckoo.processing.network import NetworkAnalysis
+from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +93,9 @@ class MassURL(AnalysisManager):
         self.gm_wait_th.daemon = True
         self.detection_events = Queue.Queue()
         self.netflow_events = Queue.Queue()
-        self.realtime_finished = False
+        self.realtime_finished = set()
+        self.tlskeys_response = None
+        self.realtime_error = False
         self.requestfinder = RequestFinder(self.task.id)
 
         return True
@@ -343,8 +344,10 @@ class MassURL(AnalysisManager):
         # New queue for a new batch, to be sure it is empty
         self.detection_events = Queue.Queue()
         self.netflow_events = Queue.Queue()
-        self.realtime_finished = False
-        self.realtime_finished = False
+        self.realtime_finished = set()
+        self.tlskeys_response = None
+        self.realtime_error = False
+        wait_for = set()
 
         # Tell onemon to process results.
         self.ev_client.send_event(
@@ -352,22 +355,25 @@ class MassURL(AnalysisManager):
                 "taskid": self.task.id
             }
         )
+        wait_for.add("massurltask")
 
         # If IE was used, TLS master secrets van be extracted.
         # If not package is supplied, the analyzer will use IE.
         if not self.task.package or self.task.package.lower() == "ie":
             if config("massurl:massurl:extract_tls"):
-                log.debug(
-                    "Running TLS key extraction for task #%s", self.task.id
-                )
-                self.task.process(
-                    reporting=False, signatures=False, processing_modules=[
-                        BehaviorAnalysis, NetworkAnalysis, TLSMasterSecrets
-                    ]
-                )
+                lsass_pid = get_lsass_pids(self.task.id)
+                if lsass_pid:
+                    log.debug(
+                        "Running TLS key extraction for task #%s", self.task.id
+                    )
+                    self.ev_client.send_event(
+                        "dumptls",
+                        {"taskid": self.task.id, "lsass_pid": lsass_pid}
+                    )
+                    wait_for.add("dumptls")
 
         waited = 0
-        while not self.realtime_finished:
+        while wait_for and not self.realtime_error:
             if waited >= 60:
                 log.error(
                     "Timeout for realtime onemon processor reached. No results"
@@ -377,6 +383,13 @@ class MassURL(AnalysisManager):
                 break
             waited += 0.5
             time.sleep(0.5)
+            wait_for -= self.realtime_finished
+
+        if self.realtime_error:
+            log.error(
+                "Realtime processor reported an error. %s",
+                self.realtime_error
+            )
 
         if self.netflow_events.qsize():
             log.debug("Running request extraction for task: #%s", self.task.id)
@@ -451,6 +464,8 @@ class MassURL(AnalysisManager):
         self.ev_client.subscribe(self.realtime_sig_cb, "signature")
         self.ev_client.subscribe(self.realtime_netflow_cb, "netflow")
         self.ev_client.subscribe(self.realtime_finished_cb, "finished")
+        self.ev_client.subscribe(self.realtime_tlskeys_cb, "tlskeys")
+        self.ev_client.subscribe(self.realtime_error_cb, "error")
 
         try:
             if self.start_run():
@@ -489,7 +504,7 @@ class MassURL(AnalysisManager):
 
     def realtime_sig_cb(self, message):
         """Handle incoming signature events from the realtime processor"""
-        log.info("INCOMING ONEMON EVENT")
+        log.debug("Signature event for task #%s", self.task.id)
         task_id = message["body"].get("taskid")
         if not task_id or task_id != self.task.id:
             return
@@ -520,13 +535,48 @@ class MassURL(AnalysisManager):
             )
         )
 
+    def realtime_error_cb(self, message):
+        """Handle an error event from the realtime processor. These events
+        can occur after sending it an event that triggers its processing
+        routine"""
+        task_id = message["body"].get("taskid")
+        if not task_id or task_id != self.task.id:
+            return
+
+        self.realtime_error = message["body"].get("error", True)
+
+    def realtime_tlskeys_cb(self, message):
+        """Handle a tlskeys event containing tls master keys extracted by
+        the realtime processor"""
+        task_id = message["body"].get("taskid")
+        if not task_id or task_id != self.task.id:
+            return
+
+        tlskeys = message["body"].get("tlskeys")
+        if not tlskeys:
+            return
+
+        if not isinstance(tlskeys, list):
+            return
+
+        with open(cwd("tlsmaster.txt", analysis=self.task.id), "wb") as fp:
+            for entry in sorted(tlskeys):
+                fp.write(
+                    "RSA Session-ID:%s Master-Key:%s\n" %
+                    (entry.get("session_id"), entry.get("master_secret"))
+                )
+
     def realtime_finished_cb(self, message):
         """Handle incoming finish events from the realtime processor"""
         task_id = message["body"].get("taskid")
         if not task_id or task_id != self.task.id:
             return
 
-        self.realtime_finished = True
+        action = message["body"].get("action")
+        if not action:
+            return
+
+        self.realtime_finished.add(action)
 
     def on_status_failed(self, db):
         """The mass url analysis failed"""
@@ -592,3 +642,21 @@ class MassURL(AnalysisManager):
             self.task.set_status(TASK_REPORTED)
 
         task_log_stop(self.task.id)
+
+def get_lsass_pids(task_id):
+    pid = 0
+    for bson in os.listdir(cwd("logs", analysis=task_id)):
+        pid_ext = bson.split(".", 1)
+        if len(pid_ext) != 2:
+            continue
+
+        try:
+            n = int(pid_ext[0])
+        except ValueError:
+            continue
+        if n < 1000:
+            if not pid:
+                pid = n
+            elif n < pid:
+                pid = n
+    return pid

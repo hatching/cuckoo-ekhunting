@@ -3,15 +3,16 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import datetime
+import time
 
 from sqlalchemy import Column, ForeignKey, desc, asc, and_, func
 from sqlalchemy import Integer, String, Boolean, DateTime, Text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.orm import relationship
 
-from cuckoo.core.database import Database, Base, Tag
 from cuckoo.common.objects import Dictionary, URL as URLHashes
 from cuckoo.common.utils import json_encode
+from cuckoo.core.database import Database, Base, Tag
 from cuckoo.massurl.schedutil import schedule_time_next
 
 db = Database()
@@ -42,6 +43,17 @@ class ToDict(object):
         """
         return json_encode(self.to_dict())
 
+class Signature(Base, ToDict):
+    """User created URL diary signatures"""
+    __tablename__ = "massurl_signatures"
+
+    id = Column(Integer(), primary_key=True)
+    name = Column(String(255), nullable=False, unique=True)
+    content = Column(Text(), nullable=False)
+    level = Column(Integer(), nullable=False, default=1)
+    enabled = Column(Boolean(), nullable=False, default=True)
+    last_run = Column(Integer, nullable=False)
+
 class Alert(Base, ToDict):
     """Dashboard alert history"""
     __tablename__ = "massurl_alerts"
@@ -57,6 +69,7 @@ class Alert(Base, ToDict):
     url_group_name = Column(String(255), nullable=True)
     task_id = Column(Integer(), nullable=True)
     diary_id = Column(String(36), nullable=True)
+    signature = Column(String(255), nullable=True)
     read = Column(Boolean(), default=False, nullable=False)
 
 class URL(Base, ToDict):
@@ -133,7 +146,7 @@ class URLGroup(Base, ToDict):
     name = Column(String(255), nullable=False, unique=True)
     description = Column(Text(), nullable=False)
 
-    max_parallel = Column(Integer(), default=30, nullable=False)
+    max_parallel = Column(Integer(), default=50, nullable=False)
     batch_size = Column(Integer(), default=5, nullable=False)
     batch_time = Column(Integer(), default=25, nullable=False)
 
@@ -201,13 +214,17 @@ def find_group(name=None, group_id=None, details=False):
     return group
 
 
+def get_chunks(it, max):
+    for c in range(0, len(it), max):
+        yield it[c:c+max]
+
 def mass_group_add(urls, group_name=None, group_id=None):
     """Bulk add a list of url strings to a provided group.
     If no target exists for a provided urls, it will be created.
     @param urls: A list of URLs, may be of existing targets.
     @param group_name: A group name to add the targets to.
     @param group_id: A group identifier to add the targets to."""
-    urls = set(URLHashes(url) for url in set(urls))
+    urls = [(url, URLHashes(url).get_sha256()) for url in set(urls)]
 
     session = db.Session()
     try:
@@ -219,39 +236,50 @@ def mass_group_add(urls, group_name=None, group_id=None):
         if not group_id:
             return False
 
+        existing_sha256 = []
         # Find URLs from the given list that already exist.
-        existing_sha256 = session.query(URL.id).filter(
-            URL.id.in_([url.get_sha256() for url in urls])
-        ).all()
+        for chunk in get_chunks(urls, 5000):
+            existing = [
+                url.id for url in session.query(URL.id).filter(
+                    URL.id.in_([sha256 for url, sha256 in chunk])
+                ).all()
+            ]
+            existing_sha256.extend(existing)
 
-        existing_sha256 = [url.id for url in existing_sha256]
-
+        existing_sha256 = set(existing_sha256)
         # Create new entries for URLs that do not exist
         new_urls = [
-            dict(id=url.get_sha256(), target=url.url)
-            for url in urls if url.get_sha256() not in existing_sha256
+            dict(id=sha256, target=url)
+            for url, sha256 in urls if sha256 not in existing_sha256
         ]
 
         if new_urls:
-            db.engine.execute(URL.__table__.insert(), new_urls)
+            for chunk in get_chunks(new_urls, 5000):
+                db.engine.execute(URL.__table__.insert(), chunk)
 
         # See if any of the existing URLs already belong to the specified
         # URL group
-        url_in_group = session.query(URLGroupURL.url_id).filter(
-            URLGroupURL.url_group_id == group_id,
-            URLGroupURL.url_id.in_(existing_sha256)
-        ).all()
+        url_in_group = []
+        for chunk in get_chunks(list(existing_sha256), 5000):
+            in_group = [
+                group.url_id for group in session.query(
+                    URLGroupURL.url_id).filter(
+                        URLGroupURL.url_group_id == group_id,
+                        URLGroupURL.url_id.in_(chunk)
+                    ).all()
+            ]
+            url_in_group.extend(in_group)
 
-        url_in_group = [group.url_id for group in url_in_group]
-
+        url_in_group = set(url_in_group)
         # Add URLs to the specified group of the do not belong to it yet.
         group_add = [
-            dict(url_id=url.get_sha256(), url_group_id=group_id)
-            for url in urls if not url.get_sha256() in url_in_group
+            dict(url_id=sha256, url_group_id=group_id)
+            for url, sha256 in urls if not sha256 in url_in_group
         ]
 
         if group_add:
-            db.engine.execute(URLGroupURL.__table__.insert(), group_add)
+            for chunk in get_chunks(group_add, 5000):
+                db.engine.execute(URLGroupURL.__table__.insert(), chunk)
 
         return group_id
 
@@ -617,6 +645,81 @@ def update_settings_group(group_id, threshold, batch_size, batch_time):
         group.batch_size = batch_size or group.batch_size
         group.batch_time = batch_time or group.batch_time
         ses.add(group)
+        ses.commit()
+    finally:
+        ses.close()
+
+
+def add_signature(name, content, level=1, enabled=False):
+    ses = db.Session()
+
+    sig = Signature(
+        name=name, content=content, level=level, enabled=enabled,
+        last_run=int(time.time()*1000)
+    )
+    try:
+        ses.add(sig)
+        ses.commit()
+        sig_id = sig.id
+        return sig_id
+    except IntegrityError:
+        raise KeyError("Signature with name '%s' already exists" % name)
+    finally:
+        ses.close()
+
+def update_signature(signature_id, content=None, level=None, enabled=None,
+                     last_run=None):
+    ses = db.Session()
+    try:
+        signature = ses.query(Signature).get(signature_id)
+        if not signature:
+            raise KeyError("Signature does not exist")
+
+        signature.content = content or signature.content
+        signature.level = level or signature.level
+        signature.enabled = enabled if enabled is\
+                                       not None else signature.enabled
+        signature.last_run = last_run or signature.last_run
+
+        ses.add(signature)
+        ses.commit()
+    finally:
+        ses.close()
+
+def list_signatures(enabled_only=False):
+    ses = db.Session()
+    try:
+        q = ses.query(Signature)
+        if enabled_only:
+            q = q.filter_by(enabled=True)
+
+        sigs = q.all()
+        if sigs:
+            ses.expunge_all()
+        return sigs
+    finally:
+        ses.close()
+
+def find_signature(signature_id):
+    ses = db.Session()
+    signature = None
+    try:
+        signature = ses.query(Signature).get(signature_id)
+
+        if signature:
+            ses.expunge(signature)
+    finally:
+        ses.close()
+    return signature
+
+def delete_signature(signature_id):
+    ses = db.Session()
+    try:
+        signature = ses.query(Signature).get(signature_id)
+        if not signature:
+            raise KeyError("Signature does not exist")
+
+        ses.delete(signature)
         ses.commit()
     finally:
         ses.close()

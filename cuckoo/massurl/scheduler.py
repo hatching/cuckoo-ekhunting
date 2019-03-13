@@ -15,7 +15,9 @@ from cuckoo.core.database import (
 )
 from cuckoo.core.task import Task
 from cuckoo.massurl import db as massurldb
+from cuckoo.massurl.signatures import run_signature, verify_sig
 from cuckoo.massurl import web
+from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.massurl.db import (
     URLGroup, URLGroupTask, URLGroupURL, URLGroupProfile
 )
@@ -26,6 +28,9 @@ from cuckoo.misc import cwd
 log = logging.getLogger(__name__)
 db = Database()
 submit_task = Task()
+diary_stats = {
+    "count": 0
+}
 
 OWNER = "cuckoo.massurl"
 DEFAULT_OPTIONS = "analysis=kernel"
@@ -115,7 +120,7 @@ def insert_group_tasks(group):
 
     groupid_task = []
     for profile in group.profiles:
-        log.debug(
+        log.info(
             "Creating tasks for group %r with profile %r",
             group.name, profile.name
         )
@@ -140,7 +145,10 @@ def insert_group_tasks(group):
             s.commit()
         finally:
             s.close()
-        log.debug("Tasks created: %s", groupid_task)
+
+        log.debug(
+            "Created %s new tasks for group %s", len(groupid_task), group.name
+        )
 
 def task_creator():
     """Creates tasks"""
@@ -298,6 +306,45 @@ def task_checker():
     for alert in alerts:
         web.send_alert(**alert)
 
+def signature_runner():
+    new_count = URLDiaries.count_diaries()
+    if new_count == diary_stats["count"]:
+        return
+
+    diary_stats["count"] = new_count
+    for signature in massurldb.list_signatures(enabled_only=True):
+        content = verify_sig(signature.content)
+        if not content:
+            log.error("Invalid signature")
+            continue
+
+        matches = run_signature(content, signature.last_run)
+        log.info(
+            "Custom signature match for %s. Matches %s",
+            signature.name, len(matches)
+        )
+
+        for match in matches:
+            diary = URLDiaries.get_diary(
+                diary_id=match, return_fields=["url", "version"]
+            )
+            if not diary:
+                continue
+
+            web.send_alert(
+                title="Custom signature match! '%s'" % signature.name,
+                level=signature.level, diary_id=match,
+                signature=signature.name,
+                content="URL diary(version=%s)"
+                        " for URL %s matched signature %s." % (
+                            diary.get("version"), diary.get("url"),
+                            signature.name,
+                        )
+            )
+        massurldb.update_signature(
+            signature_id=signature.id, last_run=int(time.time() * 1000)
+        )
+
 def validate_message(message, extra_keys=[]):
     keys = ["taskid", "status"]
     keys.extend(extra_keys)
@@ -317,7 +364,7 @@ def handle_massurldetection(message):
         message, ["candidates", "signatures"]
     )
 
-    log.info("DETECTION EVENT: %s", message)
+    log.info("Received detection event: %s", message)
     task_id = message["body"].get("taskid")
 
     status = message["body"].get("status")
@@ -413,5 +460,6 @@ def massurl_scheduler():
     # TODO: increase delays
     gevent.spawn(run_with_minimum_delay, task_creator, 5.0)
     gevent.spawn(run_with_minimum_delay, task_checker, 5.0)
+    gevent.spawn(run_with_minimum_delay, signature_runner, 20.0)
     ev_client.subscribe(handle_massurldetection, "massurldetection")
     ev_client.subscribe(handle_massurltaskfailure, "massurltaskfailure")

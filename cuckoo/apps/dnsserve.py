@@ -28,8 +28,8 @@ def cuckoo_dnsserve(host, port, nxdomain, hardcode):
     while True:
         try:
             data, addr = udps.recvfrom(1024)
-        except socket.error as e:
-            if e.errno != errno.EINTR:
+        except socket.error as (code, msg):
+            if code != errno.EINTR:
                 log.exception("Error while reading socket. %s", e)
                 raise
             continue

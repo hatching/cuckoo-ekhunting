@@ -9,7 +9,6 @@ import time
 import uuid
 
 import dpkt
-
 from elasticsearch import helpers
 from elasticsearch.exceptions import TransportError, ConnectionError
 from httpreplay.cut import http_handler, https_handler
@@ -119,12 +118,12 @@ class URLDiaries(object):
         return diary_id
 
     @classmethod
-    def get_diary(cls, diary_id):
+    def get_diary(cls, diary_id, return_fields=[]):
         """Find a specified URL diary"""
         try:
             res = elasticmassurl.client.search(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, size=1,
-                sort="datetime:desc",
+                sort="datetime:desc", _source_include=return_fields,
                 body={
                     "query": {
                         "match": {"_id": diary_id}
@@ -251,22 +250,76 @@ class URLDiaries(object):
         return URLDiaries.get_values(res, return_empty=[])
 
     @classmethod
-    def search_diaries(cls, needle, return_fields="datetime,url,version",
-                       size=50, offset=0):
+    def search_diaries(cls, needle=None, return_fields="datetime,url,version",
+                       size=50, offset=0, body=None, since=None):
         """Search all URL diaries for needle and return a list objs
         containing return_fields
         @param offset: search for smaller than the provided the millisecond
         time stamp
         """
+        if not body:
+            body = build_search_query(needle)
+
+        if offset:
+            body["query"]["bool"]["filter"] = {
+                "range": {"datetime": {"lt": offset}}
+            }
+        elif since:
+            body["query"]["bool"]["filter"] = {
+                "range": {"datetime": {"gt": since}}
+            }
+
         try:
             res = elasticmassurl.client.search(
                 timeout="60s", index=cls.DIARY_INDEX,
                 _source_include=return_fields, sort="datetime:desc", size=size,
                 doc_type=cls.DIARY_MAPPING,
-                body=build_search_query(needle, offset)
+                body=body
             )
         except TransportError as e:
             log.exception("Error while searching diaries. %s", e)
+            return []
+
+        return URLDiaries.get_values(res, return_empty=[])
+
+    @classmethod
+    def count_diaries(cls):
+        try:
+            res = elasticmassurl.client.count(
+                index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING
+            )
+        except TransportError as e:
+            log.exception("Error while counting diary entries. %s", e)
+            return None
+
+        return res["count"]
+
+    @classmethod
+    def search_requestlog(cls, body, return_fields="datetime,url,version",
+                          size=50, offset=0, since=None, parent=None):
+
+        if offset:
+            body["query"]["bool"]["filter"] = {
+                "range": {"datetime": {"lt": offset}}
+            }
+        elif since:
+            body["query"]["bool"]["filter"] = {
+                "range": {"datetime": {"gt": since}}
+            }
+
+        if parent:
+            body["query"]["bool"]["must"].append({
+                "term": {"parent": parent}
+            })
+        try:
+            res = elasticmassurl.client.search(
+                timeout="60s", index=cls.REQUEST_LOG_INDEX,
+                _source_include=return_fields, sort="datetime:desc", size=size,
+                doc_type=cls.REQUEST_LOG_MAPPING,
+                body=body
+            )
+        except TransportError as e:
+            log.exception("Error while request logs. %s", e)
             return None
 
         return URLDiaries.get_values(res, return_empty=[])
@@ -290,64 +343,197 @@ class URLDiaries(object):
 
         return [r.get("_source") for r in hits.get("hits", [])]
 
-def _get_nested_query(path, needle):
+_phrase_match = ["requestdata", "responsedata", "javascript"]
+
+_nested_fields = {
+    "requestdata": "log",
+    "responsedata": "log",
+    "signatures": "signatures",
+    "requests": "requested_urls",
+    "signaturename": "signatures",
+    "signatureioc": "signatures"
+}
+_field_paths = {
+    "requestdata": "log.request",
+    "responsedata": "log.response",
+    "javascript": "javascript",
+    "signaturename": "signatures.signature",
+    "signatureioc": "signatures.ioc"
+}
+
+def escape_and_filter(needle):
+    escape = [
+        "+", "-", "=", "&", "|", "!", "(", ")", "{", "}", "[", "]", "^", "~",
+        "?", ":", "/"
+    ]
+    remove = ["<", ">"]
+
+    if "\\" in needle:
+        needle = needle.replace("\\", "\\\\\\")
+
+    if "\"" in needle:
+        needle = needle.replace("\"", "\\\\\"")
+
+    for e in escape:
+        needle = needle.replace(e, "\%s" % e)
+
+    for r in remove:
+        needle = needle.replace(r, "")
+
+    return needle
+
+def get_nested_query(path, bool):
     return {
         "nested": {
             "path": path,
             "query": {
-                "bool": {
-                    "must": [
-                        {"query_string": {"query": "%s" % needle[:256]}}
-                    ]
-                }
+                "bool": bool
             }
         }
     }
 
-def build_search_query(item, offset):
-    must = []
+def querystring(needles, _or=False, _and=False, field=None):
+    if not isinstance(needles, list):
+        needles = [needles]
 
-    nested_ops = {
-        "requests": "requested_urls",
-        "signatures": "signatures"
+    if _or:
+        _or = "OR"
+    elif _and:
+        _and = "AND"
+
+    searchstr = ""
+    for n in needles:
+        searchstr += "%s" % n[:256]
+        searchstr = escape_and_filter(searchstr)
+        if n != needles[-1]:
+            if _or:
+                searchstr = "%s %s " % (searchstr, _or)
+            elif _and:
+                searchstr = "%s %s " % (searchstr, _and)
+
+    return {
+        "query_string": {
+            "query": searchstr,
+            "default_field": field or "*"
+        }
     }
 
-    normal_ops = ["url", "javascript"]
+def matchphrase(field, needle):
+    return {
+        "match_phrase": {field: needle}
+    }
 
+def boolquery(must=[], should=[]):
+    boolq = {}
+    if must:
+        boolq["must"] = must
+    if should:
+        boolq["should"] = should
+        boolq["minimum_should_match"] = 1
+
+    return boolq
+
+def build_query(content, str_use_fields=False):
+    global_must = []
+    global_should = []
+    for key, values in content.iteritems():
+        phrase_q = False
+        if key in _phrase_match:
+            phrase_q = True
+
+        strqs_anyof = []
+        phraseqs_anyof = []
+        strqs_contains = []
+        phraseqs_contains = []
+        for rule in values:
+            for rulekey, needles in rule.iteritems():
+                if rulekey == "must":
+                    for s in needles:
+                        if phrase_q and "*" not in s:
+                            phraseqs_contains.append(s)
+                        else:
+                            strqs_contains.append(s)
+
+                elif rulekey == "any":
+                    for s in needles:
+                        if phrase_q and "*" not in s:
+                            phraseqs_anyof.append(s)
+                        else:
+                            strqs_anyof.append(s)
+
+        must = []
+        should = []
+        if strqs_anyof:
+            must.append(
+                querystring(
+                    needles=strqs_anyof, _or=True,
+                    field=_field_paths.get(key) if str_use_fields else None
+                )
+            )
+        if strqs_contains:
+            must.append(
+                querystring(
+                    needles=strqs_contains, _and=True,
+                    field=_field_paths.get(key) if str_use_fields else None
+                )
+            )
+
+        for phrase in phraseqs_contains:
+            must.append(matchphrase(_field_paths.get(key), phrase))
+
+        for phrase in phraseqs_anyof:
+            should.append(matchphrase(_field_paths.get(key), phrase))
+
+        nested = _nested_fields.get(key)
+        if nested:
+            global_must.append(
+                get_nested_query(
+                    nested, boolquery(must=must, should=should)
+                )
+            )
+        else:
+            global_must.extend(must)
+            global_should.extend(should)
+
+    return {
+        "query": {
+            "bool": boolquery(must=global_must, should=global_should)
+        }
+    }
+
+def build_search_query(item):
+    allowed = [
+        "requests", "url", "javascript", "signatures", "signaturename",
+        "signatureioc"
+    ]
+    rules = {}
     searches = [s.strip() for s in item.split("AND")]
     for fields in searches:
-        fields = fields.split(":",1)
+        fields = filter(None, fields.split(":", 1))
         if len(fields) != 2:
             continue
 
         op, search = fields
-        log.info("OP is: %s. search is %s", op, search)
+        if search and op in allowed:
+            if op not in rules:
+                rules[op] = [{"must": []}]
+            rules[op][0]["must"].append(search)
 
-        if search and op in nested_ops:
-            must.append(_get_nested_query(nested_ops.get(op), search))
-        elif search and op in normal_ops:
-            must.append({
-                "query_string": {
-                    "default_field": op,
-                    "query": "%s" % search[:256]
+    if not rules:
+        return {
+            "query": {
+                "bool": {
+                    "must": {
+                        "query_string": {
+                            "query": "%s" % escape_and_filter(item[:256])
+                        }
+                    }
                 }
-            })
-
-    if not must:
-        must = {"query_string": {"query": "%s" % item[:256]}}
-
-    query = {
-        "query": {
-            "bool": {
-                "must": must
             }
         }
-    }
-    if offset:
-        query["query"]["bool"]["filter"] = {
-                "range": {"datetime": {"lt": offset}}
-    }
-    return query
+
+    return build_query(rules, str_use_fields=True)
+
 
 class URLDiary(object):
     def __init__(self, url, url_id):
@@ -412,19 +598,19 @@ class URLDiary(object):
 
 class RequestFinder(object):
 
-    MAX_REQUEST_SIZE = 2048
+    MAX_REQUEST_SIZE = 4096
 
     def __init__(self, task_id):
         self.task_id = task_id
         self.offset = 0
         self.pcapheader = None
         self.handlers = {}
+        self.MAX_REQUEST_SIZE = config("massurl:elasticsearch:request_store")
 
     def process(self, flowmapping):
         """Reads a PCAP and adds the reqeusts that match the flow mapping
         to a dictionary of reports it will return. Reports will contain
         all found requests made for a url
-
         @param flowmapping: a dictionary of netflow:url values"""
         tlspath = cwd("tlsmaster.txt", analysis=self.task_id)
         tlsmaster = {}
@@ -463,11 +649,14 @@ class RequestFinder(object):
                 if url not in requested:
                     requested.append(url)
 
+                if not isinstance(recv, dpkt.http.Response):
+                    recv = recv.raw
+
                 requestlog = logs.setdefault(url, [])
                 requestlog.append({
                     "time": timestamp,
-                    "request": bytes(sent.raw)[:self.MAX_REQUEST_SIZE],
-                    "response": bytes(recv.raw)[:self.MAX_REQUEST_SIZE]
+                    "request": bytes(sent)[:self.MAX_REQUEST_SIZE],
+                    "response": bytes(recv)[:self.MAX_REQUEST_SIZE]
                 })
 
             return reports
