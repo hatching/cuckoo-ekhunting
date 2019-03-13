@@ -142,8 +142,18 @@ def profiles_view():
 
 @app.route("/settings/signatures")
 def signatures_view():
+    sigs = []
+    for sig in db.list_signatures():
+        loaded = verify_sig(sig.content)
+        if not loaded:
+            log.error("Invalid JSON in signature '%s'", sig.name)
+        else:
+            sig.content = loaded
+            sigs.append(sig.to_dict())
+
+    print sigs
     return render_template(
-        "signatures.html"
+        "signatures.html", signatures=sigs
     )
 
 #
