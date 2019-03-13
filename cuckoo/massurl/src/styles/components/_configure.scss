@@ -1,3 +1,41 @@
+%custom-checkable-style {
+  label {
+    display: block;
+    background-color: #B7CDEF;
+    color: #141414;
+    padding: 8px 12px 8px 8px;
+    box-sizing: border-box;
+    border-radius: 3px;
+    &:before {
+      @extend .fal;
+      @include fa-icon;
+      content: "";
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      background-color: #fff;
+      border: 1px solid #96A1B1;
+      vertical-align: middle;
+      margin-right: 5px;
+      border-radius: 3px;
+    }
+    &:hover { cursor: pointer; }
+  }
+  input[type="radio"],
+  input[type="checkbox"] {
+    display: none;
+    &:checked + label {
+      background-color: #4A6FA5;
+      color: #fff;
+      &:before {
+        border-color: #203E6B;
+        content: fa-content($fa-var-check);
+        color: #141414;
+      }
+    }
+  }
+}
+
 .configure {
 
   /*
@@ -52,6 +90,17 @@
       &.auto { width: auto; }
       &.mini { width: 100px; }
 
+      &.checkbox,
+      &.radio {
+        @extend %custom-checkable-style;
+        padding: 0;
+        background-color: transparent;
+        label {
+          padding-top: 10px;
+          padding-bottom: 10px;
+        }
+      }
+
       &:focus,
       &:valid {
         outline: none;
@@ -61,6 +110,9 @@
 
       &--wrapper {
         position: relative;
+
+        &.mini { width: 100px; }
+
         &.caret {
           &:after {
             @include fa-icon;
@@ -114,41 +166,7 @@
           display: inline-block;
           margin-right: 15px;
           margin-bottom: 15px;
-          label {
-            display: block;
-            background-color: #B7CDEF;
-            color: #141414;
-            padding: 8px 12px 8px 8px;
-            box-sizing: border-box;
-            border-radius: 3px;
-            &:before {
-              @extend .fal;
-              @include fa-icon;
-              content: "";
-              display: inline-block;
-              width: 16px;
-              height: 16px;
-              background-color: #fff;
-              border: 1px solid #96A1B1;
-              vertical-align: middle;
-              margin-right: 5px;
-              border-radius: 3px;
-            }
-            &:hover { cursor: pointer; }
-          }
-          input[type="radio"],
-          input[type="checkbox"] {
-            display: none;
-            &:checked + label {
-              background-color: #4A6FA5;
-              color: #fff;
-              &:before {
-                border-color: #203E6B;
-                content: fa-content($fa-var-check);
-                color: #141414;
-              }
-            }
-          }
+          @extend %custom-checkable-style;
         }
       }
     }

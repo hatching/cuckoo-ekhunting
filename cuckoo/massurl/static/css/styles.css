@@ -625,6 +625,10 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.checkbox label:before,
+.configure-block__control.checkbox table.table tbody tr.expanded > td.icon-cell label:before,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.radio label:before,
+.configure-block__control.radio table.table tbody tr.expanded > td.icon-cell label:before,
 table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label:before,
 .configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label:before,
 .configure-block__control--wrapper.caret:after,
@@ -633,6 +637,8 @@ table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > 
 .fal,
 .editor-ui .editor.loading:after,
 .editor-ui .editor.idle:after,
+.configure-block__control.checkbox label:before,
+.configure-block__control.radio label:before,
 .configure-block + .multi-select > ul > li label:before,
 .fab {
   -moz-osx-font-smoothing: grayscale;
@@ -722,6 +728,10 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.loa
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-left.editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-left.editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-left.editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.checkbox label.fa-pull-left:before,
+.configure-block__control.checkbox table.table tbody tr.expanded > td.icon-cell label.fa-pull-left:before,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.radio label.fa-pull-left:before,
+.configure-block__control.radio table.table tbody tr.expanded > td.icon-cell label.fa-pull-left:before,
 table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label.fa-pull-left:before,
 .configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label.fa-pull-left:before,
 .fa-pull-left.configure-block__control--wrapper.caret:after,
@@ -730,6 +740,8 @@ table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > 
 .fal.fa-pull-left,
 .editor-ui .fa-pull-left.editor.loading:after,
 .editor-ui .fa-pull-left.editor.idle:after,
+.configure-block__control.checkbox label.fa-pull-left:before,
+.configure-block__control.radio label.fa-pull-left:before,
 .configure-block + .multi-select > ul > li label.fa-pull-left:before,
 .fab.fa-pull-left {
   margin-right: .3em; }
@@ -743,6 +755,10 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.lo
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-right.editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .fa-pull-right.editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .fa-pull-right.editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.checkbox label.fa-pull-right:before,
+.configure-block__control.checkbox table.table tbody tr.expanded > td.icon-cell label.fa-pull-right:before,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.radio label.fa-pull-right:before,
+.configure-block__control.radio table.table tbody tr.expanded > td.icon-cell label.fa-pull-right:before,
 table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label.fa-pull-right:before,
 .configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label.fa-pull-right:before,
 .fa-pull-right.configure-block__control--wrapper.caret:after,
@@ -751,6 +767,8 @@ table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > 
 .fal.fa-pull-right,
 .editor-ui .fa-pull-right.editor.loading:after,
 .editor-ui .fa-pull-right.editor.idle:after,
+.configure-block__control.checkbox label.fa-pull-right:before,
+.configure-block__control.radio label.fa-pull-right:before,
 .configure-block + .multi-select > ul > li label.fa-pull-right:before,
 .fab.fa-pull-right {
   margin-left: .3em; }
@@ -4953,6 +4971,10 @@ table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after,
 table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after,
 .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.checkbox label:before,
+.configure-block__control.checkbox table.table tbody tr.expanded > td.icon-cell label:before,
+table.table tbody tr.expanded > td.icon-cell .configure-block__control.radio label:before,
+.configure-block__control.radio table.table tbody tr.expanded > td.icon-cell label:before,
 table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label:before,
 .configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label:before,
 .configure-block__control--wrapper.caret:after {
@@ -4991,6 +5013,8 @@ table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > 
 .fal,
 .editor-ui .editor.loading:after,
 .editor-ui .editor.idle:after,
+.configure-block__control.checkbox label:before,
+.configure-block__control.radio label:before,
 .configure-block + .multi-select > ul > li label:before {
   font-family: 'Font Awesome 5 Pro';
   font-weight: 300; }
@@ -5935,40 +5959,56 @@ body {
       color: #fff;
       background: rgba(29, 32, 34, 0.5);
       padding: 3px 0 0; }
-      .app__header .controls button .fal, .app__header .controls button .editor-ui .editor.loading:after, .editor-ui .app__header .controls button .editor.loading:after, .app__header .controls button .editor-ui .editor.idle:after, .editor-ui .app__header .controls button .editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label:before, .configure-block + .multi-select > ul > li .app__header .controls button label:before,
+      .app__header .controls button .fal, .app__header .controls button .editor-ui .editor.loading:after, .editor-ui .app__header .controls button .editor.loading:after, .app__header .controls button .editor-ui .editor.idle:after, .editor-ui .app__header .controls button .editor.idle:after, .app__header .controls button .configure-block__control.checkbox label:before, .configure-block__control.checkbox .app__header .controls button label:before, .app__header .controls button .configure-block__control.radio label:before, .configure-block__control.radio .app__header .controls button label:before, .app__header .controls button .configure-block + .multi-select > ul > li label:before, .configure-block + .multi-select > ul > li .app__header .controls button label:before,
       .app__header .controls a .fal,
       .app__header .controls a .editor-ui .editor.loading:after,
       .editor-ui .app__header .controls a .editor.loading:after,
       .app__header .controls a .editor-ui .editor.idle:after,
       .editor-ui .app__header .controls a .editor.idle:after,
+      .app__header .controls a .configure-block__control.checkbox label:before,
+      .configure-block__control.checkbox .app__header .controls a label:before,
+      .app__header .controls a .configure-block__control.radio label:before,
+      .configure-block__control.radio .app__header .controls a label:before,
       .app__header .controls a .configure-block + .multi-select > ul > li label:before,
       .configure-block + .multi-select > ul > li .app__header .controls a label:before {
         font-size: 16px;
         transition: opacity 100ms linear; }
-        .app__header .controls button .fal.fa-volume-mute, .app__header .controls button .editor-ui .fa-volume-mute.editor.loading:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.loading:after, .app__header .controls button .editor-ui .fa-volume-mute.editor.idle:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-volume-mute:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-volume-mute:before,
+        .app__header .controls button .fal.fa-volume-mute, .app__header .controls button .editor-ui .fa-volume-mute.editor.loading:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.loading:after, .app__header .controls button .editor-ui .fa-volume-mute.editor.idle:after, .editor-ui .app__header .controls button .fa-volume-mute.editor.idle:after, .app__header .controls button .configure-block__control.checkbox label.fa-volume-mute:before, .configure-block__control.checkbox .app__header .controls button label.fa-volume-mute:before, .app__header .controls button .configure-block__control.radio label.fa-volume-mute:before, .configure-block__control.radio .app__header .controls button label.fa-volume-mute:before, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-volume-mute:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-volume-mute:before,
         .app__header .controls a .fal.fa-volume-mute,
         .app__header .controls a .editor-ui .fa-volume-mute.editor.loading:after,
         .editor-ui .app__header .controls a .fa-volume-mute.editor.loading:after,
         .app__header .controls a .editor-ui .fa-volume-mute.editor.idle:after,
         .editor-ui .app__header .controls a .fa-volume-mute.editor.idle:after,
+        .app__header .controls a .configure-block__control.checkbox label.fa-volume-mute:before,
+        .configure-block__control.checkbox .app__header .controls a label.fa-volume-mute:before,
+        .app__header .controls a .configure-block__control.radio label.fa-volume-mute:before,
+        .configure-block__control.radio .app__header .controls a label.fa-volume-mute:before,
         .app__header .controls a .configure-block + .multi-select > ul > li label.fa-volume-mute:before,
         .configure-block + .multi-select > ul > li .app__header .controls a label.fa-volume-mute:before {
           opacity: .5; }
-        .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-expand-alt:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-expand-alt:before,
+        .app__header .controls button .fal.fa-expand-alt, .app__header .controls button .editor-ui .fa-expand-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-expand-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-expand-alt.editor.idle:after, .app__header .controls button .configure-block__control.checkbox label.fa-expand-alt:before, .configure-block__control.checkbox .app__header .controls button label.fa-expand-alt:before, .app__header .controls button .configure-block__control.radio label.fa-expand-alt:before, .configure-block__control.radio .app__header .controls button label.fa-expand-alt:before, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-expand-alt:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-expand-alt:before,
         .app__header .controls a .fal.fa-expand-alt,
         .app__header .controls a .editor-ui .fa-expand-alt.editor.loading:after,
         .editor-ui .app__header .controls a .fa-expand-alt.editor.loading:after,
         .app__header .controls a .editor-ui .fa-expand-alt.editor.idle:after,
         .editor-ui .app__header .controls a .fa-expand-alt.editor.idle:after,
+        .app__header .controls a .configure-block__control.checkbox label.fa-expand-alt:before,
+        .configure-block__control.checkbox .app__header .controls a label.fa-expand-alt:before,
+        .app__header .controls a .configure-block__control.radio label.fa-expand-alt:before,
+        .configure-block__control.radio .app__header .controls a label.fa-expand-alt:before,
         .app__header .controls a .configure-block + .multi-select > ul > li label.fa-expand-alt:before,
         .configure-block + .multi-select > ul > li .app__header .controls a label.fa-expand-alt:before {
           opacity: .5; }
-        .app__header .controls button .fal.fa-comment-alt, .app__header .controls button .editor-ui .fa-comment-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-comment-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.idle:after, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-comment-alt:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-comment-alt:before,
+        .app__header .controls button .fal.fa-comment-alt, .app__header .controls button .editor-ui .fa-comment-alt.editor.loading:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.loading:after, .app__header .controls button .editor-ui .fa-comment-alt.editor.idle:after, .editor-ui .app__header .controls button .fa-comment-alt.editor.idle:after, .app__header .controls button .configure-block__control.checkbox label.fa-comment-alt:before, .configure-block__control.checkbox .app__header .controls button label.fa-comment-alt:before, .app__header .controls button .configure-block__control.radio label.fa-comment-alt:before, .configure-block__control.radio .app__header .controls button label.fa-comment-alt:before, .app__header .controls button .configure-block + .multi-select > ul > li label.fa-comment-alt:before, .configure-block + .multi-select > ul > li .app__header .controls button label.fa-comment-alt:before,
         .app__header .controls a .fal.fa-comment-alt,
         .app__header .controls a .editor-ui .fa-comment-alt.editor.loading:after,
         .editor-ui .app__header .controls a .fa-comment-alt.editor.loading:after,
         .app__header .controls a .editor-ui .fa-comment-alt.editor.idle:after,
         .editor-ui .app__header .controls a .fa-comment-alt.editor.idle:after,
+        .app__header .controls a .configure-block__control.checkbox label.fa-comment-alt:before,
+        .configure-block__control.checkbox .app__header .controls a label.fa-comment-alt:before,
+        .app__header .controls a .configure-block__control.radio label.fa-comment-alt:before,
+        .configure-block__control.radio .app__header .controls a label.fa-comment-alt:before,
         .app__header .controls a .configure-block + .multi-select > ul > li label.fa-comment-alt:before,
         .configure-block + .multi-select > ul > li .app__header .controls a label.fa-comment-alt:before {
           opacity: .5; }
@@ -6300,7 +6340,7 @@ table.table {
     font-weight: 700; }
     table.table tbody tr.expanded > td:not(.fill-base) {
       background-color: rgba(0, 0, 0, 0.05); }
-    table.table tbody tr.expanded > td.icon-cell .fal, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after, table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label:before, .configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label:before {
+    table.table tbody tr.expanded > td.icon-cell .fal, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.loading:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.loading:after, table.table tbody tr.expanded > td.icon-cell .editor-ui .editor.idle:after, .editor-ui table.table tbody tr.expanded > td.icon-cell .editor.idle:after, table.table tbody tr.expanded > td.icon-cell .configure-block__control.checkbox label:before, .configure-block__control.checkbox table.table tbody tr.expanded > td.icon-cell label:before, table.table tbody tr.expanded > td.icon-cell .configure-block__control.radio label:before, .configure-block__control.radio table.table tbody tr.expanded > td.icon-cell label:before, table.table tbody tr.expanded > td.icon-cell .configure-block + .multi-select > ul > li label:before, .configure-block + .multi-select > ul > li table.table tbody tr.expanded > td.icon-cell label:before {
       position: relative;
       top: 1px;
       margin-top: 1px;
@@ -7112,6 +7152,53 @@ table.table {
       .content-overlay .network-body textarea:hover {
         background-color: rgba(255, 255, 255, 0.9); }
 
+.configure-block__control.checkbox label, .configure-block__control.radio label, .configure-block + .multi-select > ul > li label {
+  display: block;
+  background-color: #B7CDEF;
+  color: #141414;
+  padding: 8px 12px 8px 8px;
+  box-sizing: border-box;
+  border-radius: 3px; }
+  .configure-block__control.checkbox label:before, .configure-block__control.radio label:before, .configure-block + .multi-select > ul > li label:before {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1;
+    vertical-align: -.125em;
+    content: "";
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-color: #fff;
+    border: 1px solid #96A1B1;
+    vertical-align: middle;
+    margin-right: 5px;
+    border-radius: 3px; }
+  .configure-block__control.checkbox label:hover, .configure-block__control.radio label:hover, .configure-block + .multi-select > ul > li label:hover {
+    cursor: pointer; }
+
+.configure-block__control.checkbox input[type="radio"], .configure-block__control.radio input[type="radio"], .configure-block + .multi-select > ul > li input[type="radio"],
+.configure-block__control.checkbox input[type="checkbox"],
+.configure-block__control.radio input[type="checkbox"],
+.configure-block + .multi-select > ul > li input[type="checkbox"] {
+  display: none; }
+  .configure-block__control.checkbox input[type="radio"]:checked + label, .configure-block__control.radio input[type="radio"]:checked + label, .configure-block + .multi-select > ul > li input[type="radio"]:checked + label,
+  .configure-block__control.checkbox input[type="checkbox"]:checked + label,
+  .configure-block__control.radio input[type="checkbox"]:checked + label,
+  .configure-block + .multi-select > ul > li input[type="checkbox"]:checked + label {
+    background-color: #4A6FA5;
+    color: #fff; }
+    .configure-block__control.checkbox input[type="radio"]:checked + label:before, .configure-block__control.radio input[type="radio"]:checked + label:before, .configure-block + .multi-select > ul > li input[type="radio"]:checked + label:before,
+    .configure-block__control.checkbox input[type="checkbox"]:checked + label:before,
+    .configure-block__control.radio input[type="checkbox"]:checked + label:before,
+    .configure-block + .multi-select > ul > li input[type="checkbox"]:checked + label:before {
+      border-color: #203E6B;
+      content: "\f00c";
+      color: #141414; }
+
 .configure {
   /*
     <ConfigureBlock>
@@ -7157,12 +7244,20 @@ table.table {
         width: auto; }
       .configure-block__control.mini {
         width: 100px; }
+      .configure-block__control.checkbox, .configure-block__control.radio {
+        padding: 0;
+        background-color: transparent; }
+        .configure-block__control.checkbox label, .configure-block__control.radio label {
+          padding-top: 10px;
+          padding-bottom: 10px; }
       .configure-block__control:focus, .configure-block__control:valid {
         outline: none;
         border-color: #ddd;
         background-color: #eee; }
       .configure-block__control--wrapper {
         position: relative; }
+        .configure-block__control--wrapper.mini {
+          width: 100px; }
         .configure-block__control--wrapper.caret:after {
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
@@ -7212,45 +7307,6 @@ table.table {
           display: inline-block;
           margin-right: 15px;
           margin-bottom: 15px; }
-          .configure-block + .multi-select > ul > li label {
-            display: block;
-            background-color: #B7CDEF;
-            color: #141414;
-            padding: 8px 12px 8px 8px;
-            box-sizing: border-box;
-            border-radius: 3px; }
-            .configure-block + .multi-select > ul > li label:before {
-              -webkit-font-smoothing: antialiased;
-              -moz-osx-font-smoothing: grayscale;
-              display: inline-block;
-              font-style: normal;
-              font-variant: normal;
-              font-weight: normal;
-              line-height: 1;
-              vertical-align: -.125em;
-              content: "";
-              display: inline-block;
-              width: 16px;
-              height: 16px;
-              background-color: #fff;
-              border: 1px solid #96A1B1;
-              vertical-align: middle;
-              margin-right: 5px;
-              border-radius: 3px; }
-            .configure-block + .multi-select > ul > li label:hover {
-              cursor: pointer; }
-          .configure-block + .multi-select > ul > li input[type="radio"],
-          .configure-block + .multi-select > ul > li input[type="checkbox"] {
-            display: none; }
-            .configure-block + .multi-select > ul > li input[type="radio"]:checked + label,
-            .configure-block + .multi-select > ul > li input[type="checkbox"]:checked + label {
-              background-color: #4A6FA5;
-              color: #fff; }
-              .configure-block + .multi-select > ul > li input[type="radio"]:checked + label:before,
-              .configure-block + .multi-select > ul > li input[type="checkbox"]:checked + label:before {
-                border-color: #203E6B;
-                content: "\f00c";
-                color: #141414; }
   .configure-ui {
     background-color: rgba(255, 255, 255, 0.95); }
   .configure-aside {
