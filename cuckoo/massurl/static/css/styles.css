@@ -7289,10 +7289,11 @@ table.table {
       position: relative;
       margin-left: -15px; }
       .configure-block__container .configure-block {
-        display: inline-block;
         vertical-align: top;
         padding: 0;
         margin: 0 15px; }
+        .configure-block__container .configure-block:not([hidden]) {
+          display: inline-block; }
     .configure-block.free {
       padding-left: 0;
       padding-right: 0; }

@@ -144,7 +144,7 @@
       position: relative;
       margin-left: -15px;
       .configure-block {
-        display: inline-block;
+        &:not([hidden]) { display: inline-block; }
         vertical-align: top;
         padding: 0;
         margin: 0 15px;
