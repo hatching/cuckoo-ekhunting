@@ -62,4 +62,19 @@ $.fn.filterList = (function(){
   }
 })();
 
+//
+// handler for json POST requests
+//
+$.extend({
+  jpost: (url,body) => {
+    return $.ajax({
+      type: 'POST',
+      url: url,
+      data: JSON.stringify(body),
+      contentType: 'application/json',
+      dataType: 'json'
+    });
+  }
+})
+
 export default $;

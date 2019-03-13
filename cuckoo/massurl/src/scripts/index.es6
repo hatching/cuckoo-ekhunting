@@ -7,6 +7,7 @@ import { initUrlGroupView } from './url-group-view';
 import { initDiary } from './diary';
 import { initSearch } from './search';
 import { initProfiles } from './profiles';
+import { initSignatures } from './signatures';
 
 // util - string bool to bool
 function stringToBoolean(val){
@@ -149,7 +150,13 @@ $(function() {
   }
 
   if($("#profiles").length) {
-    initProfiles($("#profiles")).then(data => {
+    initProfiles($("main > #profiles")).then(data => {
+
+    });
+  }
+
+  if($("main > #signatures").length) {
+    initSignatures($("main > #signatures")).then(data => {
 
     });
   }
