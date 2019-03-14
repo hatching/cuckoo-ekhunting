@@ -21,17 +21,25 @@ const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
 `)(data);
 
 const $SIG_INPUT_ROW = (data={}) => Handlebars.compile(`
-  <div class="multi-input-row">
+  <div class="multi-input-row" data-sig-fields>
     <div class="multi-input-row__select">
       <div class="configure-block__control--wrapper mini caret">
         <select class="configure-block__control">
-          <option>Any</option>
-          <option>Must</option>
+          <option value="any">Any</option>
+          <option value="must">Must</option>
         </select>
       </div>
     </div>
     <div class="multi-input-row__fields">
-      <input type="text" class="configure-block__control inline mini" />
+      {{#if this}}
+        {{#each this}}
+          {{#each @key}}
+            <input type="text" class="configure-block__control inline mini" value="{{this}}" />
+          {{/each}}
+        {{/each}}
+      {{else}}
+        <input type="text" class="configure-block__control inline mini" />
+      {{/if}}
     </div>
   </div>
 `)(data);
@@ -191,6 +199,23 @@ function inputRow(row) {
   $(row).find('input[type="text"]').on('keyup', keyupHandler);
 }
 
+function getSignatureValues() {
+  let { formParent } = state;
+  let ret = {};
+  formParent.find('.tabbed-tab').each((i,tab) => {
+    let $tab = $(tab);
+    ret[$tab.data('tab')] = [];
+    $tab.find('[data-sig-fields]').each((i,fields) => {
+      let entry = {};
+      let type = $(fields).find('select').val()
+      entry[type] = [];
+      $(fields).find('input[type="text"]').each((i,inp) => entry[type].push(inp.value));
+      ret[$tab.data('tab')].push(entry);
+    });
+  });
+  return ret;
+}
+
 function renderForm(signature, meta={}) {
 
   let { formParent, sigList } = state;
@@ -219,12 +244,7 @@ function renderForm(signature, meta={}) {
         name: fields.name.val(),
         enabled: fields.enabled.is(':checked'),
         level: parseInt(fields.level.val()),
-        content: {
-          requests: [],
-          responsedata: [],
-          requestdata: [],
-          javascript: []
-        }
+        content: getSignatureValues()
       }
     }
     if(meta.new) {

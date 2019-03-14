@@ -46,7 +46,7 @@ function initSearch(el, result) {
         let firstPayload = true;
         let paginate = $("<li class='paginate'><button class='button'>More results</button></li>");
 
-        paginator.on('request', () => result.html('<i class="fas fa-spinner-third fa-spin"></i>'));
+        // paginator.on('request', () => result.html('<i class="fas fa-spinner-third fa-spin"></i>'));
 
         paginator.on('payload', payload => {
 
