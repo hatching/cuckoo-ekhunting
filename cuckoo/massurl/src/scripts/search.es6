@@ -41,8 +41,12 @@ function initSearch(el, result) {
       e.preventDefault();
       search($(e.currentTarget), input.val()).then(paginator => {
 
+        result.empty();
+
         let firstPayload = true;
         let paginate = $("<li class='paginate'><button class='button'>More results</button></li>");
+
+        paginator.on('request', () => result.html('<i class="fas fa-spinner-third fa-spin"></i>'));
 
         paginator.on('payload', payload => {
 
@@ -83,11 +87,14 @@ function initSearch(el, result) {
           console.log(err);
         });
 
+        paginator.on('empty', () => result.html('<p>No results</p>'));
+
         paginator.next();
 
       }).catch(ev => {
         result.html('<p>No results</p>')
       });
+
       return false;
     });
   });
