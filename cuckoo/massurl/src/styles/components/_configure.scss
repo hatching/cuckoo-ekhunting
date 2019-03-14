@@ -88,6 +88,10 @@
       margin: 0 0 10px 0;
 
       &.auto { width: auto; }
+      &.inline {
+        width: auto;
+        display: inline-block;
+      }
       &.mini { width: 100px; }
 
       &.checkbox,
@@ -278,7 +282,8 @@
       }
     }
 
-    .multi-select {
+    .multi-select,
+    .full-block {
       width: calc(100% + 50px);
       margin-left: -25px;
       padding: 0 25px;
@@ -293,7 +298,8 @@
       display: flex;
       flex-direction: column;
 
-      .multi-select {
+      .multi-select,
+      .full-block {
         flex-basis: 100%;
         margin-top: 10px;
       }
@@ -320,6 +326,57 @@
       border-radius: 4px;
       padding: 0 15px;
       .close { float: right; }
+    }
+
+    .tabbed {
+
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0;
+
+      &-nav {
+        display: flex;
+        flex-shrink: 0;
+        list-style: none;
+        margin: 0;
+        & > li {
+          flex-basis: 100%;
+          padding: 0 5px;
+          a {
+            display: block;
+            text-align: center;
+            padding: 7px 0;
+            background-color: #ddd;
+            border-radius: 3px;
+            text-decoration: none;
+            color: #444;
+            &:hover,
+            &.active { background-color: #ccc; }
+          }
+        }
+      }
+
+      &-content {
+        flex-basis: 100%;
+        overflow-y: auto;
+        & > div:not(.active) {
+          display: none;
+        }
+      }
+
+    }
+
+    .multi-input-row {
+      display: flex;
+      padding: 10px 0;
+      & > * { margin: 0 5px; }
+      &__select {
+
+      }
+      &__fields {
+        input { margin-right: 5px; }
+      }
     }
 
   }

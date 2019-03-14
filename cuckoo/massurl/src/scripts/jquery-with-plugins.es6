@@ -66,7 +66,7 @@ $.fn.filterList = (function(){
 // handler for json POST requests
 //
 $.extend({
-  jpost: (url,body) => {
+  jpost: (url,body={}) => {
     return $.ajax({
       type: 'POST',
       url: url,

@@ -7242,6 +7242,9 @@ table.table {
       margin: 0 0 10px 0; }
       .configure-block__control.auto {
         width: auto; }
+      .configure-block__control.inline {
+        width: auto;
+        display: inline-block; }
       .configure-block__control.mini {
         width: 100px; }
       .configure-block__control.checkbox, .configure-block__control.radio {
@@ -7389,12 +7392,14 @@ table.table {
           cursor: pointer; }
         .configure-content footer button:focus {
           outline: 0; }
-    .configure-content .multi-select {
+    .configure-content .multi-select,
+    .configure-content .full-block {
       width: calc(100% + 50px);
       margin-left: -25px;
       padding: 0 25px;
       box-sizing: border-box; }
-      .configure-content .multi-select ul {
+      .configure-content .multi-select ul,
+      .configure-content .full-block ul {
         padding-left: 0; }
     .configure-content .scroll-vertical {
       overflow-y: auto; }
@@ -7402,7 +7407,8 @@ table.table {
       flex-basis: 100%;
       display: flex;
       flex-direction: column; }
-      .configure-content .flex-v .multi-select {
+      .configure-content .flex-v .multi-select,
+      .configure-content .flex-v .full-block {
         flex-basis: 100%;
         margin-top: 10px; }
     .configure-content .flex-h {
@@ -7424,5 +7430,40 @@ table.table {
       padding: 0 15px; }
       .configure-content .message-box .close {
         float: right; }
+    .configure-content .tabbed {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0; }
+      .configure-content .tabbed-nav {
+        display: flex;
+        flex-shrink: 0;
+        list-style: none;
+        margin: 0; }
+        .configure-content .tabbed-nav > li {
+          flex-basis: 100%;
+          padding: 0 5px; }
+          .configure-content .tabbed-nav > li a {
+            display: block;
+            text-align: center;
+            padding: 7px 0;
+            background-color: #ddd;
+            border-radius: 3px;
+            text-decoration: none;
+            color: #444; }
+            .configure-content .tabbed-nav > li a:hover, .configure-content .tabbed-nav > li a.active {
+              background-color: #ccc; }
+      .configure-content .tabbed-content {
+        flex-basis: 100%;
+        overflow-y: auto; }
+        .configure-content .tabbed-content > div:not(.active) {
+          display: none; }
+    .configure-content .multi-input-row {
+      display: flex;
+      padding: 10px 0; }
+      .configure-content .multi-input-row > * {
+        margin: 0 5px; }
+      .configure-content .multi-input-row__fields input {
+        margin-right: 5px; }
 
 /*# sourceMappingURL=styles.css.map */
