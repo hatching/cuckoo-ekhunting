@@ -58,7 +58,10 @@ export default class Paginator extends EventEmitter {
 
   get limit()   { return this.props.limit; }
   get offset()  { return this.props.offset; }
-  get url()     { return `${this.props.url}${this.props.startChar}offset=${this.offset}&limit=${this.limit}`; }
+  get url()     {
+    let encoded = encodeURIComponent(`${this.props.startChar}offset=${this.offset}&limit=${this.limit}`)
+    return `${this.props.url}${encoded}`; 
+  }
 
   set offset(v) { this.props.offset = v; }
 
