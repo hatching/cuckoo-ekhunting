@@ -4,7 +4,7 @@ import Paginator from './paginator';
 
 const APIUrl = (endpoint=false) => `/api/diary/${endpoint ? endpoint : '/'}`;
 const urls = {
-  search: str => APIUrl(`search?q=${str}`)
+  search: str => APIUrl(`search?q=${encodeURIComponent(str)}`)
 }
 
 function createList(data,format) {
