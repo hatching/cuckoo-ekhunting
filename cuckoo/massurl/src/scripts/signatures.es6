@@ -7,6 +7,11 @@ const state = {
 }
 
 Handlebars.registerHelper('eq', (p,m,opts) => p == m ? opts.fn() : '');
+Handlebars.registerHelper('keys', (o,opts) => {
+  let r = "";
+  Object.keys(o).forEach(k => r += opts.fn(k));
+  return r;
+});
 
 // signature list item template
 const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
@@ -14,6 +19,28 @@ const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
     <a href="load:{{id}}">{{name}}</a>
   </li>
 `)(data);
+
+const $SIG_INPUT_ROW = (data={}) => Handlebars.compile(`
+  <div class="multi-input-row">
+    <div class="multi-input-row__select">
+      <div class="configure-block__control--wrapper mini caret">
+        <select class="configure-block__control">
+          <option>Any</option>
+          <option>Must</option>
+        </select>
+      </div>
+    </div>
+    <div class="multi-input-row__fields">
+      <input type="text" class="configure-block__control inline mini" />
+    </div>
+  </div>
+`)(data);
+
+// initialise helper for existing signature rows inside a template.
+// initializing has to be done in inputRow()
+Handlebars.registerHelper('input-row', (sig,opts) => {
+  return new Handlebars.SafeString($SIG_INPUT_ROW(sig));
+});
 
 // signature form template
 const $SIG_FORM = (data={}) => Handlebars.compile(`
@@ -31,12 +58,12 @@ const $SIG_FORM = (data={}) => Handlebars.compile(`
     {{/if}}
 
     <div class="configure-block">
-        <h4 class="configure-block__label">Enabled</h4>
-        <p class="configure-block__description">Match this signature</p>
-        <div class="configure-block__control checkbox">
-          <input type="checkbox" id="signature-enabled" {{#if signature.enabled}}checked{{/if}} />
-          <label for="signature-enabled">Enable</label>
-        </div>
+      <h4 class="configure-block__label">Enabled</h4>
+      <p class="configure-block__description">Match this signature</p>
+      <div class="configure-block__control checkbox">
+        <input type="checkbox" id="signature-enabled" {{#if signature.enabled}}checked{{/if}} />
+        <label for="signature-enabled">Enable</label>
+      </div>
     </div>
 
     <div class="configure-block" {{#unless signature.enabled}}hidden{{/unless}}>
@@ -53,7 +80,30 @@ const $SIG_FORM = (data={}) => Handlebars.compile(`
 
   </div>
 
-  <div class="flex-v"></div>
+  <div class="flex-v">
+    <div class="configure-block free">
+      <h4 class="configure-block__label">Content</h4>
+    </div>
+    <div class="full-block tabbed">
+      <ul class="tabbed-nav">
+        {{#each signature.content}}
+          <li><a {{#eq @index 0}}class="active"{{/eq}} href="tab:{{@key}}">{{@key}}</a></li>
+        {{/each}}
+      </ul>
+      <div class="tabbed-content">
+        {{#each signature.content}}
+          <div class="tabbed-tab {{#eq @index 0}}active{{/eq}}" data-tab="{{@key}}">
+            {{#each this}}
+              {{input-row this}}
+            {{/each}}
+            <div class="multi-input-row">
+              <a href="#" data-create-row>Add row</a>
+            </div>
+          </div>
+        {{/each}}
+      </div>
+    </div>
+  </div>
 
   <footer {{#if meta.new}}class="align-right"{{/if}}>
     {{#unless meta.new}}
@@ -69,8 +119,8 @@ const api = {
   get: id => $.get(`/api/signature/${id}`),
   create: data => $.jpost('/api/signature/add', data),
   update: (id,data) => $.jpost(`/api/signature/update/${id}`, data),
-  delete: id => $.post(`/api/signature/delete/${id}`, data),
-  run: id => $.post(`/api/signature/run/${id}`, data)
+  delete: id => $.post(`/api/signature/delete/${id}`),
+  run: id => $.post(`/api/signature/run/${id}`)
 };
 
 function loadSignature(id=false) {
@@ -96,36 +146,75 @@ function updateSignature(id, data) {
   });
 };
 
-function deleteSignature() {
+function deleteSignature(id) {
   return new Promise((res, rej) => {
-    res();
+    api.delete(id).done(response => res(response)).fail(err => rej(err));
   });
 };
 
+// input row handlers
+function inputRow(row) {
+
+  let createInput = () => $(Handlebars.compile(`<input type="text" class="configure-block__control inline mini" />`)({}));
+
+  let keyupHandler = e => {
+    let target = e.currentTarget;
+    switch(e.keyCode) {
+      case 13:
+        if(target.value.length) {
+          if($(target).next().prop("tagName") == "INPUT") {
+            // focus next input if next element is an input
+            $(target).next().focus();
+          } else {
+            // else, create another input
+            let inp = createInput();
+            $(target).after(inp);
+            inp.on('keyup', keyupHandler);
+            inp.focus();
+          }
+        }
+      break;
+      case 8:
+        if(target.value.length == 0) {
+          if($(target).prev().prop('tagName') == 'INPUT') {
+            $(target).prev().focus();
+          } else if ($(target).next().prop('tagName') == 'INPUT') {
+            $(target).next().focus();
+          }
+          if($(target).prev().length !== 0)
+            $(target).remove();
+        }
+      break;
+    }
+  }
+
+  $(row).find('input[type="text"]').on('keyup', keyupHandler);
+}
+
 function renderForm(signature, meta={}) {
 
-  let parent = state.formParent;
+  let { formParent, sigList } = state;
   let html = $SIG_FORM({signature,meta});
-  parent.html(html);
+  formParent.html(html);
 
   // store the required input fields into object to serialize later on
   const fields = {
-    name: parent.find('#signature-name'),
-    enabled: parent.find('#signature-enabled'),
-    level: parent.find('#signature-level')
+    name: formParent.find('#signature-name'),
+    enabled: formParent.find('#signature-enabled'),
+    level: formParent.find('#signature-level')
   }
 
   // enabled/disabled will toggle 'level' input
-  parent.find("#signature-enabled").on('change', e => {
-    parent.find("#signature-level")
+  formParent.find("#signature-enabled").on('change', e => {
+    formParent.find("#signature-level")
       .parents('.configure-block')
       .prop('hidden', !$(e.currentTarget).is(':checked'));
   });
 
-  parent.find('#save-signature').on('click', e => {
+  // save or update signature
+  formParent.find('#save-signature').on('click', e => {
     e.preventDefault();
     let serializeValues = () => {
-      console.log(fields.enabled);
       return {
         name: fields.name.val(),
         enabled: fields.enabled.is(':checked'),
@@ -150,10 +239,42 @@ function renderForm(signature, meta={}) {
       let values = serializeValues();
       delete values.name;
       updateSignature(signature.id, values).then(response => {
-        console.log(response);
+        // signature updated
       }).catch(err => console.log(err));
     }
   });
+
+  // delete signature
+  formParent.find('#delete-signature').on('click', e => {
+    deleteSignature(signature.id).then(response => {
+      sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
+      formParent.empty();
+    }).catch(err => console.log(err));
+  });
+
+  // initialize sig tabs
+  formParent.find('.tabbed-nav a').on('click', e => {
+    e.preventDefault();
+    let target = $(e.currentTarget).attr('href').split(':')[1];
+    $(e.currentTarget).parents('ul').find('a').removeClass('active');
+    $(e.currentTarget).addClass('active');
+    $(e.currentTarget).parents('.tabbed').find('[data-tab]').removeClass('active');
+    $(e.currentTarget).parents('.tabbed').find(`[data-tab='${target}']`).addClass('active');
+  });
+
+  // initialize signature editor rows - new
+  formParent.find('.tabbed-tab [data-create-row]').on('click', e => {
+    e.preventDefault();
+    let $row = $($SIG_INPUT_ROW({
+      type: 'any',
+      fields: []
+    }));
+    $(e.currentTarget).parent().before($row);
+    inputRow($row);
+  });
+
+  // initialize signature editor rows - existing
+  formParent.find('.tabbed-tab .multi-input-row').each((i,el) => inputRow(el));
 
 };
 
@@ -189,7 +310,7 @@ function initSignatures($el) {
         }
       }, { new: true });
       state.sigList.find('.active').removeClass('active');
-    });
+    }).click();
 
     // load signature - populates form with existing signatures
     loadSignature(false).then(signatures => {
