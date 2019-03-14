@@ -85,7 +85,9 @@ function initSearch(el, result) {
 
         paginator.next();
 
-      }).catch(ev => console.log(ev));
+      }).catch(ev => {
+        result.html('<p>No results</p>')
+      });
       return false;
     });
   });
