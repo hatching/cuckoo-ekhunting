@@ -3,6 +3,7 @@
 # See the file 'docs/LICENSE' for copying permission.
 
 import Queue
+import json
 import logging
 import os
 import threading
@@ -97,6 +98,7 @@ class MassURL(AnalysisManager):
         self.tlskeys_response = None
         self.realtime_error = False
         self.requestfinder = RequestFinder(self.task.id)
+        self.all_pids_targets = {}
 
         return True
 
@@ -255,6 +257,7 @@ class MassURL(AnalysisManager):
                 int(pid): target for p in pkg_info
                 for pid, target in p.get("pids").items()
             }
+            self.all_pids_targets.update(pids_targets)
 
             # Give the URLs some time to load and remain opened
             time.sleep(self.SECS_PER_BLOCK)
@@ -629,6 +632,9 @@ class MassURL(AnalysisManager):
         self.ev_client.stop()
         self.task.set_latest()
         self.release_machine_lock()
+        with open(cwd("pids_targets.json", analysis=self.task.id), "wb") as fp:
+            json.dump(self.all_pids_targets, fp, indent=2)
+
         if self.analysis.status != Analysis.STOPPED:
             log.warning(
                 "Analysis status is '%s' after exit.", self.analysis.status
