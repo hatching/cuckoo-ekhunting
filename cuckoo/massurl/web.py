@@ -535,8 +535,12 @@ def get_diaries_url(url_id):
 
     return jsonify(diary_list)
 
-@app.route("/api/diary/search/<item>")
-def search_diaries(item):
+@app.route("/api/diary/search")
+def search_diaries():
+    query = request.args.get("q")
+    if not query:
+        return json_error(400, "No q provided.")
+
     intargs = {
         "limit": request.args.get("limit", 20),
         "offset": request.args.get("offset", 0)
@@ -550,7 +554,7 @@ def search_diaries(item):
                 return json_error(400, "%s should be an integer" % key)
 
     diary_list = URLDiaries.search_diaries(
-        item, return_fields="datetime,url,version", size=intargs.get("limit"),
+        query, return_fields="datetime,url,version", size=intargs.get("limit"),
         offset=intargs.get("offset")
     ) or []
 
