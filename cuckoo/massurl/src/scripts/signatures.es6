@@ -22,7 +22,7 @@ Handlebars.registerHelper('is-selected', (o,t) => {
 
 // signature list item template
 const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
-  <li>
+  <li data-filter-value="{{name}}">
     <a href="load:{{id}}">{{name}}</a>
   </li>
 `)(data);
@@ -273,25 +273,28 @@ function renderForm(signature, meta={}) {
         content: getSignatureValues()
       }
     }
+    $(e.currentTarget).html('<i class="fas fa-spinner-third fa-spin"></i>');
     if(meta.new) {
       // POST new signature
       createSignature(serializeValues()).then(response => {
         let listItem = $($SIG_LIST_ITEM({id:response.signature_id,name:fields.name.val()}));
         state.sigList.append(listItem);
         listItem.find('a').on('click', sigClickHandler).click();
+        setTimeout(() => $(e.currentTarget).text('Save'), 500);
       }).catch(err => console.log(err));
     } else {
       // UPDATE signature
       let values = serializeValues();
       delete values.name;
       updateSignature(signature.id, values).then(response => {
-        // signature updated
+        setTimeout(() => $(e.currentTarget).text('Save'), 500);
       }).catch(err => console.log(err));
     }
   });
 
   // delete signature
   formParent.find('#delete-signature').on('click', e => {
+    $(e.currentTarget).html('<i class="fas fa-spinner-third fa-spin"></i>');
     deleteSignature(signature.id).then(response => {
       sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
       formParent.empty();
@@ -327,10 +330,14 @@ let sigClickHandler = e => {
   e.preventDefault();
   let link = $(e.currentTarget);
   let id = link.attr('href').split(':')[1];
+  link.prepend(`<i class="fas fa-spinner-third fa-spin"></i>`);
   loadSignature(id).then(sig => {
-    link.parents('ul').find('.active').removeClass('active');
-    link.addClass('active');
-    renderForm(sig,{new:false});
+    setTimeout(() => {
+      link.find('i').remove();
+      link.parents('ul').find('.active').removeClass('active');
+      link.addClass('active');
+      renderForm(sig,{new:false});
+    }, 500);
   }).catch(err => console.log(err));
 };
 
@@ -365,6 +372,11 @@ function initSignatures($el) {
       });
       state.sigList.find('a').on('click', sigClickHandler);
     }).catch(err => console.log(err));
+
+    $el.find('input[name="filter-signatures"]').on('keyup', e => {
+      let val = $(e.currentTarget).val();
+      $el.find('[data-signatures-list]').filterList(val);
+    });
 
     resolve();
   });
