@@ -12,6 +12,13 @@ Handlebars.registerHelper('keys', (o,opts) => {
   Object.keys(o).forEach(k => r += opts.fn(k));
   return r;
 });
+Handlebars.registerHelper('is-selected', (o,t) => {
+  if(Object.keys(o)[0] == t) {
+    return 'selected';
+  } else {
+    return '';
+  }
+})
 
 // signature list item template
 const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
@@ -21,27 +28,29 @@ const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
 `)(data);
 
 const $SIG_INPUT_ROW = (data={}) => Handlebars.compile(`
-  <div class="multi-input-row" data-sig-fields>
-    <div class="multi-input-row__select">
-      <div class="configure-block__control--wrapper mini caret">
-        <select class="configure-block__control">
-          <option value="any">Any</option>
-          <option value="must">Must</option>
-        </select>
+  {{#each this}}
+    <div class="multi-input-row" data-sig-fields>
+      <div class="multi-input-row__select">
+        <div class="configure-block__control--wrapper mini caret">
+          <select class="configure-block__control">
+            <option value="any" {{is-selected this 'any'}}>Any</option>
+            <option value="must" {{is-selected this 'must'}}>Must</option>
+          </select>
+        </div>
       </div>
-    </div>
-    <div class="multi-input-row__fields">
-      {{#if this}}
+      <div class="multi-input-row__fields">
         {{#each this}}
-          {{#each @key}}
+          {{#each this}}
             <input type="text" class="configure-block__control inline mini" value="{{this}}" />
           {{/each}}
         {{/each}}
-      {{else}}
         <input type="text" class="configure-block__control inline mini" />
-      {{/if}}
+      </div>
+      <div class="multi-input-row__actions">
+        <a href="#" data-remove-row><i class="fas fa-times"></i></a>
+      </div>
     </div>
-  </div>
+  {{/each}}
 `)(data);
 
 // initialise helper for existing signature rows inside a template.
@@ -101,9 +110,7 @@ const $SIG_FORM = (data={}) => Handlebars.compile(`
       <div class="tabbed-content">
         {{#each signature.content}}
           <div class="tabbed-tab {{#eq @index 0}}active{{/eq}}" data-tab="{{@key}}">
-            {{#each this}}
-              {{input-row this}}
-            {{/each}}
+            {{input-row this}}
             <div class="multi-input-row">
               <a href="#" data-create-row>Add row</a>
             </div>
@@ -196,7 +203,14 @@ function inputRow(row) {
     }
   }
 
+  // removes a row
+  let removeRowHandler = e => {
+    e.preventDefault();
+    $(e.currentTarget).parents('.multi-input-row').remove();
+  }
+
   $(row).find('input[type="text"]').on('keyup', keyupHandler);
+  $(row).find('[data-remove-row]').on('click', removeRowHandler);
 }
 
 function getSignatureValues() {
@@ -209,7 +223,10 @@ function getSignatureValues() {
       let entry = {};
       let type = $(fields).find('select').val()
       entry[type] = [];
-      $(fields).find('input[type="text"]').each((i,inp) => entry[type].push(inp.value));
+      $(fields).find('input[type="text"]').each((i,inp) => {
+        if(inp.value.length > 0)
+          entry[type].push(inp.value);
+      });
       ret[$tab.data('tab')].push(entry);
     });
   });
@@ -286,8 +303,7 @@ function renderForm(signature, meta={}) {
   formParent.find('.tabbed-tab [data-create-row]').on('click', e => {
     e.preventDefault();
     let $row = $($SIG_INPUT_ROW({
-      type: 'any',
-      fields: []
+      any: []
     }));
     $(e.currentTarget).parent().before($row);
     inputRow($row);

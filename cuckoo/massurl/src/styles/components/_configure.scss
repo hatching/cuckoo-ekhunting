@@ -370,12 +370,20 @@
     .multi-input-row {
       display: flex;
       padding: 10px 0;
-      & > * { margin: 0 5px; }
+      & > * {
+        margin: 0 5px;
+      }
       &__select {
-
+        select {
+          margin-bottom: 0;
+        }
       }
       &__fields {
-        input { margin-right: 5px; }
+        flex-basis: 100%;
+        input {
+          margin-right: 5px;
+          margin-bottom: 0;
+        }
       }
     }
 

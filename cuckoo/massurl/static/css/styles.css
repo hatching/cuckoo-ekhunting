@@ -7463,7 +7463,12 @@ table.table {
       padding: 10px 0; }
       .configure-content .multi-input-row > * {
         margin: 0 5px; }
-      .configure-content .multi-input-row__fields input {
-        margin-right: 5px; }
+      .configure-content .multi-input-row__select select {
+        margin-bottom: 0; }
+      .configure-content .multi-input-row__fields {
+        flex-basis: 100%; }
+        .configure-content .multi-input-row__fields input {
+          margin-right: 5px;
+          margin-bottom: 0; }
 
 /*# sourceMappingURL=styles.css.map */
