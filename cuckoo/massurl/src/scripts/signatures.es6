@@ -18,7 +18,7 @@ Handlebars.registerHelper('is-selected', (o,t) => {
   } else {
     return '';
   }
-})
+});
 
 // signature list item template
 const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
@@ -43,8 +43,9 @@ const $SIG_INPUT_ROW = (data={}) => Handlebars.compile(`
           {{#each this}}
             <input type="text" class="configure-block__control inline mini" value="{{this}}" />
           {{/each}}
+          {{else}}
+            <input type="text" class="configure-block__control inline mini" />
         {{/each}}
-        <input type="text" class="configure-block__control inline mini" />
       </div>
       <div class="multi-input-row__actions">
         <a href="#" data-remove-row><i class="fas fa-times"></i></a>
@@ -346,7 +347,7 @@ function initSignatures($el) {
         }
       }, { new: true });
       state.sigList.find('.active').removeClass('active');
-    }).click();
+    });
 
     // load signature - populates form with existing signatures
     loadSignature(false).then(signatures => {
