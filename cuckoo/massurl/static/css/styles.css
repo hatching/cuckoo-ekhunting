@@ -7230,7 +7230,8 @@ table.table {
       font-weight: 400; }
     .configure-block__hotkeys {
       font-size: .7em;
-      margin: 2px 0 5px 0; }
+      margin: 2px 0 5px 0;
+      text-align: right; }
       .configure-block__hotkeys span {
         display: inline-block;
         background-color: #ccc;
@@ -7452,21 +7453,30 @@ table.table {
         list-style: none;
         margin: 0; }
         .configure-content .tabbed-nav > li {
-          flex-basis: 100%;
+          flex-basis: auto;
           padding: 0 5px; }
           .configure-content .tabbed-nav > li a {
             display: block;
             text-align: center;
-            padding: 7px 0;
-            background-color: #ddd;
-            border-radius: 3px;
+            padding: 7px 10px;
+            background-color: #dfdfdf;
+            border: 1px solid transparent;
+            border-radius: 4px 4px 0 0;
             text-decoration: none;
-            color: #444; }
-            .configure-content .tabbed-nav > li a:hover, .configure-content .tabbed-nav > li a.active {
-              background-color: #ccc; }
+            color: #444;
+            font-size: .9em;
+            font-weight: 500; }
+            .configure-content .tabbed-nav > li a.active {
+              background-color: #fff;
+              border-color: #ddd;
+              border-bottom-color: #fff;
+              position: relative;
+              top: 1px; }
       .configure-content .tabbed-content {
         flex-basis: 100%;
-        overflow-y: auto; }
+        overflow-y: auto;
+        background-color: #fff;
+        border-top: 1px solid #ddd; }
         .configure-content .tabbed-content > div:not(.active) {
           display: none; }
     .configure-content .multi-input-row {
@@ -7475,7 +7485,7 @@ table.table {
       margin: 10px 0;
       padding: 5px; }
       .configure-content .multi-input-row:hover {
-        background-color: #f5f5f5; }
+        background-color: #f9f9f9; }
       .configure-content .multi-input-row > * {
         margin: 0 5px; }
       .configure-content .multi-input-row__select {
@@ -7488,7 +7498,8 @@ table.table {
           float: left;
           margin-right: 5px;
           margin-bottom: 5px;
-          box-sizing: content-box; }
+          box-sizing: content-box;
+          font-family: monospace; }
         .configure-content .multi-input-row__fields:after {
           content: "";
           clear: both;
