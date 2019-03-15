@@ -74,6 +74,19 @@
       font-weight: 400;
     }
 
+    &__hotkeys {
+      font-size: .7em;
+      margin: 2px 0 5px 0;
+      span {
+        display: inline-block;
+        background-color: #ccc;
+        padding: 3px;
+        border-radius: 3px;
+        font-weight: 500;
+        &:first-child { margin-left: 2px; }
+      }
+    }
+
     &__control {
       -webkit-appearance: none;
       display: block;
@@ -369,11 +382,17 @@
 
     .multi-input-row {
       display: flex;
-      padding: 10px 0;
+      align-items: flex-start;
+      margin: 10px 0;
+      padding: 5px;
+
+      &:hover { background-color: #f5f5f5; }
+
       & > * {
         margin: 0 5px;
       }
       &__select {
+        align-self: flex-start;
         select {
           margin-bottom: 0;
         }
@@ -381,8 +400,21 @@
       &__fields {
         flex-basis: 100%;
         input {
+          float: left;
           margin-right: 5px;
-          margin-bottom: 0;
+          margin-bottom: 5px;
+          box-sizing: content-box;
+        }
+        &:after {
+          content: "";
+          clear: both;
+          display: table;
+        }
+      }
+      &__actions {
+        padding: 0 5px;
+        a {
+          font-size: 1.1em;
         }
       }
     }

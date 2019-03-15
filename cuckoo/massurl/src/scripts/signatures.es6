@@ -41,14 +41,16 @@ const $SIG_INPUT_ROW = (data={}) => Handlebars.compile(`
       <div class="multi-input-row__fields">
         {{#each this}}
           {{#each this}}
-            <input type="text" class="configure-block__control inline mini" value="{{this}}" />
+              <input type="text" class="configure-block__control inline mini" value="{{this}}" />
+            {{else}}
+              <input type="text" class="configure-block__control inline mini" />
           {{/each}}
           {{else}}
             <input type="text" class="configure-block__control inline mini" />
         {{/each}}
       </div>
       <div class="multi-input-row__actions">
-        <a href="#" data-remove-row><i class="fas fa-times"></i></a>
+        <a href="#" data-remove-row title="Remove row"><i class="fas fa-times"></i></a>
       </div>
     </div>
   {{/each}}
@@ -101,6 +103,12 @@ const $SIG_FORM = (data={}) => Handlebars.compile(`
   <div class="flex-v">
     <div class="configure-block free">
       <h4 class="configure-block__label">Content</h4>
+      <p class="configure-block__description">Create signatures. Assign an operator (any or must), followed by strings that should match the signature. Click 'add row' to add many lines.</p>
+      <p class="configure-block__hotkeys">
+        controls:
+        <span>&#9166; add string</span>
+        <span>&#9003; delete string</span>
+      </p>
     </div>
     <div class="full-block tabbed">
       <ul class="tabbed-nav">

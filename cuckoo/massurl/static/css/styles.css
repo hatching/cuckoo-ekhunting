@@ -7228,6 +7228,17 @@ table.table {
       color: #7E7E7E;
       margin: 0 0 10px 0;
       font-weight: 400; }
+    .configure-block__hotkeys {
+      font-size: .7em;
+      margin: 2px 0 5px 0; }
+      .configure-block__hotkeys span {
+        display: inline-block;
+        background-color: #ccc;
+        padding: 3px;
+        border-radius: 3px;
+        font-weight: 500; }
+        .configure-block__hotkeys span:first-child {
+          margin-left: 2px; }
     .configure-block__control {
       -webkit-appearance: none;
       display: block;
@@ -7460,15 +7471,31 @@ table.table {
           display: none; }
     .configure-content .multi-input-row {
       display: flex;
-      padding: 10px 0; }
+      align-items: flex-start;
+      margin: 10px 0;
+      padding: 5px; }
+      .configure-content .multi-input-row:hover {
+        background-color: #f5f5f5; }
       .configure-content .multi-input-row > * {
         margin: 0 5px; }
-      .configure-content .multi-input-row__select select {
-        margin-bottom: 0; }
+      .configure-content .multi-input-row__select {
+        align-self: flex-start; }
+        .configure-content .multi-input-row__select select {
+          margin-bottom: 0; }
       .configure-content .multi-input-row__fields {
         flex-basis: 100%; }
         .configure-content .multi-input-row__fields input {
+          float: left;
           margin-right: 5px;
-          margin-bottom: 0; }
+          margin-bottom: 5px;
+          box-sizing: content-box; }
+        .configure-content .multi-input-row__fields:after {
+          content: "";
+          clear: both;
+          display: table; }
+      .configure-content .multi-input-row__actions {
+        padding: 0 5px; }
+        .configure-content .multi-input-row__actions a {
+          font-size: 1.1em; }
 
 /*# sourceMappingURL=styles.css.map */
