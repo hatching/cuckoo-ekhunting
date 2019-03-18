@@ -23,7 +23,7 @@
     height: 100vh;
     top: 0;
     left: 0;
-    background-color: rgba(#fff,.7);
+    background-color: rgba(#051123,.8);
     z-index: 100;
 
     // use flexbox to [v/h]-center-align content
@@ -35,28 +35,94 @@
   // contains the actual dialog content - wraps element
   &-dialog {
     background-color: #fff;
-    border: 1px solid #ccc;
     width: 320px;
-    padding: 5px;
+    padding: 20px;
     border-radius: 4px;
+
+    &.has-icon {
+      position: relative;
+      overflow: hidden;
+      &:before {
+        content: "";
+        position: absolute;
+        width: 70px;
+        height: 100%;
+        right: 0;
+        top: 0;
+        background-color: #f5f5f5;
+        z-index: 1;
+      }
+
+      .prompt-footer,
+      .prompt-body {
+        position: relative;
+        z-index: 2;
+      }
+
+    }
   }
 
   // styles the body of the dialog (title/icon)
   &-body {
-    
+    margin-bottom: 30px;
+    .has-icon & {
+      display: flex;
+      align-items: center;
+      & > * {
+        flex-basis: 100%;
+        &.prompt-icon {
+          flex-basis: 120px;
+          flex-shrink: 0;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding-left: 20px;
+          box-sizing: border-box;
+
+          i {
+            font-size: 2.75em;
+            color: #2E3948;
+          }
+        }
+      }
+    }
+    & > div { display: inline; }
+  }
+
+  &-title {
+    font-size: 18px;
+    font-weight: 400;
+    margin: 10px 0;
+  }
+
+  &-description {
+    font-size: 15px;
+    font-weight: 500;
+    margin: 10px 0;
   }
 
   // holds the interactional elements (buttons)
   &-footer {
     display: flex;
-    justify-content: flex-end;
-    background-color: #f1f1f1;
-    padding: 10px;
-    border-radius: 3px;
+    justify-content: space-between;
 
     button {
+      -webkit-appearance: none;
+      border: 0;
       margin: 0 5px;
+      border-radius: 4px;
+      padding: 10px 20px;
+      font-family: "Roboto";
+      font-weight: 500;
+      background-color: #D8D8D8;
+      color: #222222;
       &:last-child { margin-right: 0; }
+
+      &.primary {
+        background-color: #2E3948;
+        color: #FFF;
+      }
     }
   }
 

@@ -334,16 +334,18 @@ function renderForm(signature, meta={}) {
 
     prompt.ask({
       title: 'Delete signature',
-      description: 'Are you sure?'
-    }).then(() => console.log('confirmed')).catch(() => console.log('dismissed'));
+      description: 'Are you sure?',
+      icon: 'trash-alt'
+    }).then(() => {
 
-    return;
+      $(e.currentTarget).html('<i class="fas fa-spinner-third fa-spin"></i>');
+      deleteSignature(signature.id).then(response => {
+        sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
+        formParent.empty();
+      }).catch(err => displayMessage(err.message).render(formParent));
 
-    $(e.currentTarget).html('<i class="fas fa-spinner-third fa-spin"></i>');
-    deleteSignature(signature.id).then(response => {
-      sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
-      formParent.empty();
-    }).catch(err => displayMessage(err.message).render(formParent));
+    }).catch(msg => console.log(msg));
+
   });
 
   // initialize sig tabs
