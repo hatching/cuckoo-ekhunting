@@ -7380,6 +7380,8 @@ table.table {
     .configure-content > h2 {
       font-weight: 400;
       font-size: 32px; }
+      .configure-content > h2 .button {
+        float: right; }
     .configure-content footer {
       width: calc(100% + 50px);
       margin-left: -25px;
@@ -7499,7 +7501,10 @@ table.table {
           margin-right: 5px;
           margin-bottom: 5px;
           box-sizing: content-box;
-          font-family: monospace; }
+          font-family: monospace;
+          font-size: .9em;
+          padding-top: 13px;
+          padding-bottom: 12px; }
         .configure-content .multi-input-row__fields:after {
           content: "";
           clear: both;
@@ -7507,6 +7512,8 @@ table.table {
       .configure-content .multi-input-row__actions {
         padding: 0 5px; }
         .configure-content .multi-input-row__actions a {
-          font-size: 1.1em; }
+          font-size: 1.1em;
+          display: inline-block;
+          margin-top: 11px; }
 
 /*# sourceMappingURL=styles.css.map */

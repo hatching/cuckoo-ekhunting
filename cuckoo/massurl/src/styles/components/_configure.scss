@@ -264,6 +264,10 @@
     & > h2 {
       font-weight: 400;
       font-size: 32px;
+
+      .button {
+        float: right;
+      }
     }
 
     footer {
@@ -419,6 +423,9 @@
           margin-bottom: 5px;
           box-sizing: content-box;
           font-family: monospace;
+          font-size: .9em;
+          padding-top: 13px;
+          padding-bottom: 12px;
         }
         &:after {
           content: "";
@@ -430,6 +437,8 @@
         padding: 0 5px;
         a {
           font-size: 1.1em;
+          display: inline-block;
+          margin-top: 11px;
         }
       }
     }

@@ -12,6 +12,7 @@ Handlebars.registerHelper('keys', (o,opts) => {
   Object.keys(o).forEach(k => r += opts.fn(k));
   return r;
 });
+
 Handlebars.registerHelper('is-selected', (o,t) => {
   if(Object.keys(o)[0] == t) {
     return 'selected';
@@ -65,7 +66,7 @@ Handlebars.registerHelper('input-row', (sig,opts) => {
 // signature form template
 const $SIG_FORM = (data={}) => Handlebars.compile(`
 
-  <h2>{{signature.name}}</h2>
+  <h2 data-run-signature>{{signature.name}} <a href="#" class="button">Run</a></h2>
 
   <div class="configure-block__container">
 
@@ -176,6 +177,32 @@ function deleteSignature(id) {
   });
 };
 
+function runSignature(id) {
+  return new Promise((res, rej) => {
+    api.run(id).done(response => res(response)).fail(err => rej(err));
+  });
+}
+
+function displayMessage(message, type='info') {
+  let template = $(Handlebars.compile(`
+    <div class="message-box {{type}}">
+      <p>
+        {{#eq type "info"}}<i class="far fa-info-square"></i>{{/eq}}
+        {{#eq type "success"}}<i class="far fa-check"></i>{{/eq}}
+        {{message}}
+        <a href="#" class="close"><i class="far fa-times"></i></a>
+      </p>
+    </div>
+  `)({message,type}));
+  return {
+    render: function(parent,method='prepend') {
+      if(parent.find('.message-box')) parent.find('.message-box').remove();
+      parent[method](template);
+      template.find('.close').on('click', e => template.remove());
+    }
+  }
+}
+
 // input row handlers
 function inputRow(row) {
 
@@ -281,14 +308,14 @@ function renderForm(signature, meta={}) {
         state.sigList.append(listItem);
         listItem.find('a').on('click', sigClickHandler).click();
         setTimeout(() => $(e.currentTarget).text('Save'), 500);
-      }).catch(err => console.log(err));
+      }).catch(err => displayMessage(err.message).render($el));
     } else {
       // UPDATE signature
       let values = serializeValues();
       delete values.name;
       updateSignature(signature.id, values).then(response => {
         setTimeout(() => $(e.currentTarget).text('Save'), 500);
-      }).catch(err => console.log(err));
+      }).catch(err => displayMessage(err.message).render($el));
     }
   });
 
@@ -298,7 +325,7 @@ function renderForm(signature, meta={}) {
     deleteSignature(signature.id).then(response => {
       sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
       formParent.empty();
-    }).catch(err => console.log(err));
+    }).catch(err => displayMessage(err.message).render($el));
   });
 
   // initialize sig tabs
@@ -324,6 +351,13 @@ function renderForm(signature, meta={}) {
   // initialize signature editor rows - existing
   formParent.find('.tabbed-tab .multi-input-row').each((i,el) => inputRow(el));
 
+  // handler for running a signature
+  formParent.find('[data-run-signature]').on('click', e => {
+    runSignature(signature.id).then(response => {
+      console.log(response);
+    }).catch(err => displayMessage(err.message).render($el));
+  });
+
 };
 
 let sigClickHandler = e => {
@@ -338,7 +372,7 @@ let sigClickHandler = e => {
       link.addClass('active');
       renderForm(sig,{new:false});
     }, 500);
-  }).catch(err => console.log(err));
+  }).catch(err => displayMessage(err.message).render($el));
 };
 
 function initSignatures($el) {
@@ -371,7 +405,7 @@ function initSignatures($el) {
         state.sigList.append(listItem);
       });
       state.sigList.find('a').on('click', sigClickHandler);
-    }).catch(err => console.log(err));
+    }).catch(err => displayMessage(err.message).render($el));
 
     $el.find('input[name="filter-signatures"]').on('keyup', e => {
       let val = $(e.currentTarget).val();
