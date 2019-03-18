@@ -1,5 +1,8 @@
 import $ from './jquery-with-plugins';
 import Handlebars from 'handlebars';
+import Prompt from './prompt';
+
+const prompt = new Prompt();
 
 const state = {
   formParent: null,
@@ -301,31 +304,46 @@ function renderForm(signature, meta={}) {
       }
     }
     $(e.currentTarget).html('<i class="fas fa-spinner-third fa-spin"></i>');
+
+    let values = serializeValues();
+
     if(meta.new) {
       // POST new signature
-      createSignature(serializeValues()).then(response => {
+      if(!values.name) {
+        displayMessage('Enter a name before saving.').render(formParent);
+        $(e.currentTarget).text('Save');
+        return;
+      }
+      createSignature(values).then(response => {
         let listItem = $($SIG_LIST_ITEM({id:response.signature_id,name:fields.name.val()}));
         state.sigList.append(listItem);
         listItem.find('a').on('click', sigClickHandler).click();
         setTimeout(() => $(e.currentTarget).text('Save'), 500);
-      }).catch(err => displayMessage(err.message).render($el));
+      }).catch(err => displayMessage(err.message).render(formParent));
     } else {
       // UPDATE signature
-      let values = serializeValues();
       delete values.name;
       updateSignature(signature.id, values).then(response => {
         setTimeout(() => $(e.currentTarget).text('Save'), 500);
-      }).catch(err => displayMessage(err.message).render($el));
+      }).catch(err => displayMessage(err.message).render(formParent));
     }
   });
 
   // delete signature
   formParent.find('#delete-signature').on('click', e => {
+
+    prompt.ask({
+      title: 'Delete signature',
+      description: 'Are you sure?'
+    }).then(() => console.log('confirmed')).catch(() => console.log('dismissed'));
+
+    return;
+
     $(e.currentTarget).html('<i class="fas fa-spinner-third fa-spin"></i>');
     deleteSignature(signature.id).then(response => {
       sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
       formParent.empty();
-    }).catch(err => displayMessage(err.message).render($el));
+    }).catch(err => displayMessage(err.message).render(formParent));
   });
 
   // initialize sig tabs
@@ -354,8 +372,9 @@ function renderForm(signature, meta={}) {
   // handler for running a signature
   formParent.find('[data-run-signature]').on('click', e => {
     runSignature(signature.id).then(response => {
+      // here needs to come an action after running the signature.
       console.log(response);
-    }).catch(err => displayMessage(err.message).render($el));
+    }).catch(err => displayMessage(err.message).render(formParent));
   });
 
 };

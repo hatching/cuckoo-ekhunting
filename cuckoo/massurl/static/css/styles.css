@@ -6411,6 +6411,10 @@ table.table {
       text-align: center;
       min-width: 25px;
       margin-right: 0; }
+  .button.secondary {
+    background-color: #fff;
+    color: #444;
+    border-bottom-color: #ccc; }
   .button[disabled] {
     background-color: #fff;
     color: #4A6FA5;
@@ -6447,6 +6451,50 @@ table.table {
           border-radius: 12px; }
       .tabs > ul > li a:hover {
         opacity: .8; }
+
+/*
+  <div class="prompt-backdrop">
+    <section class="prompt-dialog">
+      <div class="prompt-body">
+        <h2><i class="{icon}"></i> Prompt title</h2>
+        <p>Prompt description</p>
+      </div>
+      <footer class="prompt-footer">
+        <button>Dismiss</button>
+        <button>Confirm</button>
+      </footer>
+    </section>
+  </div>
+ */
+.prompt-backdrop {
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center; }
+
+.prompt-dialog {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  width: 320px;
+  padding: 5px;
+  border-radius: 4px; }
+
+.prompt-footer {
+  display: flex;
+  justify-content: flex-end;
+  background-color: #f1f1f1;
+  padding: 10px;
+  border-radius: 3px; }
+  .prompt-footer button {
+    margin: 0 5px; }
+    .prompt-footer button:last-child {
+      margin-right: 0; }
 
 .search-bar {
   background-color: #fff; }

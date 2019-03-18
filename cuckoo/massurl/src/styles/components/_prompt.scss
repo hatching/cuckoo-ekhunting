@@ -1,0 +1,63 @@
+/*
+  <div class="prompt-backdrop">
+    <section class="prompt-dialog">
+      <div class="prompt-body">
+        <h2><i class="{icon}"></i> Prompt title</h2>
+        <p>Prompt description</p>
+      </div>
+      <footer class="prompt-footer">
+        <button>Dismiss</button>
+        <button>Confirm</button>
+      </footer>
+    </section>
+  </div>
+ */
+
+// namespace container
+.prompt {
+
+  // contains the dialog, fixed element - stretches full page
+  &-backdrop {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    top: 0;
+    left: 0;
+    background-color: rgba(#fff,.7);
+    z-index: 100;
+
+    // use flexbox to [v/h]-center-align content
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  // contains the actual dialog content - wraps element
+  &-dialog {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    width: 320px;
+    padding: 5px;
+    border-radius: 4px;
+  }
+
+  // styles the body of the dialog (title/icon)
+  &-body {
+    
+  }
+
+  // holds the interactional elements (buttons)
+  &-footer {
+    display: flex;
+    justify-content: flex-end;
+    background-color: #f1f1f1;
+    padding: 10px;
+    border-radius: 3px;
+
+    button {
+      margin: 0 5px;
+      &:last-child { margin-right: 0; }
+    }
+  }
+
+}
