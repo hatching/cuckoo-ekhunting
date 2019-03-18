@@ -1,5 +1,8 @@
 import $ from './jquery-with-plugins';
 import Handlebars from 'handlebars';
+import Prompt from './prompt';
+
+const prompt = new Prompt();
 
 /*
   Creates a promise mapping of the API calls
@@ -299,11 +302,23 @@ function initForm(data, $form) {
   });
 
   inputs.$delete.on('click', e => {
-    $(e.currentTarget).html(`<i class="fas fa-spinner-third fa-spin"></i>`);
-    api.call('delete', data.profile.id).then(response => {
-      $("[data-profiles-list]").find('a.active').remove();
-      $form.empty();
+
+    $(e.currentTarget).blur();
+
+    prompt.ask({
+      title: 'Deleting profile',
+      description: 'This action cannot be undone. Proceed?',
+      icon: 'trash-alt',
+      confirmText: 'Delete',
+      dismissText: 'Keep'
+    }).then(() => {
+      $(e.currentTarget).html(`<i class="fas fa-spinner-third fa-spin"></i>`);
+      api.call('delete', data.profile.id).then(response => {
+        $("[data-profiles-list]").find('a.active').remove();
+        $form.empty();
+      });
     });
+
   });
 
   inputs.$tagFilters.on('keyup', e => {

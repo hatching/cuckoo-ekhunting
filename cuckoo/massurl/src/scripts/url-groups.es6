@@ -1,5 +1,8 @@
 import $ from './jquery-with-plugins';
 import Templates from './templates';
+import Prompt from './prompt';
+
+const prompt = new Prompt();
 
 const APIUrl = (endpoint=false,suf=false) => `/api/group${suf?'s':''}/${endpoint ? endpoint : '/'}`;
 const state = {
@@ -75,15 +78,29 @@ function addGroup(d = {}) {
 // deletes a group
 function deleteGroup(group_id = undefined) {
   return new Promise((resolve, reject) => {
-    let youSure = confirm('Delete this group?');
+
     if(!group_id)
       return reject('No id located');
-    if(youSure) {
+
+    prompt.ask({
+      title: 'Deleting a group',
+      description: 'This action cannot be undone. Proceed?',
+      confirmText: 'Delete',
+      dismissText: 'Keep',
+      icon: 'trash-alt'
+    }).then(() => {
       $.post(urls.delete(), {group_id:parseInt(group_id)}, response => {
         resolve(response);
       }).fail(e => reject(e));
-    } else {
+    }).catch(() => {
       reject(false);
+    })
+
+
+    if(youSure) {
+
+    } else {
+
     }
   });
 }

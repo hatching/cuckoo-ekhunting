@@ -332,19 +332,21 @@ function renderForm(signature, meta={}) {
   // delete signature
   formParent.find('#delete-signature').on('click', e => {
 
+    $(e.currentTarget).blur();
+
     prompt.ask({
-      title: 'Delete signature',
-      description: 'Are you sure?',
+      title: 'Deleting signature',
+      description: 'This action cannot be undone. Proceed?',
+      confirmText: 'Delete',
+      dismissText: 'Keep',
       icon: 'trash-alt'
     }).then(() => {
-
       $(e.currentTarget).html('<i class="fas fa-spinner-third fa-spin"></i>');
       deleteSignature(signature.id).then(response => {
         sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
         formParent.empty();
       }).catch(err => displayMessage(err.message).render(formParent));
-
-    }).catch(msg => console.log(msg));
+    });
 
   });
 

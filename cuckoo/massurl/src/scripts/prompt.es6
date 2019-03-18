@@ -28,6 +28,12 @@ let PromptTemplate = data => Handlebars.compile(`
 export default class Prompt {
 
   constructor(props={}) {
+
+    this.config = {
+      animate: false,
+      ...props
+    }
+
     this.options = {
       title: 'Prompt',
       description: 'You want to proceed?',
@@ -38,6 +44,7 @@ export default class Prompt {
       confirmText: 'Confirm',
       ...props
     }
+
     this.active = false;
   }
 
@@ -48,10 +55,6 @@ export default class Prompt {
       ...options,
       ...props
     }), 'text/html').body.firstChild;
-  }
-
-  bindElement(el) {
-
   }
 
   ask(props={},el=null) {
@@ -68,16 +71,29 @@ export default class Prompt {
       let d = p.querySelector('[data-dismiss]');
       let c = p.querySelector('[data-confirm]');
 
-      let remove = (choice=false) => {
+      let keyboardHandler = e => {
+        switch(e.keyCode) {
+          case 13:
+            choose(true);
+          break;
+          case 27:
+            choose(false);
+          break;
+        }
+      };
+
+      let choose = (choice=false) => {
         this.active = false;
         p.parentNode.removeChild(p);
+        window.removeEventListener('keyup', keyboardHandler);
         if(choice === true) return resolve({message:'I Resolved'});
         if(choice === false) return reject({message:'I dismissed'});
         return reject({message:'Unable to determine choice. Rejecting as safety grip.'});
       };
 
-      d.addEventListener('click', e => remove(false));
-      c.addEventListener('click', e => remove(true));
+      d.addEventListener('click', e => choose(false));
+      c.addEventListener('click', e => choose(true));
+      window.addEventListener('keyup', keyboardHandler);
 
     });
   }
