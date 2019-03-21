@@ -6411,6 +6411,10 @@ table.table {
       text-align: center;
       min-width: 25px;
       margin-right: 0; }
+  .button.secondary {
+    background-color: #fff;
+    color: #444;
+    border-bottom-color: #ccc; }
   .button[disabled] {
     background-color: #fff;
     color: #4A6FA5;
@@ -6447,6 +6451,104 @@ table.table {
           border-radius: 12px; }
       .tabs > ul > li a:hover {
         opacity: .8; }
+
+/*
+  <div class="prompt-backdrop">
+    <section class="prompt-dialog">
+      <div class="prompt-body">
+        <h2><i class="{icon}"></i> Prompt title</h2>
+        <p>Prompt description</p>
+      </div>
+      <footer class="prompt-footer">
+        <button>Dismiss</button>
+        <button>Confirm</button>
+      </footer>
+    </section>
+  </div>
+ */
+.prompt-backdrop {
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  background-color: rgba(5, 17, 35, 0.8);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center; }
+
+.prompt-dialog {
+  background-color: #fff;
+  width: 320px;
+  padding: 20px;
+  border-radius: 4px; }
+  .prompt-dialog.has-icon {
+    position: relative;
+    overflow: hidden; }
+    .prompt-dialog.has-icon:before {
+      content: "";
+      position: absolute;
+      width: 70px;
+      height: 100%;
+      right: 0;
+      top: 0;
+      background-color: #f5f5f5;
+      z-index: 1; }
+    .prompt-dialog.has-icon .prompt-footer,
+    .prompt-dialog.has-icon .prompt-body {
+      position: relative;
+      z-index: 2; }
+
+.prompt-body {
+  margin-bottom: 30px; }
+  .has-icon .prompt-body {
+    display: flex;
+    align-items: center; }
+    .has-icon .prompt-body > * {
+      flex-basis: 100%; }
+      .has-icon .prompt-body > *.prompt-icon {
+        flex-basis: 120px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-left: 20px;
+        box-sizing: border-box; }
+        .has-icon .prompt-body > *.prompt-icon i {
+          font-size: 2.75em;
+          color: #2E3948; }
+  .prompt-body > div {
+    display: inline; }
+
+.prompt-title {
+  font-size: 18px;
+  font-weight: 400;
+  margin: 10px 0; }
+
+.prompt-description {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 10px 0; }
+
+.prompt-footer {
+  display: flex;
+  justify-content: space-between; }
+  .prompt-footer button {
+    -webkit-appearance: none;
+    border: 0;
+    margin: 0 5px;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-family: "Roboto";
+    font-weight: 500;
+    background-color: #D8D8D8;
+    color: #222222; }
+    .prompt-footer button:last-child {
+      margin-right: 0; }
+    .prompt-footer button.primary {
+      background-color: #2E3948;
+      color: #FFF; }
 
 .search-bar {
   background-color: #fff; }
@@ -7228,6 +7330,18 @@ table.table {
       color: #7E7E7E;
       margin: 0 0 10px 0;
       font-weight: 400; }
+    .configure-block__hotkeys {
+      font-size: .7em;
+      margin: 2px 0 5px 0;
+      text-align: right; }
+      .configure-block__hotkeys span {
+        display: inline-block;
+        background-color: #ccc;
+        padding: 3px;
+        border-radius: 3px;
+        font-weight: 500; }
+        .configure-block__hotkeys span:first-child {
+          margin-left: 2px; }
     .configure-block__control {
       -webkit-appearance: none;
       display: block;
@@ -7368,6 +7482,8 @@ table.table {
     .configure-content > h2 {
       font-weight: 400;
       font-size: 32px; }
+      .configure-content > h2 .button {
+        float: right; }
     .configure-content footer {
       width: calc(100% + 50px);
       margin-left: -25px;
@@ -7441,29 +7557,65 @@ table.table {
         list-style: none;
         margin: 0; }
         .configure-content .tabbed-nav > li {
-          flex-basis: 100%;
+          flex-basis: auto;
           padding: 0 5px; }
           .configure-content .tabbed-nav > li a {
             display: block;
             text-align: center;
-            padding: 7px 0;
-            background-color: #ddd;
-            border-radius: 3px;
+            padding: 7px 10px;
+            background-color: #dfdfdf;
+            border: 1px solid transparent;
+            border-radius: 4px 4px 0 0;
             text-decoration: none;
-            color: #444; }
-            .configure-content .tabbed-nav > li a:hover, .configure-content .tabbed-nav > li a.active {
-              background-color: #ccc; }
+            color: #444;
+            font-size: .9em;
+            font-weight: 500; }
+            .configure-content .tabbed-nav > li a.active {
+              background-color: #fff;
+              border-color: #ddd;
+              border-bottom-color: #fff;
+              position: relative;
+              top: 1px; }
       .configure-content .tabbed-content {
         flex-basis: 100%;
-        overflow-y: auto; }
+        overflow-y: auto;
+        background-color: #fff;
+        border-top: 1px solid #ddd; }
         .configure-content .tabbed-content > div:not(.active) {
           display: none; }
     .configure-content .multi-input-row {
       display: flex;
-      padding: 10px 0; }
+      align-items: flex-start;
+      margin: 10px 0;
+      padding: 5px; }
+      .configure-content .multi-input-row:hover {
+        background-color: #f9f9f9; }
       .configure-content .multi-input-row > * {
         margin: 0 5px; }
-      .configure-content .multi-input-row__fields input {
-        margin-right: 5px; }
+      .configure-content .multi-input-row__select {
+        align-self: flex-start; }
+        .configure-content .multi-input-row__select select {
+          margin-bottom: 0; }
+      .configure-content .multi-input-row__fields {
+        flex-basis: 100%; }
+        .configure-content .multi-input-row__fields input {
+          float: left;
+          margin-right: 5px;
+          margin-bottom: 5px;
+          box-sizing: content-box;
+          font-family: monospace;
+          font-size: .9em;
+          padding-top: 13px;
+          padding-bottom: 12px; }
+        .configure-content .multi-input-row__fields:after {
+          content: "";
+          clear: both;
+          display: table; }
+      .configure-content .multi-input-row__actions {
+        padding: 0 5px; }
+        .configure-content .multi-input-row__actions a {
+          font-size: 1.1em;
+          display: inline-block;
+          margin-top: 11px; }
 
 /*# sourceMappingURL=styles.css.map */

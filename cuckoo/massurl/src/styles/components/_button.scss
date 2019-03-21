@@ -43,6 +43,12 @@
     }
   }
 
+  &.secondary {
+    background-color: #fff;
+    color: #444;
+    border-bottom-color: #ccc;
+  }
+
   &[disabled] {
     background-color: #fff;
     color: $default-base;
