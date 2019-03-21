@@ -21,7 +21,11 @@ const state = {
   orderby: false,
   order: 'desc',
   limit: 20,
-  offset: 0
+  offset: 0,
+  lazy: {
+    loading: false,
+    end: false
+  }
 }
 
 const urls = {
@@ -191,12 +195,29 @@ function initAlerts($table) {
     }
   };
 
+  let paginatePayloadHandler = response => {
+    if(response.length) {
+      response.forEach(alert => addAlert(alert, $table));
+    }
+    // update lazyloading states
+    state.lazy.loading = false;
+    if(response.length < state.limit)
+      state.lazy.end = true;
+  }
+
   $table.find('#paginate-next').on('click', e => {
     e.preventDefault();
-    paginateNext().then(response => {
-      if(response.length)
-        response.forEach(alert => addAlert(alert, $table));
-    }).catch(err => console.log(err));
+    paginateNext().then(paginatePayloadHandler).catch(err => console.log(err));
+  });
+
+  // enable lazyloading on paginateNext function
+  $(".app__body").on('scroll', sev => {
+    if($(".app__body").scrollTop() + $(window).height() > $(".app__body")[0].scrollHeight) {
+      if(!state.lazy.loading) {
+        state.lazy.loading = true;
+        paginateNext().then(paginatePayloadHandler).catch(err => console.log(err));
+      }
+    }
   });
 
   //
