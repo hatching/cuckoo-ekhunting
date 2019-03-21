@@ -267,6 +267,15 @@ function getSignatureValues() {
 function renderForm(signature, meta={}) {
 
   let { formParent, sigList } = state;
+
+  // makes sure there's always the same tabs
+  let content_fields = ["request","responsedata","requestdata","javascript"];
+  for(let f in content_fields) {
+    if(!signature.content.hasOwnProperty(content_fields[f])) {
+      signature.content[content_fields[f]] = [];
+    }
+  }
+
   let html = $SIG_FORM({signature,meta});
   formParent.html(html);
 
