@@ -16,21 +16,25 @@ function parseGroupName() {
   return false;
 }
 
+const state = {
+  topAlert: false,
+  orderby: false,
+  order: 'desc',
+  limit: 20,
+  offset: 0
+}
+
 const urls = {
-  alerts: (l,o,s='desc',ob='timestamp') => {
-    let u = `${baseUrl}/list?limit=${l}&offset=${o*l}&order=${s}&orderby=${ob}`
+  alerts: () => {
+    let { offset, limit, orderby, order } = state;
+    let u = `${baseUrl}/list?limit=${limit}&offset=${offset*limit}`;
     let g = parseGroupName();
     if(g) u += `&group_name=${g}`;
+    if(orderby) u += `&orderby=${orderby}`;
+    if(order) u += `&order=${order}`;
     return u;
   },
   alertRead: () => `${baseUrl}/read`
-}
-
-let currentLimit = 20;
-let currentOffset = 0;
-
-const state = {
-  topAlert: false
 }
 
 // shifts background based on current state (on/off/toggle)
@@ -159,9 +163,18 @@ function addAlert(alert, $table, method='append', first=false) {
 
 function paginateNext() {
   return new Promise((resolve, reject) => {
-    currentOffset += 1;
-    console.log(`fetching page ${currentOffset}, retrieving ${currentLimit} more alerts.`);
-    $.get(urls.alerts(currentLimit,currentOffset), response => resolve(response))
+    state.offset += 1;
+    $.get(urls.alerts(), response => resolve(response))
+      .fail(err => reject(err));
+  });
+}
+
+function sortAlerts(orderby, order) {
+  return new Promise((resolve, reject) => {
+    state.orderby = orderby;
+    state.order = order;
+    state.offset = 0;
+    $.get(urls.alerts(), response => resolve(response))
       .fail(err => reject(err));
   });
 }
@@ -198,40 +211,62 @@ function initAlerts($table) {
     // force click upon th
     th.find('a').on('click', e => e.preventDefault());
 
-    function moveInfoBlocks() {
-      $table.find('tr[data-id]').each(function() {
-        let id = $(this).data('id');
-        let targetInfoRow = $table.find(`tr[data-belongs-to="${id}"]`);
-        $(this).insertAfter(targetInfoRow);
-      });
+    let setSortIcon = el => {
+      $table.find('.sortable').find('.fal').removeClass('fa-sort-amount-down fa-sort-amount-up').addClass('fa-filter');
+      el.find('.fal').removeClass('fa-filter').addClass(state.order == 'desc' ? 'fa-sort-amount-up' : 'fa-sort-amount-down');
     }
 
     th.on('click', e => {
-      $table.find('td').filter(function() {
-        return $(this).index() === index;
-      }).sortElements(function(a,b) {
-        if(a.getAttribute('data-sort-number')) {
-          a = parseInt(a.getAttribute('data-sort-number'));
-          b = parseInt(b.getAttribute('data-sort-number'));
-          return a > b ?
-            inverse ? -1 : 1
-            : inverse ? 1 : -1;
-        } else {
-          return $.text([a]) > $.text([b]) ?
-            inverse ? -1 : 1
-            : inverse ? 1 : -1;
+
+      if(th.data('orderBy')) {
+
+        let { order, orderby } = state;
+
+        // toggle ascending/descending if we selected already ordered by category
+        // elsewise reassign 'orderby' var
+        if(th.data('orderBy') == orderby) {
+          if(order == 'asc')
+            order = 'desc';
+          else
+            order = 'asc';
         }
-      }, function() {
-        return this.parentNode;
-      });
-      inverse = !inverse;
+        orderby = th.data('orderBy');
+
+        sortAlerts(orderby, order).then(response => {
+          // flush table
+          $table.find('tbody').empty();
+          // update UI
+          setSortIcon(th);
+          // + repopulate
+          response.forEach(alert => addAlert(alert,$table));
+        });
+      }
+
+      // $table.find('td').filter(function() {
+      //   return $(this).index() === index;
+      // }).sortElements(function(a,b) {
+      //   if(a.getAttribute('data-sort-number')) {
+      //     a = parseInt(a.getAttribute('data-sort-number'));
+      //     b = parseInt(b.getAttribute('data-sort-number'));
+      //     return a > b ?
+      //       inverse ? -1 : 1
+      //       : inverse ? 1 : -1;
+      //   } else {
+      //     return $.text([a]) > $.text([b]) ?
+      //       inverse ? -1 : 1
+      //       : inverse ? 1 : -1;
+      //   }
+      // }, function() {
+      //   return this.parentNode;
+      // });
+      // inverse = !inverse;
     });
 
   });
 
   return new Promise((resolve, reject) => {
 
-    $.get(urls.alerts(currentLimit,currentOffset), alerts => {
+    $.get(urls.alerts(), alerts => {
 
       // constructs available alerts from API call
       response.alerts = alerts || [];
