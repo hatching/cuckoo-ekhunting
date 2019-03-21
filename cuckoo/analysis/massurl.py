@@ -317,7 +317,6 @@ class MassURL(AnalysisManager):
     def attribute_js(self, pid_target):
         pid_js = {}
         ppid_pid = {}
-
         for pid, ppid, code in self.js_events:
             if pid not in pid_js:
                 pid_js[pid] = []
