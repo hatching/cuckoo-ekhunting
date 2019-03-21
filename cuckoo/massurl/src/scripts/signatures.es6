@@ -269,7 +269,7 @@ function renderForm(signature, meta={}) {
   let { formParent, sigList } = state;
 
   // makes sure there's always the same tabs
-  let content_fields = ["request","responsedata","requestdata","javascript"];
+  let content_fields = ["requests","responsedata","requestdata","javascript"];
   for(let f in content_fields) {
     if(!signature.content.hasOwnProperty(content_fields[f])) {
       signature.content[content_fields[f]] = [];
@@ -415,7 +415,7 @@ function initSignatures($el) {
         enabled: false,
         level: 1,
         content: {
-          request: [],
+          requests: [],
           responsedata: [],
           requestdata: [],
           javascript: []
