@@ -28,7 +28,7 @@ from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.massurl import schedutil
 from cuckoo.misc import cwd
 from cuckoo.common.config import config
-from cuckoo.massurl.signatures import verify_sig, run_signature
+from cuckoo.massurl.signatures import verify_sig, run_signature, cleanup_sig
 
 
 log = logging.getLogger(__name__)
@@ -741,6 +741,7 @@ def add_signature():
     if not verify_sig(content):
         return json_error(400, "Invalid signature")
 
+    cleanup_sig(content)
     try:
         sig_id = db.add_signature(name, json.dumps(content), level, enabled)
     except KeyError:
@@ -775,6 +776,7 @@ def update_signature(signature_id):
     if not verify_sig(content):
         return json_error(400, "Invalid signature")
 
+    cleanup_sig(content)
     try:
         db.update_signature(signature_id, json.dumps(content), level, enabled)
     except KeyError:

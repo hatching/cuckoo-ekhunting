@@ -19,6 +19,15 @@ _rules = {
     "any": list
 }
 
+def cleanup_sig(content):
+    clean = []
+    for key, values in content.iteritems():
+        if not values:
+            clean.append(key)
+
+    for k in clean:
+        del content[k]
+
 def verify_sig(content):
     if not isinstance(content, dict):
         try:
