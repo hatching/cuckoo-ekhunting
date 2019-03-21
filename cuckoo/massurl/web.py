@@ -808,6 +808,18 @@ def find_signature(signature_id):
 
 @app.route("/api/signature/run/<int:signature_id>", methods=["POST"])
 def signature_run(signature_id):
+    intargs = {
+        "limit": request.args.get("limit", 50),
+        "offset": request.args.get("offset", 0)
+    }
+
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
     signature = db.find_signature(signature_id)
     if not signature:
         return json_error(404, "Signature does not exist")
@@ -816,7 +828,15 @@ def signature_run(signature_id):
     if not signature:
         return json_error(400, "The signature is invalid")
 
-    return jsonify(run_signature(signature))
+    results = run_signature(
+        signature, size=intargs.get("limit"), offset=intargs.get("offset")
+    )
+    if not results:
+        return jsonify(results)
+
+    return jsonify(URLDiaries.get_diaries(
+        ids=results, return_fields="datetime,url,version"
+    ))
 
 def random_string(minimum, maximum=None):
     if maximum is None:

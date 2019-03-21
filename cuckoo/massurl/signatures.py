@@ -68,20 +68,20 @@ def verify_sig(content):
 
     return content
 
-def run_signature(signature, newsince=None):
+def run_signature(signature, newsince=None, size=50, offset=0):
     diary_rules = {}
     for key in _diary_fields:
         if key in signature:
             diary_rules[key] = signature.get(key)
 
-    diaries = {}
+    diaries = []
     if diary_rules:
         q = build_query(diary_rules)
         diaries = match_diaries(
-           q, newsince=newsince
+           q, newsince=newsince, size=size, offset=offset
         )
         if not diaries:
-            return {}
+            return []
 
     if "requestdata" not in signature and "responsedata" not in signature:
         return diaries
@@ -108,17 +108,17 @@ def run_signature(signature, newsince=None):
             diaries.remove(ignore)
     else:
         diaries = URLDiaries.search_requestlog(
-            requestlog_query, return_fields="parent", size=100,
+            requestlog_query, return_fields="parent", size=size, offset=offset,
             since=newsince
         )
-        diaries = [match.get("parent") for match in diaries]
+        diaries = list(set(match.get("parent") for match in diaries))
 
     return diaries
 
-def match_diaries(diary_query, newsince=None):
+def match_diaries(diary_query, newsince=None, size=50, offset=None):
     diaries = URLDiaries.search_diaries(
-        body=diary_query, since=newsince, size=100,
+        body=diary_query, since=newsince, size=size, offset=offset,
         return_fields="url"
     )
 
-    return [match.get("id") for match in diaries]
+    return list(set(match.get("id") for match in diaries))
