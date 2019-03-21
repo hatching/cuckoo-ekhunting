@@ -4,47 +4,54 @@ import Prompt from './prompt';
 
 const prompt = new Prompt();
 
-const state = {
-  formParent: null,
-  sigList: null
-}
-
 Handlebars.registerHelper('eq', (p,m,opts) => p == m ? opts.fn() : '');
 Handlebars.registerHelper('keys', (o,opts) => {
   let r = "";
   Object.keys(o).forEach(k => r += opts.fn(k));
   return r;
 });
+Handlebars.registerHelper('is-selected', (o,t) => {
+  if(Object.keys(o)[0] == t) {
+    return 'selected';
+  } else {
+    return '';
+  }
+});
 
 // signature list item template
 const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
-  <li>
-    <a href="load:{{id}}">{{name}}</a>
-  </li>
+  <li data-filter-value="{{name}}">
+     <a href="load:{{id}}">{{name}}</a>
+   </li>
 `)(data);
 
 const $SIG_INPUT_ROW = (data={}) => Handlebars.compile(`
-  <div class="multi-input-row" data-sig-fields>
-    <div class="multi-input-row__select">
-      <div class="configure-block__control--wrapper mini caret">
-        <select class="configure-block__control">
-          <option value="any">Any</option>
-          <option value="must">Must</option>
-        </select>
+  {{#each this}}
+    <div class="multi-input-row" data-sig-fields>
+      <div class="multi-input-row__select">
+        <div class="configure-block__control--wrapper mini caret">
+          <select class="configure-block__control">
+            <option value="any" {{is-selected this 'any'}}>Any</option>
+            <option value="must" {{is-selected this 'must'}}>Must</option>
+          </select>
+        </div>
+      </div>
+      <div class="multi-input-row__fields">
+        {{#each this}}
+          {{#each this}}
+              <input type="text" class="configure-block__control inline mini" value="{{this}}" />
+            {{else}}
+              <input type="text" class="configure-block__control inline mini" />
+          {{/each}}
+          {{else}}
+            <input type="text" class="configure-block__control inline mini" />
+        {{/each}}
+      </div>
+      <div class="multi-input-row__actions">
+        <a href="#" data-remove-row title="Remove row"><i class="fas fa-times"></i></a>
       </div>
     </div>
-    <div class="multi-input-row__fields">
-      {{#if this}}
-        {{#each this}}
-          {{#each @key}}
-            <input type="text" class="configure-block__control inline mini" value="{{this}}" />
-          {{/each}}
-        {{/each}}
-      {{else}}
-        <input type="text" class="configure-block__control inline mini" />
-      {{/if}}
-    </div>
-  </div>
+  {{/each}}
 `)(data);
 
 // initialise helper for existing signature rows inside a template.
@@ -56,74 +63,76 @@ Handlebars.registerHelper('input-row', (sig,opts) => {
 // signature form template
 const $SIG_FORM = (data={}) => Handlebars.compile(`
 
-  <h2>{{signature.name}}</h2>
-
-  <div class="configure-block__container">
-
-    {{#if meta.new}}
+  <h2 data-run-signature>{{signature.name}} <a href="#" class="button">Run</a></h2>
+    <div class="configure-block__container">
+      {{#if meta.new}}
+        <div class="configure-block">
+          <label for="signature-name" class="configure-block__label">Signature name</label>
+          <p class="configure-block__description">A unique name for this signature</p>
+          <input class="configure-block__control" id="signature-name" name="signature-name" placeholder="Type name" required />
+        </div>
+      {{/if}}
       <div class="configure-block">
-        <label for="signature-name" class="configure-block__label">Signature name</label>
-        <p class="configure-block__description">A unique name for this signature</p>
-        <input class="configure-block__control" id="signature-name" name="signature-name" placeholder="Type name" required />
+        <h4 class="configure-block__label">Enabled</h4>
+        <p class="configure-block__description">Match this signature</p>
+        <div class="configure-block__control checkbox">
+          <input type="checkbox" id="signature-enabled" {{#if signature.enabled}}checked{{/if}} />
+          <label for="signature-enabled">Enable</label>
+        </div>
       </div>
-    {{/if}}
-
-    <div class="configure-block">
-      <h4 class="configure-block__label">Enabled</h4>
-      <p class="configure-block__description">Match this signature</p>
-      <div class="configure-block__control checkbox">
-        <input type="checkbox" id="signature-enabled" {{#if signature.enabled}}checked{{/if}} />
-        <label for="signature-enabled">Enable</label>
-      </div>
-    </div>
-
-    <div class="configure-block" {{#unless signature.enabled}}hidden{{/unless}}>
-      <label class="configure-block__label" for="signature-level">Alert level</label>
-      <p class="configure-block__description">Match level target</p>
-      <div class="configure-block__control--wrapper mini caret">
-        <select class="configure-block__control" name="signature-level" id="signature-level">
-          <option value="1" {{#eq signature.level 1}}selected{{/eq}}>1</option>
-          <option value="2" {{#eq signature.level 2}}selected{{/eq}}>2</option>
-          <option value="3" {{#eq signature.level 3}}selected{{/eq}}>3</option>
-        </select>
+      <div class="configure-block" {{#unless signature.enabled}}hidden{{/unless}}>
+        <label class="configure-block__label" for="signature-level">Alert level</label>
+        <p class="configure-block__description">Match level target</p>
+        <div class="configure-block__control--wrapper mini caret">
+          <select class="configure-block__control" name="signature-level" id="signature-level">
+            <option value="1" {{#eq signature.level 1}}selected{{/eq}}>1</option>
+            <option value="2" {{#eq signature.level 2}}selected{{/eq}}>2</option>
+            <option value="3" {{#eq signature.level 3}}selected{{/eq}}>3</option>
+          </select>
+        </div>
       </div>
     </div>
-
-  </div>
-
-  <div class="flex-v">
-    <div class="configure-block free">
-      <h4 class="configure-block__label">Content</h4>
-    </div>
-    <div class="full-block tabbed">
-      <ul class="tabbed-nav">
-        {{#each signature.content}}
-          <li><a {{#eq @index 0}}class="active"{{/eq}} href="tab:{{@key}}">{{@key}}</a></li>
-        {{/each}}
-      </ul>
-      <div class="tabbed-content">
-        {{#each signature.content}}
-          <div class="tabbed-tab {{#eq @index 0}}active{{/eq}}" data-tab="{{@key}}">
-            {{#each this}}
+    <div class="flex-v">
+      <div class="configure-block free">
+        <h4 class="configure-block__label">Content</h4>
+        <p class="configure-block__description">Create signatures. Assign an operator (any or must), followed by strings that should match the signature. Click 'add row' to add many lines.</p>
+        <p class="configure-block__hotkeys">
+          controls:
+          <span>&#9166; add string</span>
+          <span>&#9003; delete string</span>
+        </p>
+      </div>
+      <div class="full-block tabbed">
+        <ul class="tabbed-nav">
+          {{#each signature.content}}
+            <li><a {{#eq @index 0}}class="active"{{/eq}} href="tab:{{@key}}">{{@key}}</a></li>
+          {{/each}}
+        </ul>
+        <div class="tabbed-content">
+          {{#each signature.content}}
+            <div class="tabbed-tab {{#eq @index 0}}active{{/eq}}" data-tab="{{@key}}">
               {{input-row this}}
-            {{/each}}
-            <div class="multi-input-row">
-              <a href="#" data-create-row>Add row</a>
+              <div class="multi-input-row">
+                <a href="#" data-create-row>Add row</a>
+              </div>
             </div>
-          </div>
-        {{/each}}
+          {{/each}}
+        </div>
       </div>
     </div>
-  </div>
-
-  <footer {{#if meta.new}}class="align-right"{{/if}}>
-    {{#unless meta.new}}
-      <button id="delete-signature">Delete</button>
-    {{/unless}}
-    <button id="save-signature">{{#if meta.new}}Create{{else}}Save{{/if}}</button>
-  </footer>
+    <footer {{#if meta.new}}class="align-right"{{/if}}>
+      {{#unless meta.new}}
+        <button id="delete-signature">Delete</button>
+      {{/unless}}
+      <button id="save-signature">{{#if meta.new}}Create{{else}}Save{{/if}}</button>
+    </footer>
 
 `)(data);
+
+const state = {
+  formParent: null,
+  sigList: null
+}
 
 const api = {
   list: () => $.get('/api/signatures/list'),
