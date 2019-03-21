@@ -35,10 +35,6 @@ diary_stats = {
 OWNER = "cuckoo.massurl"
 DEFAULT_OPTIONS = "analysis=kernel"
 
-# TODO: call .set()/.clear() when the schedule changes (group add, delete,
-# schedule modify)
-scheduling_change = gevent.event.Event()
-
 def run_with_minimum_delay(task, delay):
     while True:
         start = time.time()
@@ -56,7 +52,10 @@ def next_group_task():
     s = db.Session()
     try:
         group = s.query(URLGroup).filter(
-            URLGroup.schedule_next != None, URLGroup.completed.is_(True),
+            URLGroup.schedule_next != None,
+            URLGroup.completed.is_(True),
+            URLGroup.schedule_next <=
+            datetime.datetime.utcnow() + datetime.timedelta(seconds=10),
             URLGroupProfile.group_id==URLGroup.id,
             URLGroupURL.url_group_id == URLGroup.id
         ).order_by(URLGroup.schedule_next).first()
@@ -152,27 +151,11 @@ def insert_group_tasks(group):
 
 def task_creator():
     """Creates tasks"""
-    group = next_group_task()
-    if not group:
-        # Nothing to schedule; ideally we also wait on scheduling_change as
-        # well
-        return
-
-    log.debug("Have next task. Scheduled @ %s", group.schedule_next)
     while True:
-        now = datetime.datetime.utcnow()
-        log.info("Now: %s. Next: %s", now, group.schedule_next)
-        if now >= group.schedule_next:
+        group = next_group_task()
+        if not group:
             break
-        # Make sure long sleeps don't break anything
-        delay = min((group.schedule_next - now).total_seconds() + 1, 3600)
-        if scheduling_change.wait(timeout=delay):
-            # If the schedule changed, we want to recheck which group to
-            # execute
-            return
-
-    insert_group_tasks(group)
-
+        insert_group_tasks(group)
 
 def task_checker():
     s = db.Session()
@@ -458,8 +441,8 @@ def handle_massurltaskfailure(message):
 
 def massurl_scheduler():
     # TODO: increase delays
-    gevent.spawn(run_with_minimum_delay, task_creator, 5.0)
-    gevent.spawn(run_with_minimum_delay, task_checker, 5.0)
+    gevent.spawn(run_with_minimum_delay, task_creator, 10.0)
+    gevent.spawn(run_with_minimum_delay, task_checker, 10.0)
     gevent.spawn(run_with_minimum_delay, signature_runner, 20.0)
     ev_client.subscribe(handle_massurldetection, "massurldetection")
     ev_client.subscribe(handle_massurltaskfailure, "massurltaskfailure")
