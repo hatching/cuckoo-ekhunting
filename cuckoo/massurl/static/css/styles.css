@@ -7480,8 +7480,17 @@ table.table {
     flex-direction: column;
     padding: 0 25px; }
     .configure-content > h2 {
+      position: relative;
       font-weight: 400;
       font-size: 32px; }
+      .configure-content > h2 small {
+        position: absolute;
+        top: -15px;
+        display: block;
+        font-size: .4em;
+        font-weight: 500;
+        margin-bottom: 5px;
+        opacity: .5; }
       .configure-content > h2 .button {
         float: right; }
     .configure-content footer {
@@ -7513,10 +7522,14 @@ table.table {
       width: calc(100% + 50px);
       margin-left: -25px;
       padding: 0 25px;
-      box-sizing: border-box; }
+      box-sizing: border-box;
+      background-color: #fff; }
       .configure-content .multi-select ul,
       .configure-content .full-block ul {
         padding-left: 0; }
+      .configure-content .multi-select.no-padding,
+      .configure-content .full-block.no-padding {
+        padding: 0; }
     .configure-content .scroll-vertical {
       overflow-y: auto; }
     .configure-content .flex-v {
@@ -7617,5 +7630,33 @@ table.table {
           font-size: 1.1em;
           display: inline-block;
           margin-top: 11px; }
+    .configure-content__list {
+      padding: 0;
+      list-style: none;
+      overflow-y: auto;
+      margin-top: 0;
+      border-top: 1px solid #ccc; }
+      .configure-content__list li {
+        border-bottom: 1px solid #ccc; }
+        .configure-content__list li.no-results {
+          padding: 20px;
+          text-align: center; }
+        .configure-content__list li a {
+          display: flex;
+          flex-direction: column;
+          text-decoration: none;
+          color: inherit;
+          padding: 20px; }
+          .configure-content__list li a > p {
+            word-break: break-all;
+            padding-right: 20px;
+            font-weight: 500;
+            margin-top: 10px; }
+          .configure-content__list li a > span {
+            display: flex;
+            justify-content: space-between;
+            font-size: .9em; }
+          .configure-content__list li a:hover {
+            background-color: #f5f5f5; }
 
 /*# sourceMappingURL=styles.css.map */
