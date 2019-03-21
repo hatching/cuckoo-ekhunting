@@ -94,6 +94,7 @@ class MassURL(AnalysisManager):
         self.gm_wait_th.daemon = True
         self.detection_events = Queue.Queue()
         self.netflow_events = Queue.Queue()
+        self.js_events = []
         self.realtime_finished = set()
         self.tlskeys_response = None
         self.realtime_error = False
@@ -311,6 +312,29 @@ class MassURL(AnalysisManager):
         # the analysis was completed.
         self.completed = True
 
+    def attribute_js(self, pid_target):
+        pid_js = {}
+        ppid_pid = {}
+        for pid, ppid, code in self.js_events:
+            if pid not in pid_js:
+                pid_js[pid] = []
+
+            pid_js[pid].append(code)
+
+            if ppid not in ppid_pid:
+                ppid_pid[ppid] = set()
+            ppid_pid[ppid].add(pid)
+
+        def walk_childprocs(pid, t):
+            for js in pid_js.get(pid, []):
+                self.curr_block.get(target).get("diary").add_javascript(js)
+
+            for child in ppid_pid.get(pid, []):
+                walk_childprocs(child, t)
+
+        for pid, target in pid_target.iteritems():
+            walk_childprocs(pid, target)
+
     def extract_requests(self, pid_target):
         flow_target = {}
         flows = {}
@@ -350,6 +374,7 @@ class MassURL(AnalysisManager):
         self.realtime_finished = set()
         self.tlskeys_response = None
         self.realtime_error = False
+        self.js_events = []
         wait_for = set()
 
         # Tell onemon to process results.
@@ -397,6 +422,10 @@ class MassURL(AnalysisManager):
         if self.netflow_events.qsize():
             log.debug("Running request extraction for task: #%s", self.task.id)
             self.extract_requests(pid_target)
+
+        if self.js_events:
+            log.debug("Running Javascript attribution")
+            self.attribute_js(pid_target)
 
         # If no events were sent by Onemon, no signatures were triggered.
         # Continue analysis.
@@ -468,6 +497,7 @@ class MassURL(AnalysisManager):
         self.ev_client.subscribe(self.realtime_netflow_cb, "netflow")
         self.ev_client.subscribe(self.realtime_finished_cb, "finished")
         self.ev_client.subscribe(self.realtime_tlskeys_cb, "tlskeys")
+        self.ev_client.subscribe(self.realtime_javascript_cb, "javascript")
         self.ev_client.subscribe(self.realtime_error_cb, "error")
 
         try:
@@ -568,6 +598,26 @@ class MassURL(AnalysisManager):
                     "RSA Session-ID:%s Master-Key:%s\n" %
                     (entry.get("session_id"), entry.get("master_secret"))
                 )
+
+    def realtime_javascript_cb(self, message):
+        """Handle incoming javascript events from the realtime processor"""
+        task_id = message["body"].get("taskid")
+        if not task_id or task_id != self.task.id:
+            return
+
+        for k in ("pid", "ppid"):
+            if k not in message["body"]:
+                return
+
+        js = message["body"]
+        meta = js.get("meta") if js.get("meta") != "no context" else None
+        code = js.get("code")
+
+        if code:
+            self.js_events.append((js.get("pid"), js.get("ppid"), code))
+
+        if meta:
+            self.js_events.append((js.get("pid"), js.get("ppid"), meta))
 
     def realtime_finished_cb(self, message):
         """Handle incoming finish events from the realtime processor"""
