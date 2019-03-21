@@ -1,3 +1,4 @@
+import moment from 'moment';
 import $ from './jquery-with-plugins';
 import Handlebars from 'handlebars';
 import Prompt from './prompt';
@@ -17,6 +18,7 @@ Handlebars.registerHelper('is-selected', (o,t) => {
     return '';
   }
 });
+Handlebars.registerHelper('pretty-date', timestamp => moment(timestamp).format('MM/DD/YYYY HH:mm:ss'));
 
 // signature list item template
 const $SIG_LIST_ITEM = (data={}) => Handlebars.compile(`
@@ -60,78 +62,106 @@ Handlebars.registerHelper('input-row', (sig,opts) => {
   return new Handlebars.SafeString($SIG_INPUT_ROW(sig));
 });
 
+const $SIG_MATCHES = (data={}) => Handlebars.compile(`
+  <h2><small>Displaying matches for</small>{{signature.name}}</h2>
+  <div class="flex-v">
+    <div class="full-block flex-v no-padding">
+      <ul class="configure-content__list">
+        {{#each matches}}
+            <li>
+              <a href="/diary/{{id}}">
+                <p>{{url}}</p>
+                <span>
+                  <time datetime="{{timestamp}}">{{pretty-date timestamp}}</time>
+                  <span>No. {{version}}</span>
+                </span>
+              </a>
+            </li>
+          {{else}}
+            <li class="no-results">There are no matches related to this signature.</li>
+        {{/each}}
+      </ul>
+    </div>
+  </div>
+`)(data);
+
 // signature form template
 const $SIG_FORM = (data={}) => Handlebars.compile(`
 
-  <h2 data-run-signature>{{signature.name}} <a href="#" class="button">Run</a></h2>
-    <div class="configure-block__container">
-      {{#if meta.new}}
-        <div class="configure-block">
-          <label for="signature-name" class="configure-block__label">Signature name</label>
-          <p class="configure-block__description">A unique name for this signature</p>
-          <input class="configure-block__control" id="signature-name" name="signature-name" placeholder="Type name" required />
-        </div>
-      {{/if}}
+  <h2>{{signature.name}}
+    {{#unless meta.new}}
+      <a data-run-signature href="#" class="button">Find all matches</a>
+    {{/unless}}
+  </h2>
+  <div class="configure-block__container">
+    {{#if meta.new}}
       <div class="configure-block">
-        <h4 class="configure-block__label">Enabled</h4>
-        <p class="configure-block__description">Match this signature</p>
-        <div class="configure-block__control checkbox">
-          <input type="checkbox" id="signature-enabled" {{#if signature.enabled}}checked{{/if}} />
-          <label for="signature-enabled">Enable</label>
-        </div>
+        <label for="signature-name" class="configure-block__label">Signature name</label>
+        <p class="configure-block__description">A unique name for this signature</p>
+        <input class="configure-block__control" id="signature-name" name="signature-name" placeholder="Type name" required />
       </div>
-      <div class="configure-block" {{#unless signature.enabled}}hidden{{/unless}}>
-        <label class="configure-block__label" for="signature-level">Alert level</label>
-        <p class="configure-block__description">Match level target</p>
-        <div class="configure-block__control--wrapper mini caret">
-          <select class="configure-block__control" name="signature-level" id="signature-level">
-            <option value="1" {{#eq signature.level 1}}selected{{/eq}}>1</option>
-            <option value="2" {{#eq signature.level 2}}selected{{/eq}}>2</option>
-            <option value="3" {{#eq signature.level 3}}selected{{/eq}}>3</option>
-          </select>
-        </div>
+    {{/if}}
+    <div class="configure-block">
+      <h4 class="configure-block__label">Enabled</h4>
+      <p class="configure-block__description">Match this signature</p>
+      <div class="configure-block__control checkbox">
+        <input type="checkbox" id="signature-enabled" {{#if signature.enabled}}checked{{/if}} />
+        <label for="signature-enabled">Enable</label>
       </div>
     </div>
-    <div class="flex-v">
-      <div class="configure-block free">
-        <h4 class="configure-block__label">Content</h4>
-        <p class="configure-block__description">Create signatures. Assign an operator (any or must), followed by strings that should match the signature. Click 'add row' to add many lines.</p>
-        <p class="configure-block__hotkeys">
-          controls:
-          <span>&#9166; add string</span>
-          <span>&#9003; delete string</span>
-        </p>
+    <div class="configure-block" {{#unless signature.enabled}}hidden{{/unless}}>
+      <label class="configure-block__label" for="signature-level">Alert level</label>
+      <p class="configure-block__description">Match level target</p>
+      <div class="configure-block__control--wrapper mini caret">
+        <select class="configure-block__control" name="signature-level" id="signature-level">
+          <option value="1" {{#eq signature.level 1}}selected{{/eq}}>1</option>
+          <option value="2" {{#eq signature.level 2}}selected{{/eq}}>2</option>
+          <option value="3" {{#eq signature.level 3}}selected{{/eq}}>3</option>
+        </select>
       </div>
-      <div class="full-block tabbed">
-        <ul class="tabbed-nav">
-          {{#each signature.content}}
-            <li><a {{#eq @index 0}}class="active"{{/eq}} href="tab:{{@key}}">{{@key}}</a></li>
-          {{/each}}
-        </ul>
-        <div class="tabbed-content">
-          {{#each signature.content}}
-            <div class="tabbed-tab {{#eq @index 0}}active{{/eq}}" data-tab="{{@key}}">
-              {{input-row this}}
-              <div class="multi-input-row">
-                <a href="#" data-create-row>Add row</a>
-              </div>
+    </div>
+  </div>
+  <div class="flex-v">
+    <div class="configure-block free">
+      <h4 class="configure-block__label">Content</h4>
+      <p class="configure-block__description">Create signatures. Assign an operator (any or must), followed by strings that should match the signature. Click 'add row' to add many lines.</p>
+      <p class="configure-block__hotkeys">
+        controls:
+        <span>&#9166; add string</span>
+        <span>&#9003; delete string</span>
+      </p>
+    </div>
+    <div class="full-block tabbed">
+      <ul class="tabbed-nav">
+        {{#each signature.content}}
+          <li><a {{#eq @index 0}}class="active"{{/eq}} href="tab:{{@key}}">{{@key}}</a></li>
+        {{/each}}
+      </ul>
+      <div class="tabbed-content">
+        {{#each signature.content}}
+          <div class="tabbed-tab {{#eq @index 0}}active{{/eq}}" data-tab="{{@key}}">
+            {{input-row this}}
+            <div class="multi-input-row">
+              <a href="#" data-create-row>Add row</a>
             </div>
-          {{/each}}
-        </div>
+          </div>
+        {{/each}}
       </div>
     </div>
-    <footer {{#if meta.new}}class="align-right"{{/if}}>
-      {{#unless meta.new}}
-        <button id="delete-signature">Delete</button>
-      {{/unless}}
-      <button id="save-signature">{{#if meta.new}}Create{{else}}Save{{/if}}</button>
-    </footer>
+  </div>
+  <footer {{#if meta.new}}class="align-right"{{/if}}>
+    {{#unless meta.new}}
+      <button id="delete-signature">Delete</button>
+    {{/unless}}
+    <button id="save-signature">{{#if meta.new}}Create{{else}}Save{{/if}}</button>
+  </footer>
 
 `)(data);
 
 const state = {
   formParent: null,
-  sigList: null
+  sigList: null,
+  signature: null
 }
 
 const api = {
@@ -140,7 +170,12 @@ const api = {
   create: data => $.jpost('/api/signature/add', data),
   update: (id,data) => $.jpost(`/api/signature/update/${id}`, data),
   delete: id => $.post(`/api/signature/delete/${id}`),
-  run: id => $.post(`/api/signature/run/${id}`)
+  run: (id,o=false,l=50) => {
+    let url = `/api/signature/run/${id}?limit=${l}`;
+    if(o)
+      url += `&offset=${o}`;
+    return $.post(url);
+  }
 };
 
 function loadSignature(id=false) {
@@ -174,7 +209,7 @@ function deleteSignature(id) {
 
 function runSignature(id) {
   return new Promise((res, rej) => {
-    api.run(id).done(response => res(response)).fail(err => rej(err));
+    api.run(id,0,30).done(response => res(response)).fail(err => rej(err));
   });
 }
 
@@ -264,9 +299,64 @@ function getSignatureValues() {
   return ret;
 }
 
+function displayMatchesList(matches=[]) {
+  let { formParent } = state;
+  let list = $($SIG_MATCHES({
+    signature: state.signature,
+    matches: matches
+  }));
+  formParent.html(list);
+
+  let matchState = {
+    limit: 30,
+    offset: null,
+    loading: false,
+    end: false
+  }
+
+  if(matches.length) {
+    matchState.offset = matches[matches.length-1].datetime;
+  }
+
+  // implement lazyload
+  let scrollTainer = list.find('.configure-content__list');
+  scrollTainer.on('scroll', e => {
+    if(scrollTainer.scrollTop() + $(window).height() > scrollTainer[0].scrollHeight) {
+      if(!matchState.loading && !matchState.end) {
+        matchState.loading = true;
+        api.run(state.signature.id, matchState.offset, matchState.limit).done(response => {
+          response.forEach(m => {
+            list.find('.configure-content__list').append(Handlebars.compile(`
+              <li>
+                <a href="/diary/{{id}}">
+                  <p>{{url}}</p>
+                  <span>
+                    <time datetime="{{datetime}}">{{pretty-date datetime}}</time>
+                    <span>No. {{version}}</span>
+                  </span>
+                </a>
+              </li>
+            `)(m));
+          });
+
+          if(response.length) {
+            matches.concat(response);
+            matchState.offset = matches[matches.length-1].datetime;
+          }
+
+          matchState.loading = false;
+          if(response.length < matchState.limit)
+            matchState.end = true;
+        });
+      }
+    }
+  });
+}
+
 function renderForm(signature, meta={}) {
 
   let { formParent, sigList } = state;
+  state.signature = signature;
 
   // makes sure there's always the same tabs
   let content_fields = ["requests","responsedata","requestdata","javascript"];
@@ -380,7 +470,7 @@ function renderForm(signature, meta={}) {
   formParent.find('[data-run-signature]').on('click', e => {
     runSignature(signature.id).then(response => {
       // here needs to come an action after running the signature.
-      console.log(response);
+      displayMatchesList(response);
     }).catch(err => displayMessage(err.responseJSON.message).render(formParent));
   });
 
@@ -410,6 +500,7 @@ function initSignatures($el) {
 
     // create new signature button - populates form
     $("#create-new-signature").on('click', e => {
+      state.signature = null;
       renderForm({
         name: 'New signature',
         enabled: false,
