@@ -320,13 +320,15 @@ function renderForm(signature, meta={}) {
         state.sigList.append(listItem);
         listItem.find('a').on('click', sigClickHandler).click();
         setTimeout(() => $(e.currentTarget).text('Save'), 500);
-      }).catch(err => displayMessage(err.message).render(formParent));
+      }).catch(err => {
+        displayMessage(err.responseJSON.message).render(formParent);
+      });
     } else {
       // UPDATE signature
       delete values.name;
       updateSignature(signature.id, values).then(response => {
         setTimeout(() => $(e.currentTarget).text('Save'), 500);
-      }).catch(err => displayMessage(err.message).render(formParent));
+      }).catch(err => displayMessage(err.responseJSON.message).render(formParent));
     }
   });
 
@@ -346,7 +348,7 @@ function renderForm(signature, meta={}) {
       deleteSignature(signature.id).then(response => {
         sigList.find(`a[href="load:${signature.id}"]`).parents('li').remove();
         formParent.empty();
-      }).catch(err => displayMessage(err.message).render(formParent));
+      }).catch(err => displayMessage(err.responseJSON.message).render(formParent));
     });
 
   });
@@ -379,7 +381,7 @@ function renderForm(signature, meta={}) {
     runSignature(signature.id).then(response => {
       // here needs to come an action after running the signature.
       console.log(response);
-    }).catch(err => displayMessage(err.message).render(formParent));
+    }).catch(err => displayMessage(err.responseJSON.message).render(formParent));
   });
 
 };
@@ -396,7 +398,7 @@ let sigClickHandler = e => {
       link.addClass('active');
       renderForm(sig,{new:false});
     }, 500);
-  }).catch(err => displayMessage(err.message).render($el));
+  }).catch(err => displayMessage(err.responseJSON.message).render($el));
 };
 
 function initSignatures($el) {
@@ -413,7 +415,7 @@ function initSignatures($el) {
         enabled: false,
         level: 1,
         content: {
-          requests: [],
+          request: [],
           responsedata: [],
           requestdata: [],
           javascript: []
@@ -429,7 +431,7 @@ function initSignatures($el) {
         state.sigList.append(listItem);
       });
       state.sigList.find('a').on('click', sigClickHandler);
-    }).catch(err => displayMessage(err.message).render($el));
+    }).catch(err => displayMessage(err.responseJSON.message).render($el));
 
     $el.find('input[name="filter-signatures"]').on('keyup', e => {
       let val = $(e.currentTarget).val();
