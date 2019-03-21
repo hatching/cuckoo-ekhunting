@@ -137,6 +137,26 @@ class URLDiaries(object):
         return URLDiaries.get_values(res, return_empty=None, listed=False)
 
     @classmethod
+    def get_diaries(cls, ids=[], return_fields="datetime,url,version"):
+        """Retrieve the specified related requests by id"""
+        ids = ids if isinstance(ids, (list, tuple, set)) else []
+        try:
+            res = elasticmassurl.client.search(
+                index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING,
+                _source_include=return_fields, sort="datetime:desc",
+                body={
+                    "query": {
+                        "ids": {"values": ids}
+                    }
+                }
+            )
+        except TransportError as e:
+            log.exception("Error while retrieving related streams. %s", e)
+            return []
+
+        return URLDiaries.get_values(res, return_empty=[])
+
+    @classmethod
     def get_latest_diary(cls, url_id, return_fields="version"):
         try:
             res = elasticmassurl.client.search(
@@ -320,7 +340,7 @@ class URLDiaries(object):
             )
         except TransportError as e:
             log.exception("Error while request logs. %s", e)
-            return None
+            return []
 
         return URLDiaries.get_values(res, return_empty=[])
 

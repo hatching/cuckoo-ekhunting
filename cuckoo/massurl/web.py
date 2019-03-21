@@ -28,7 +28,7 @@ from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.massurl import schedutil
 from cuckoo.misc import cwd
 from cuckoo.common.config import config
-from cuckoo.massurl.signatures import verify_sig, run_signature
+from cuckoo.massurl.signatures import verify_sig, run_signature, cleanup_sig
 
 
 log = logging.getLogger(__name__)
@@ -741,6 +741,7 @@ def add_signature():
     if not verify_sig(content):
         return json_error(400, "Invalid signature")
 
+    cleanup_sig(content)
     try:
         sig_id = db.add_signature(name, json.dumps(content), level, enabled)
     except KeyError:
@@ -775,6 +776,7 @@ def update_signature(signature_id):
     if not verify_sig(content):
         return json_error(400, "Invalid signature")
 
+    cleanup_sig(content)
     try:
         db.update_signature(signature_id, json.dumps(content), level, enabled)
     except KeyError:
@@ -806,6 +808,18 @@ def find_signature(signature_id):
 
 @app.route("/api/signature/run/<int:signature_id>", methods=["POST"])
 def signature_run(signature_id):
+    intargs = {
+        "limit": request.args.get("limit", 50),
+        "offset": request.args.get("offset", 0)
+    }
+
+    for key, value in intargs.iteritems():
+        if value:
+            try:
+                intargs[key] = int(value)
+            except ValueError:
+                return json_error(400, "%s should be an integer" % key)
+
     signature = db.find_signature(signature_id)
     if not signature:
         return json_error(404, "Signature does not exist")
@@ -814,7 +828,15 @@ def signature_run(signature_id):
     if not signature:
         return json_error(400, "The signature is invalid")
 
-    return jsonify(run_signature(signature))
+    results = run_signature(
+        signature, size=intargs.get("limit"), offset=intargs.get("offset")
+    )
+    if not results:
+        return jsonify(results)
+
+    return jsonify(URLDiaries.get_diaries(
+        ids=results, return_fields="datetime,url,version"
+    ))
 
 def random_string(minimum, maximum=None):
     if maximum is None:
