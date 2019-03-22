@@ -7,9 +7,9 @@ const Templates = {
     <div class="scheduler--parent">
       <form class="scheduler--dialog">
         <div class="scheduler__frequency">
-          <select class="scheduler--input-control" name="frequency" value="${values.frequency}">
-            <option value="every">Every</option>
-            <option value="weekly">Weekly</option>
+          <select class="scheduler--input-control" name="frequency">
+            <option value="every" ${values.frequency == 'every' ? 'selected' : ''}>Every</option>
+            <option value="weekly" ${values.frequency == 'weekly' ? 'selected' : ''}>Weekly</option>
             <!--
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
@@ -32,14 +32,14 @@ const Templates = {
         </div>
         <div class="scheduler__days" data-display="weekly">
           <label class="scheduler__label" for="sc-pick-day">day</label>
-          <select name="day" value="${values.day}">
-            <option value="monday">Mondays</option>
-            <option value="tuesday">Tuesdays</option>
-            <option value="wednesday">Wednesdays</option>
-            <option value="thursday">Thursdays</option>
-            <option value="friday">Fridays</option>
-            <option value="saturday">Saturdays</option>
-            <option value="sunday">Sundays</option>
+          <select name="day">
+            <option value="monday" ${values.day == 'monday' ? 'selected' : ''}>Mondays</option>
+            <option value="tuesday" ${values.day == 'tuesday' ? 'selected' : ''}>Tuesdays</option>
+            <option value="wednesday" ${values.day == 'wednesday' ? 'selected' : ''}>Wednesdays</option>
+            <option value="thursday" ${values.day == 'thursday' ? 'selected' : ''}>Thursdays</option>
+            <option value="friday" ${values.day == 'friday' ? 'selected' : ''}>Fridays</option>
+            <option value="saturday" ${values.day == 'saturday' ? 'selected' : ''}>Saturdays</option>
+            <option value="sunday" ${values.day == 'sunday' ? 'selected' : ''}>Sundays</option>
           </select>
           <i class="fas fa-caret-down caret"></i>
         </div>
@@ -165,13 +165,13 @@ const lib = {
   Smart scheduler UI widget
  */
 function VALUES(v) {
- let r = {};
+ let days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
  // return default set of values if value is not set
   if(!v) {
     return {
      frequency: 'weekly',
      date: helpers.dateToString(new Date()),
-     day: 'mondays',
+     day: 'monday',
      days: 1,
      time: {
        hours: new Date().getHours(),
@@ -180,7 +180,28 @@ function VALUES(v) {
     };
   } else {
    // format values to a proper value format
-    return VALUES(false);
+    let r = {
+      frequency: null,
+      date: helpers.dateToString(new Date()),
+      day: null,
+      days: 0,
+      time: {
+        hours: null,
+        minutes: null
+      }
+    };
+    let s = v.split('@');
+    r.frequency = days.indexOf(s[0]) > -1 ? 'weekly' : 'every';
+
+    if(r.frequency == 'weekly')
+      r.day = s[0];
+    else
+      r.days = parseInt(s[0].replace('d'));
+
+    let t = s[1].split(':');
+    r.time.hours = parseInt(t[0]);
+    r.time.minutes = parseInt(t[1]);
+    return r;
   }
 };
 
@@ -197,7 +218,7 @@ export default class Scheduler {
       ...props
     };
 
-    this.values = VALUES(this.props.values);
+    this.values = VALUES(this.props.value);
 
     this.events = {
       frequency: []
