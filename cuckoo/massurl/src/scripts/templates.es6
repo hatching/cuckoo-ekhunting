@@ -9,6 +9,7 @@ const getIconType = level => ['fa-lightbulb','fa-exclamation-circle','fa-skull']
 Handlebars.registerHelper('unix-time', timestamp => moment(timestamp).unix());
 // forge pwetty dates from timestamps
 Handlebars.registerHelper('pretty-date', timestamp => moment(timestamp).format('MM/DD/YYYY HH:mm:ss'));
+Handlebars.registerHelper('unix-date', timestamp => moment.unix(timestamp).format('MM/DD/YYYY HH:mm:ss'));
 // helper for parsing number-level to string-level
 Handlebars.registerHelper('alert-level', level => getLevelName(parseInt(level)));
 // spit icons from level numbers
@@ -250,7 +251,7 @@ const Templates = {
         {{#each log}}
           <p>
             <small>{{../url}}</small>
-            {{pretty-date time}}
+            {{unix-date time}}
           </p>
           <div class="network-body">
             <div>
