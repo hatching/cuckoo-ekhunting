@@ -7568,7 +7568,8 @@ table.table {
         display: flex;
         flex-shrink: 0;
         list-style: none;
-        margin: 0; }
+        margin: 0;
+        padding-top: 20px; }
         .configure-content .tabbed-nav > li {
           flex-basis: auto;
           padding: 0 5px; }

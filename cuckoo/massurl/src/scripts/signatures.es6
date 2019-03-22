@@ -409,7 +409,7 @@ function renderForm(signature, meta={}) {
         let listItem = $($SIG_LIST_ITEM({id:response.signature_id,name:fields.name.val()}));
         state.sigList.append(listItem);
         listItem.find('a').on('click', sigClickHandler).click();
-        setTimeout(() => $(e.currentTarget).text('Save'), 500);
+        $(e.currentTarget).text('Save')
       }).catch(err => {
         displayMessage(err.responseJSON.message).render(formParent);
       });
@@ -417,7 +417,7 @@ function renderForm(signature, meta={}) {
       // UPDATE signature
       delete values.name;
       updateSignature(signature.id, values).then(response => {
-        setTimeout(() => $(e.currentTarget).text('Save'), 500);
+      $(e.currentTarget).text('Save');
       }).catch(err => displayMessage(err.responseJSON.message).render(formParent));
     }
   });
@@ -482,12 +482,10 @@ let sigClickHandler = e => {
   let id = link.attr('href').split(':')[1];
   link.prepend(`<i class="fas fa-spinner-third fa-spin"></i>`);
   loadSignature(id).then(sig => {
-    setTimeout(() => {
-      link.find('i').remove();
-      link.parents('ul').find('.active').removeClass('active');
-      link.addClass('active');
-      renderForm(sig,{new:false});
-    }, 500);
+    link.find('i').remove();
+    link.parents('ul').find('.active').removeClass('active');
+    link.addClass('active');
+    renderForm(sig,{new:false});
   }).catch(err => displayMessage(err.responseJSON.message).render($el));
 };
 

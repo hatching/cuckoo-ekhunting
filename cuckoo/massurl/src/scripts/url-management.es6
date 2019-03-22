@@ -194,7 +194,7 @@ function initEditor(data = {}, $editor) {
   // initialize scheduler button
   let scheduler = new Scheduler({
     button: document.querySelector('#toggle-scheduler'),
-    value: false,
+    value: data.group.schedule,
     submit: values => {
 
       values.when = (function(props) {
