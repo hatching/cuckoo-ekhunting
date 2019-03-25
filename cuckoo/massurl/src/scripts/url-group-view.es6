@@ -239,10 +239,15 @@ function initUrlGroupView($el) {
 
     let show = detectTarget();
     if(show) {
-      $(`.url-groups a[href="open:${show}"]`).click();
-      // loadUrlsForGroup(show).then(d => {
-      //   populateUrls(d.urls, $urls);
-      // }).catch(err => console.log(err));
+      if($(`.url-groups a[href="open:${show}"]`).length) {
+        // if menu item for group is existent, just 'click' it.
+        $(`.url-groups a[href="open:${show}"]`).click();
+      } else {
+        // if not, load it using the api
+        loadUrlsForGroup(show).then(d => {
+          populateUrls(d.urls, $urls);
+        }).catch(err => console.log(err));
+      }
     } else {
       $el.find('.url-groups a[href^="open:"]').eq(0).click();
     }
