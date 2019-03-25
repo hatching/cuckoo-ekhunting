@@ -6933,6 +6933,31 @@ table.table {
       .editor-ui .editor.flex .url-area {
         flex-basis: 100%;
         overflow-y: auto; }
+  .editor-ui .url-display {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    justify-content: space-between; }
+    .editor-ui .url-display .url-list {
+      flex-basis: 100%;
+      overflow-y: auto;
+      background-color: #fff;
+      margin: 0;
+      padding: 15px 30px; }
+    .editor-ui .url-display-header {
+      flex-shrink: 0;
+      border-bottom: 1px solid #ccc; }
+      .editor-ui .url-display-header .configure-block {
+        width: 100%;
+        padding: 0 0 5px 30px; }
+        .editor-ui .url-display-header .configure-block input {
+          background-color: #fff; }
+    .editor-ui .url-display-footer {
+      flex-shrink: 0;
+      border-top: 1px solid #ddd;
+      padding: 15px 28px;
+      display: flex;
+      justify-content: space-between; }
 
 .scheduler--parent {
   position: relative; }

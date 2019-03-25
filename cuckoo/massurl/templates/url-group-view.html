@@ -10,8 +10,17 @@
             <div class="split-view-container one-third editor-ui-left">
               {% include 'partials/url-group-list.html' %}
             </div>
-            <div class="split-view-container editor ready" id="result-container">
+            <div class="split-view-container editor ready url-display" id="result-container">
+              <header class="url-display-header">
+                <div class="configure-block">
+                  <input class="configure-block__control" placeholder="Type to filter urls by occurence" id="filter-url-content" />
+                </div>
+              </header>
               <ul class="url-list"></ul>
+              <footer class="url-display-footer">
+                <a href="#" class="button">Previous</a>
+                <a href="#" class="button">Next</a>
+              </footer>
             </div>
           </div>
         </div>
