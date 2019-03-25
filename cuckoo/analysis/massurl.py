@@ -342,8 +342,10 @@ class MassURL(AnalysisManager):
         flow_target = {}
         flows = {}
         ppid_pid = {}
+        ports = set()
 
         for flow, pid, ppid in self.netflow_events:
+            ports.add(flow[3])
             if pid not in flows:
                 flows[pid] = []
             flows[pid].append(flow)
@@ -362,7 +364,7 @@ class MassURL(AnalysisManager):
         for pid, target in pid_target.iteritems():
             walk_childprocs(pid, target)
 
-        reports = self.requestfinder.process(flow_target)
+        reports = self.requestfinder.process(flow_target, ports=ports)
         for target_url, report in reports.iteritems():
             log.debug("Traffic extracted for %s", target_url)
             target_helpers = self.curr_block.get(target_url)

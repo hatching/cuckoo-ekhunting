@@ -11,7 +11,7 @@ import uuid
 import dpkt
 from elasticsearch import helpers
 from elasticsearch.exceptions import TransportError, ConnectionError
-from httpreplay.cut import http_handler, https_handler
+from httpreplay.cut import http_handler, https_handler, forward_handler
 from httpreplay.misc import read_tlsmaster
 from httpreplay.reader import PcapReader
 from httpreplay.smegma import TCPPacketStreamer
@@ -22,6 +22,7 @@ from cuckoo.common.exceptions import CuckooStartupError
 from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
+logging.getLogger("elasticsearch").setLevel(logging.ERROR)
 
 class URLDiaries(object):
 
@@ -99,6 +100,7 @@ class URLDiaries(object):
         if cls.store_request_logs(urldiary.logs, diary_id, request_log_ids):
             urldiary.set_requestlog_ids(request_log_ids)
 
+        urldiary.stored = True
         urldiary = urldiary.dump()
         version = cls.get_latest_diary(urldiary.get("url_id"))
         if version:
@@ -107,6 +109,10 @@ class URLDiaries(object):
             version = 1
 
         urldiary["version"] = version
+        try:
+            urldiary = json.loads(json.dumps(urldiary, encoding="latin1"))
+        except ValueError as e:
+            log.exception("Failed to encode URL diary: %s", e)
         try:
             elasticmassurl.client.create(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING, id=diary_id,
@@ -570,9 +576,11 @@ class URLDiary(object):
         }
         self.logs = []
         self.urls = []
+        self.stored = False
 
     def add_javascript(self, javascript):
-        self._diary["javascript"].append(javascript)
+        if javascript not in self._diary["javascript"]:
+            self._diary["javascript"].append(javascript)
 
     def add_signature(self, signature):
         if isinstance(signature, list):
@@ -629,7 +637,7 @@ class RequestFinder(object):
         self.handlers = {}
         self.MAX_REQUEST_SIZE = config("massurl:elasticsearch:request_store")
 
-    def process(self, flowmapping):
+    def process(self, flowmapping, ports=None):
         """Reads a PCAP and adds the reqeusts that match the flow mapping
         to a dictionary of reports it will return. Reports will contain
         all found requests made for a url
@@ -640,7 +648,7 @@ class RequestFinder(object):
             tlsmaster = read_tlsmaster(tlspath)
 
         if tlsmaster or not self.handlers:
-            self._create_handlers(tlsmaster)
+            self._create_handlers(tlsmaster, ports=ports)
 
         pcap_fp = open(cwd("dump.pcap", analysis=self.task_id))
         reader = PcapReader(pcap_fp)
@@ -652,26 +660,32 @@ class RequestFinder(object):
 
         try:
             for flow, timestamp, protocol, sent, recv in reader.process():
-                if not isinstance(sent, dpkt.http.Request):
-                    continue
-
                 tracked_url = flowmapping.get(flow)
                 if not tracked_url:
                     continue
+
+                if not sent and not recv:
+                    continue
+
+                if isinstance(sent, dpkt.http.Request):
+                    url = "%s://%s%s" % (
+                        protocol,
+                        sent.headers.get("host", "%s:%s" % (flow[2], flow[3])),
+                        sent.uri
+                    )
+                else:
+                    url = "%s://%s:%s" % (
+                        protocol, flow[2], flow[3]
+                    )
 
                 report = reports.setdefault(tracked_url, {})
                 requested = report.setdefault("requested", [])
                 logs = report.setdefault("log", {})
 
-                url = "%s://%s%s" % (
-                    protocol,
-                    sent.headers.get("host", "%s:%s" % (flow[2], flow[3])),
-                    sent.uri
-                )
                 if url not in requested:
                     requested.append(url)
 
-                if not isinstance(recv, dpkt.http.Response):
+                if not isinstance(recv, (dpkt.http.Response, basestring)):
                     recv = recv.raw
 
                 requestlog = logs.setdefault(url, [])
@@ -690,15 +704,22 @@ class RequestFinder(object):
             self.offset = pcap_fp.tell()
             pcap_fp.close()
 
-    def _create_handlers(self, tlsmaster={}):
+    def _create_handlers(self, tlsmaster={}, ports=[]):
+        tls_ports = [443, 4443, 8443]
+        http_ports = [80, 8000, 8080]
+        for port in ports:
+            if port not in tls_ports:
+                http_ports.append(port)
+
         self.handlers = {
-            80: http_handler,
-            8000: http_handler,
-            8080: http_handler
+            "generic": forward_handler
         }
-        if tlsmaster:
+        for httpport in http_ports:
             self.handlers.update({
-                443: lambda: https_handler(tlsmaster),
-                4443: lambda: https_handler(tlsmaster),
-                8443: lambda: https_handler(tlsmaster)
+                httpport: http_handler
             })
+        if tlsmaster:
+            for tlsport in tls_ports:
+                self.handlers.update({
+                    tlsport: lambda: https_handler(tlsmaster)
+                })
