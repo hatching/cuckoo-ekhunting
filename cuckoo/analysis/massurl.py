@@ -115,7 +115,9 @@ class MassURL(AnalysisManager):
         block = {}
         if self.targets:
             for t in self.targets.pop(0):
-                diary = URLDiary(t.target, t.sha256)
+                diary = URLDiary(
+                    t.target, t.sha256, self.machine.name, self.task.package
+                )
                 block[t.target] = {
                     "diary": diary,
                     "target_obj": t
