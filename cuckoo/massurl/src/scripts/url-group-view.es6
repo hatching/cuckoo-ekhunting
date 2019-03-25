@@ -30,12 +30,13 @@ function loadGroups() {
 
 // detects a ?view={id} item to pre-open url editors
 function detectTarget() {
+  let ls = window.localStorage.getItem('ek-selected-group');
   let tgt = window.location.search.replace('?','').split('=');
-  if(tgt.length == 2) {
+  if(tgt.length == 2)
     return parseInt(tgt[1]);
-  } else {
-    return false;
-  }
+  if(ls)
+    return parseInt(ls);
+  return false;
 }
 
 // loads up the urls for a group
@@ -178,6 +179,7 @@ function initUrlGroupView($el) {
     $(e.currentTarget).addClass('active');
 
     let id = e.currentTarget.getAttribute('href').split(':')[1];
+    window.localStorage.setItem('ek-selected-group', id);
 
     loadUrlsForGroup(id).then(d => {
       populateUrls(d.urls, $urls);
@@ -237,9 +239,10 @@ function initUrlGroupView($el) {
 
     let show = detectTarget();
     if(show) {
-      loadUrlsForGroup(show).then(d => {
-        populateUrls(d.urls, $urls);
-      }).catch(err => console.log(err));
+      $(`.url-groups a[href="open:${show}"]`).click();
+      // loadUrlsForGroup(show).then(d => {
+      //   populateUrls(d.urls, $urls);
+      // }).catch(err => console.log(err));
     } else {
       $el.find('.url-groups a[href^="open:"]').eq(0).click();
     }

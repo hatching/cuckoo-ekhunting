@@ -257,12 +257,19 @@ function initEditor(data = {}, $editor) {
 
 // detects a ?mng={id} item to pre-open url editors
 function detectTarget() {
+  let ls = window.localStorage.getItem('ek-selected-group');
   let tgt = window.location.search.replace('?','').split('=');
-  if(tgt.length == 2) {
-    return parseInt(tgt[1]);
-  } else {
-    return false;
-  }
+
+  console.log(ls);
+
+  if(tgt)
+    if(tgt.length == 2)
+      return parseInt(tgt[1]);
+
+  if(ls)
+    return parseInt(ls);
+
+  return false;
 }
 
 // initializes the url management ui
@@ -273,7 +280,6 @@ function initUrlManagement($editor) {
   let detailID = window.EK_Group_ID || false;
 
   let linkClickHandler = e => {
-
     let id = parseInt($(e.currentTarget).attr('href').split(':')[1]);
     $editor.find('.editor').empty().removeClass('idle').addClass('loading');
     $(e.currentTarget).parents('ul').find('.active').removeClass('active');
@@ -281,11 +287,11 @@ function initUrlManagement($editor) {
     loadGroup(id)
       .then(data => {
         initEditor(data, $editor.find('#url-edit'));
+        window.localStorage.setItem('ek-selected-group', id);
         $editor.find('#url-edit').removeClass('loading idle');
       })
       .catch(err => console.log(err));
     return false;
-
   }
 
   return new Promise((resolve, reject) => {
