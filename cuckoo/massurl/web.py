@@ -43,8 +43,11 @@ BROWSERS = {
     "Edge": "edge"
 }
 
-def json_error(status_code, message, *args):
-    r = jsonify(success=False, message=message % args if args else message)
+def json_error(status_code, message, *args, **kwargs):
+    r = jsonify(
+        success=False, message=message % args if args else message,
+        **kwargs
+    )
     r.status_code = status_code
     return r
 
