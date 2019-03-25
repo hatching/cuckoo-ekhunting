@@ -6957,7 +6957,10 @@ table.table {
       border-top: 1px solid #ddd;
       padding: 15px 28px;
       display: flex;
-      justify-content: space-between; }
+      justify-content: space-between;
+      align-items: center; }
+      .editor-ui .url-display-footer p {
+        margin: 0; }
 
 .scheduler--parent {
   position: relative; }
