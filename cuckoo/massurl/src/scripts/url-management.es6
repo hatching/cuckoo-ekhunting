@@ -259,16 +259,11 @@ function initEditor(data = {}, $editor) {
 function detectTarget() {
   let ls = window.localStorage.getItem('ek-selected-group');
   let tgt = window.location.search.replace('?','').split('=');
-
-  console.log(ls);
-
   if(tgt)
     if(tgt.length == 2)
       return parseInt(tgt[1]);
-
   if(ls)
     return parseInt(ls);
-
   return false;
 }
 
@@ -344,7 +339,18 @@ function initUrlManagement($editor) {
     });
 
     if(openAt) {
-      $editor.find(`.url-groups a[href="open:${openAt}"]`).trigger('click');
+      if($editor.find(`.url-groups a[href="open:${openAt}"]`).length) {
+        // if existent, click the selected openAt group
+        $editor.find(`.url-groups a[href="open:${openAt}"]`).trigger('click');
+      } else {
+        // else, load it up through the API
+        loadGroup(openAt)
+          .then(data => {
+            initEditor(data, $editor.find('#url-edit'));
+            $editor.find('#url-edit').removeClass('loading idle');
+          })
+          .catch(err => console.log(err));
+      }
     } else {
       $editor.find('.editor').addClass('idle');
     }
