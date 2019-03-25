@@ -42,6 +42,11 @@ BROWSERS = {
     "Firefox": "ff",
     "Edge": "edge"
 }
+PACKAGE_BROWSER = {
+    "ie": "Internet Explorer",
+    "ff": "Firefox",
+    "edge": "Edge"
+}
 
 def json_error(status_code, message, *args, **kwargs):
     r = jsonify(
@@ -576,6 +581,10 @@ def get_diary(diary_id):
     diary = URLDiaries.get_diary(diary_id)
     if not diary:
         return json_error(404, "The specified URL diary does not exist")
+
+    browser = diary.get("browser")
+    if browser:
+        diary["browser"] = PACKAGE_BROWSER.get(browser, browser)
 
     return jsonify(diary)
 

@@ -556,10 +556,12 @@ def build_search_query(item):
 
 
 class URLDiary(object):
-    def __init__(self, url, url_id):
+    def __init__(self, url, url_id, machine, browser):
         self._diary = {
             "url": url,
             "url_id": url_id,
+            "machine": machine,
+            "browser": browser,
             "version": 0,
             "datetime": "",
             "javascript": [],
