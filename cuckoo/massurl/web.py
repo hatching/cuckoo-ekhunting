@@ -580,7 +580,12 @@ def get_diary(diary_id):
 def get_pcap(task_id):
     pcap_path = cwd("dump.pcap", analysis=task_id)
     if not os.path.isfile(pcap_path):
-        return json_error(404, message="PCAP for given task does not exist")
+        return json_error(
+            404, message="PCAP for given task does not exist", exists=False
+        )
+
+    if request.args.get("exists"):
+        return jsonify(exists=True)
 
     return send_file(
         pcap_path, attachment_filename="task%s-dump.pcap" % task_id,

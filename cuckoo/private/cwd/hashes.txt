@@ -330,3 +330,10 @@ e6ebc011fdfe169de45f8ca789e3e3060228eeba analyzer/windows/lib/core/privileges.py
 fc3ee0a768d8a41faddd817a6dc86453ba5cd1cf elasticsearch/massurl-diary.json
 c06e07ba28230de640dc28025bebc7024aa8209f elasticsearch/massurl-requestlog.json
 06753a21c35be6faccb9856792f851678fd43e62 analyzer/windows/modules/packages/ie.py
+
+# TBD
+74c4c577a61f96571ac47e86c83fc0ece9d5f0ad agent/agent.py
+26bb31214596b6f98c409ab4f82ceb8efb0011a4 analyzer/windows/bin/zer0m0n-x64.sys
+32ed117fae015ebaf68712ff0d13dd1004926831 analyzer/windows/modules/packages/edge.py
+f097ce196bfe3115bd1c0c053a372bd748e81ecd analyzer/windows/modules/packages/ff.py
+6ca70c1745e7542b9c64cf0aa98c1c8e86c53be9 analyzer/windows/modules/packages/ie.py

@@ -302,6 +302,9 @@ def signature_runner():
             continue
 
         matches = run_signature(content, signature.last_run)
+        if not matches:
+            continue
+
         log.info(
             "Custom signature match for %s. Matches %s",
             signature.name, len(matches)
