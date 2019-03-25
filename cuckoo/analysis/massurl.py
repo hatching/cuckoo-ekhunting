@@ -2,7 +2,6 @@
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
-import Queue
 import json
 import logging
 import os
@@ -92,8 +91,8 @@ class MassURL(AnalysisManager):
             target=self.guest_manager.wait_for_completion
         )
         self.gm_wait_th.daemon = True
-        self.detection_events = Queue.Queue()
-        self.netflow_events = Queue.Queue()
+        self.detection_events = []
+        self.netflow_events = []
         self.js_events = []
         self.realtime_finished = set()
         self.tlskeys_response = None
@@ -281,8 +280,9 @@ class MassURL(AnalysisManager):
             self.request_scheduler_action(for_status="stopurlblock")
 
             # Store URL diaries
-            if len(self.curr_block) > 1:
-                for url, info in self.curr_block.iteritems():
+            for url, info in self.curr_block.iteritems():
+                diary = info.get("diary")
+                if not diary.stored:
                     URLDiaries.store_diary(info.get("diary"))
 
             if signature_events:
@@ -317,6 +317,7 @@ class MassURL(AnalysisManager):
     def attribute_js(self, pid_target):
         pid_js = {}
         ppid_pid = {}
+
         for pid, ppid, code in self.js_events:
             if pid not in pid_js:
                 pid_js[pid] = []
@@ -341,9 +342,8 @@ class MassURL(AnalysisManager):
         flow_target = {}
         flows = {}
         ppid_pid = {}
-        for x in range(self.netflow_events.qsize()):
-            flow, pid, ppid = self.netflow_events.get(block=False)
 
+        for flow, pid, ppid in self.netflow_events:
             if pid not in flows:
                 flows[pid] = []
             flows[pid].append(flow)
@@ -371,8 +371,8 @@ class MassURL(AnalysisManager):
 
     def handle_events(self, pid_target):
         # New queue for a new batch, to be sure it is empty
-        self.detection_events = Queue.Queue()
-        self.netflow_events = Queue.Queue()
+        self.detection_events = []
+        self.netflow_events = []
         self.realtime_finished = set()
         self.tlskeys_response = None
         self.realtime_error = False
@@ -421,7 +421,7 @@ class MassURL(AnalysisManager):
                 self.realtime_error
             )
 
-        if self.netflow_events.qsize():
+        if self.netflow_events:
             log.debug("Running request extraction for task: #%s", self.task.id)
             self.extract_requests(pid_target)
 
@@ -431,23 +431,20 @@ class MassURL(AnalysisManager):
 
         # If no events were sent by Onemon, no signatures were triggered.
         # Continue analysis.
-        if self.detection_events.qsize():
+        if self.detection_events:
             self.handle_signature_events()
             return True
 
         return False
 
     def handle_signature_events(self):
-        num_events = self.detection_events.qsize()
-
         log.info(
-            "%d realtime signature triggered for task #%d", num_events,
-            self.task.id
+            "%d realtime signature triggered for task #%d",
+            len(self.detection_events), self.task.id
         )
         # Collect all triggered signatures from the queue
         sigs = []
-        for x in range(num_events):
-            ev = self.detection_events.get(block=False)
+        for ev in self.detection_events:
             sigs.append({
                 "signature": ev.get("signature"),
                 "description": ev.get("description"),
@@ -548,7 +545,7 @@ class MassURL(AnalysisManager):
             if k not in message["body"]:
                 return
 
-        self.detection_events.put(message["body"])
+        self.detection_events.append(message["body"])
 
     def realtime_netflow_cb(self, message):
         """Handle incoming netflow events from the realtime processor"""
@@ -561,7 +558,7 @@ class MassURL(AnalysisManager):
                 return
 
         flow = message["body"]
-        self.netflow_events.put(
+        self.netflow_events.append(
             (
                 (
                     flow.get("srcip"), flow.get("srcport"), flow.get("dstip"),
