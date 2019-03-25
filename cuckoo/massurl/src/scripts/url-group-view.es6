@@ -13,10 +13,9 @@ const state = {
 
   u_offset: 0,
   u_limit: 1000,
-  u_loading: false,
-  u_content_end: false,
 
   group: null,
+  total_urls: 0,
 
   next_urls: function() { return false; },
   prev_urls: function() { return false; }
@@ -43,6 +42,13 @@ function loadGroups() {
   return new Promise((resolve, reject) => {
     $.get(urls.groups(), res => resolve(res), rej => reject(rej), "json");
   });
+}
+
+function getURLOffsetRange(loaded = 0) {
+  let { u_offset, u_limit, total_urls } = state;
+  let total = Math.ceil(total_urls / u_limit);
+  let string = `Loaded <strong>${u_offset * u_limit}</strong> to <strong>${(u_offset * u_limit) + loaded}</strong> from <strong>${total_urls}</strong> results.`;
+  return { total, string };
 }
 
 // detects a ?view={id} item to pre-open url editors
@@ -79,6 +85,11 @@ function getDiariesForUrl(id) {
 
 // populates urls for a certain group
 function populateUrls(u,el) {
+
+  let range = getURLOffsetRange(u.length);
+  range.current = 1;
+
+  $(".url-display-footer p").html(range.string);
 
   el.empty();
 
@@ -176,12 +187,17 @@ function populateUrls(u,el) {
     });
 
     state.next_urls = function() {
-      $.get(urls.groupUrls(state.group, state.u_offset+1)).done(n => {
-        populateUrls(n.urls,el);
-      });
+      if(u.length < state.u_limit) {
+        return false;
+      } else {
+         $.get(urls.groupUrls(state.group, state.u_offset+1)).done(n => {
+           populateUrls(n.urls,el);
+         });
+       }
     }
 
     state.prev_urls = function() {
+      if(state.u_offset == 0) return false;
       $.get(urls.groupUrls(state.group, state.u_offset-1)).done(n => {
         populateUrls(n.urls,el);
       });
@@ -213,11 +229,13 @@ function initUrlGroupView($el) {
     $groups.find('a').removeClass('active');
     $(e.currentTarget).addClass('active');
 
-    let id = e.currentTarget.getAttribute('href').split(':')[1];
+    let id = $(e.currentTarget).attr('href').split(':')[1];
+    let total = $(e.currentTarget).data('groupTotal');
     window.localStorage.setItem('ek-selected-group', id);
 
     loadUrlsForGroup(id).then(d => {
       state.group = id;
+      state.total_urls = parseInt(total);
       populateUrls(d.urls, $urls);
     }).catch(err => console.log(err));
 

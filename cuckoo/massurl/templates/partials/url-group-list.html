@@ -4,7 +4,7 @@
 <ul class="url-groups" data-group-list>
 {% for group in groups %}
   <li data-id="{{group.id}}" data-name="{{group.name}}" data-filter-value="{{group.name}}">
-    <a href="open:{{group.id}}">
+    <a href="open:{{group.id}}" data-group-total="{{group.urlcount}}">
       {{group.name}} <em class="url-count">{{group.urlcount}}</em>
       {% if group.schedule_next %}
         <span><i class="fal fa-calendar-check"></i> {{group.schedule_next}}</span>
