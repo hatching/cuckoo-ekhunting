@@ -71,7 +71,7 @@ function deleteUrls(u = false, id = null) {
 // parses textarea content to array using separator [s]
 function textAreaToArray(textarea, seperator = "\n") {
   if(textarea)
-    return [...textarea[0].value.split(seperator)];
+    return [...textarea[0].value.split(seperator).filter(v => (v !== ""))];
   return [];
 }
 
@@ -166,13 +166,15 @@ function initEditor(data = {}, $editor) {
 
     if(rm.length) {
       deleteUrls(rm, data.group.id).then(res => {
-        saveUrls(values, id).then(res => {
-          loadUrlsForGroup(data.group.id).then(u => {
-            // update state
-            state.urls = u.urls;
-            $(`.url-groups a[href="open:${data.group.id}"]`).click();
+        if(a.length) {
+          saveUrls(values, id).then(res => {
+            loadUrlsForGroup(data.group.id).then(u => {
+              // update state
+              state.urls = u.urls;
+              $(`.url-groups a[href="open:${data.group.id}"]`).click();
+            }).catch(e => console.log(e));
           }).catch(e => console.log(e));
-        }).catch(e => console.log(e));
+        }
       }).catch(e => {
         console.log(e);
       });
