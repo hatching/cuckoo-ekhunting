@@ -5,15 +5,32 @@ import Templates from './templates';
 const APIUrl = (endpoint=false) => `/api${endpoint ? endpoint : '/'}`;
 
 const state = {
+  // groups offsetter
   g_offset: 0,
   g_limit: 50,
   g_loading: false,
-  g_content_end: false
+  g_content_end: false,
+
+  u_offset: 0,
+  u_limit: 1000,
+  u_loading: false,
+  u_content_end: false,
+
+  group: null,
+
+  next_urls: function() { return false; },
+  prev_urls: function() { return false; }
 };
 
 const urls = {
   groups: () => APIUrl(`/groups/list`),
-  groupUrls: gid => APIUrl(`/group/view/${gid}/urls`),
+  groupUrls: (gid,o=false) => {
+    if(o === false)
+      state.u_offset = 0;
+    else
+      state.u_offset = o;
+    return APIUrl(`/group/view/${gid}/urls?limit=${state.u_limit}&offset=${state.u_limit * state.u_offset}`);
+  },
   diaries: id => APIUrl(`/diary/url/${id}`),
   groupsList: () => {
     state.g_offset += 1;
@@ -42,7 +59,7 @@ function detectTarget() {
 // loads up the urls for a group
 function loadUrlsForGroup(groupId) {
   return new Promise((resolve, reject) => {
-    $.get(urls.groupUrls(groupId), data => {
+    $.get(urls.groupUrls(groupId, false), data => {
       resolve(data);
     }, err => reject(err), "json");
   });
@@ -100,6 +117,7 @@ function populateUrls(u,el) {
   };
 
   if(u.length) {
+
     u.map(e => createUrlButton(e)).forEach(e => {
       el.append(e);
       // creates a dropdown list for that group, opens on click
@@ -156,6 +174,19 @@ function populateUrls(u,el) {
         });
       });
     });
+
+    state.next_urls = function() {
+      $.get(urls.groupUrls(state.group, state.u_offset+1)).done(n => {
+        populateUrls(n.urls,el);
+      });
+    }
+
+    state.prev_urls = function() {
+      $.get(urls.groupUrls(state.group, state.u_offset-1)).done(n => {
+        populateUrls(n.urls,el);
+      });
+    }
+
   } else {
     // display a message that the list is empty
     let li = $(document.createElement('li'));
@@ -172,6 +203,8 @@ function initUrlGroupView($el) {
   let $moreGroups = $el.find('#load-more-groups');
   let $urls = $el.find('.url-list');
   let $diaryFilter = $el.find('#filter-url-content');
+  let $paginateNext = $el.find('.url-display-footer a[href="diaries:next"]');
+  let $paginatePrev = $el.find('.url-display-footer a[href="diaries:previous"]');
 
   let linkClickHandler = e => {
 
@@ -184,6 +217,7 @@ function initUrlGroupView($el) {
     window.localStorage.setItem('ek-selected-group', id);
 
     loadUrlsForGroup(id).then(d => {
+      state.group = id;
       populateUrls(d.urls, $urls);
     }).catch(err => console.log(err));
 
@@ -209,6 +243,16 @@ function initUrlGroupView($el) {
     $diaryFilter.on('keyup', e => {
       let val = $(e.currentTarget).val();
       $el.find('[data-diary-list]').filterList(val);
+    });
+
+    $paginateNext.on('click', e => {
+      e.preventDefault();
+      if(state.next_urls) state.next_urls();
+    });
+
+    $paginatePrev.on('click', e => {
+      e.preventDefault();
+      if(state.next_urls) state.prev_urls();
     });
 
     let loadMoreGroups = () => {
