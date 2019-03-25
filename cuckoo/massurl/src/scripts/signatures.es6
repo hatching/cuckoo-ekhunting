@@ -308,7 +308,7 @@ function displayMatchesList(matches=[]) {
   formParent.html(list);
 
   let matchState = {
-    limit: 30,
+    limit: 500,
     offset: null,
     loading: false,
     end: false

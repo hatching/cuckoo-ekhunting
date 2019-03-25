@@ -96,12 +96,6 @@ function deleteGroup(group_id = undefined) {
       reject(false);
     })
 
-
-    if(youSure) {
-
-    } else {
-
-    }
   });
 }
 
@@ -119,6 +113,8 @@ function rowHandler($el = null, $form) {
       let id = $e.attr('data-group-id');
       if(id) {
         deleteGroup(id).then(response => {
+          console.log($e);
+
           $e.remove();
           resolve(response);
         }).catch(e => {
