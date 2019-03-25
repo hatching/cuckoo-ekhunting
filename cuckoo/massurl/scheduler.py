@@ -395,8 +395,7 @@ def handle_massurldetection(message):
                   )
 
     else:
-        content = "URL %s of group '%s' shows signs of malware infection! " \
-                  "Detected by replaying the previous traffic capture." % (
+        content = "URL %s of group '%s' shows signs of malware infection! " % (
             candidates[0], group.name
         )
 
