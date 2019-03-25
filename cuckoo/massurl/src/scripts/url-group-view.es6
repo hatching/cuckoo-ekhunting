@@ -71,6 +71,7 @@ function populateUrls(u,el) {
     let ta  = $("<textarea />");
     let ic = $("<i class='far fa-atlas'></i>");
     let ar = $("<i class='far fa-angle-right'></i>");
+    li.attr('data-filter-value', e.url);
     li.attr('data-url-id', e.id); // MOCK ID
     ta.val(e.url);
     ta.attr('title', e.url);
@@ -170,6 +171,7 @@ function initUrlGroupView($el) {
   let $groups = $el.find('.url-groups');
   let $moreGroups = $el.find('#load-more-groups');
   let $urls = $el.find('.url-list');
+  let $diaryFilter = $el.find('#filter-url-content');
 
   let linkClickHandler = e => {
 
@@ -202,6 +204,11 @@ function initUrlGroupView($el) {
     $groupFilter.on('keyup', e => {
       let val = $(e.currentTarget).val();
       $el.find('[data-group-list]').filterList(val);
+    });
+
+    $diaryFilter.on('keyup', e => {
+      let val = $(e.currentTarget).val();
+      $el.find('[data-diary-list]').filterList(val);
     });
 
     let loadMoreGroups = () => {
