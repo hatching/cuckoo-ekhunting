@@ -436,4 +436,40 @@
 
   }
 
+  .url-display {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    justify-content: space-between;
+
+    .url-list {
+      flex-basis: 100%;
+      overflow-y: auto;
+      background-color: #fff;
+      margin: 0;
+      padding: 15px 30px;
+    }
+
+    &-header {
+      flex-shrink: 0;
+      border-bottom: 1px solid #ccc;
+      .configure-block {
+        width: 100%;
+        padding: 0 0 5px 30px;
+        input {
+          background-color: #fff;
+        }
+      }
+    }
+
+    &-footer {
+      flex-shrink: 0;
+      border-top: 1px solid #ddd;
+      padding: 15px 28px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+  }
+
 }
