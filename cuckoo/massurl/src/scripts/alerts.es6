@@ -98,6 +98,7 @@ function createInfoRow(alert, parent) {
     parent.next().remove();
     return;
   }
+
   let row = $(Templates.eventInfo(alert));
   parent.after(row);
   parent.addClass('expanded');
@@ -107,6 +108,31 @@ function createInfoRow(alert, parent) {
   }).then(r => {
     parent.find('td:first-child').removeClass('fill-base');
   }).catch(e => console.log(e));
+
+  let dpcap = false;
+
+  row.find('#download-pcap').on('click', e => {
+    let url = $(e.currentTarget).attr('href');
+    // let url = 'https://images.pexels.com/photos/20787/pexels-photo.jpg?cs=srgb&dl=adorable-animal-cat-20787.jpg&fm=jpg';
+    if(dpcap === false) {
+      e.preventDefault();
+      $.get(url).done(res => {
+        dpcap = true;
+        $(e.currentTarget).prop('download',url);
+        $(e.currentTarget).click();
+      }).fail(err => {
+        if($(e.currentTarget).next().is('p')) {
+          $(e.currentTarget).next().text(err.responseJSON.message);
+        } else {
+          $(e.currentTarget).after(`<p>${err.responseJSON.message}</p>`);
+        }
+      });
+    } else {
+      dpcap = false;
+      $(e.currentTarget).removeAttr('download');
+    }
+  });
+
 }
 
 function topAlert($table, alert) {

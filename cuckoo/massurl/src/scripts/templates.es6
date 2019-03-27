@@ -105,14 +105,16 @@ const Templates = {
         </ul>
         <h3>{{title}}</h3>
         <p>{{content}}</p>
+        <div>
         {{#if diary_id}}
           <a href="/diary/{{diary_id}}" class="button"><i class="far fa-book"></i> Show diary</a>
         {{/if}}
         {{#if task_id}}
-          <a href="/api/pcap/{{task_id}}" class="button">
+          <a href="/api/pcap/{{task_id}}" class="button" id="download-pcap">
             <i class="far fa-file-alt"></i> Download PCAP
           </a>
         {{/if}}
+        </div>
       </td>
     </tr>
   `)(data),

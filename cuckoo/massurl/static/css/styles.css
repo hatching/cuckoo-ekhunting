@@ -6308,6 +6308,12 @@ table.table {
         opacity: .7; }
       table.table tbody tr.info-expansion > td p {
         line-height: 22px; }
+      table.table tbody tr.info-expansion > td > div > * {
+        display: inline-block;
+        margin-right: 10px;
+        margin-top: 0;
+        margin-bottom: 0;
+        vertical-align: middle; }
       table.table tbody tr.info-expansion > td h3 {
         margin: 0 0 15px; }
       table.table tbody tr.info-expansion > td .meta-summary {
