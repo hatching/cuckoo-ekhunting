@@ -278,6 +278,7 @@ const Templates = {
         <div class="network-body">
           <div>
             <h4 class="content-overlay__title">JS payload</h4>
+            <p>Please note: This payload has been prettified.</p>
             <textarea disabled>{{payload}}</textarea>
           </div>
         </div>

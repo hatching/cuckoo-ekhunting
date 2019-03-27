@@ -1,6 +1,6 @@
 import moment from 'moment';
 import autosize from 'autosize';
-import $ from 'jquery';
+import $ from './jquery-with-plugins';
 import Templates from './templates';
 
 const APIUrl = (endpoint=false) => `/api/diary/${endpoint ? endpoint : '/'}`;
@@ -173,7 +173,7 @@ function populateDiary(data={},el) {
         evt.preventDefault();
         evt.stopPropagation();
         let dialog = overlayHandler(Templates.payloadView, {
-          payload: area.val() // to do this, or not to do this.
+          payload: $.beautify(area.val()) // to do this, or not to do this.
         });
       });
 
