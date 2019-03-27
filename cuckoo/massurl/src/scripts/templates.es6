@@ -268,6 +268,23 @@ const Templates = {
     </div>
   `)(data),
 
+  // render overlay with payload data
+  payloadView: data => Handlebars.compile(`
+    <div class="content-overlay">
+      <nav class="content-overlay__navbar">
+        <a href="#" class="close-dialog" title="Close view"><i class="fal fa-times"></i></a>
+      </nav>
+      <div class="content-overlay__dialog">
+        <div class="network-body">
+          <div>
+            <h4 class="content-overlay__title">JS payload</h4>
+            <textarea disabled>{{payload}}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  `)(data)
+
 };
 
 export default Templates;

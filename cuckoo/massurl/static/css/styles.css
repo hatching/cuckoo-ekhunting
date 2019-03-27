@@ -7238,6 +7238,9 @@ table.table {
     background-color: rgba(245, 245, 245, 0.8);
     border-radius: 8px;
     overflow-y: auto; }
+  .content-overlay__title {
+    padding-top: 25px;
+    font-size: 20px; }
   .content-overlay p {
     margin: 10px;
     padding: 10px;
