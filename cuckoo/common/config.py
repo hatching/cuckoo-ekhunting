@@ -939,6 +939,13 @@ class Config(object):
                 "ip": String("127.0.0.1"),
                 "port": Int(42037)
 
+            },
+            "retention": {
+                "enabled": Boolean(True),
+                "tasks": Int(5),
+                "keep_pcap": Boolean(True),
+                "urldiaries": Int(365),
+                "alerts": Int(365)
             }
         },
     }

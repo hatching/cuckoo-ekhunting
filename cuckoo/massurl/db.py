@@ -99,7 +99,7 @@ class URLGroupTask(Base, ToDict):
     url_group_id = Column(
         Integer(), ForeignKey("massurl_url_groups.id"), nullable=False
     )
-    task_id = Column(Integer(), ForeignKey("tasks.id"), nullable=False)
+    task_id = Column(Integer(), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
 
 class ProfileTag(Base, ToDict):
     __tablename__ = "massurl_profile_tags"
@@ -517,7 +517,8 @@ def mark_alert_read(alert_id=None, group_name=None, markall=False):
     finally:
         session.close()
 
-def delete_alert(alert_id=None, group_name=None, level=None, clear=False):
+def delete_alert(alert_id=None, group_name=None, level=None, clear=False,
+                 before=None):
     session = db.Session()
     q = None
     try:
@@ -531,6 +532,8 @@ def delete_alert(alert_id=None, group_name=None, level=None, clear=False):
             q = session.query(Alert).filter_by(id=alert_id)
         elif level:
             q = session.query(Alert).filter_by(level=level)
+        elif before:
+            q = session.query(Alert).filter(Alert.timestamp < before)
         if q:
             q.delete()
             session.commit()

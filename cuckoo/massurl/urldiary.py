@@ -350,6 +350,54 @@ class URLDiaries(object):
 
         return URLDiaries.get_values(res, return_empty=[])
 
+    @classmethod
+    def delete_urldiary(cls, before):
+        try:
+            res = elasticmassurl.client.delete_by_query(
+                index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING,
+                body={
+                    "query": {
+                        "bool":{
+                            "filter": {
+                                "range": {
+                                    "datetime": {
+                                        "lte": int(before)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+        except TransportError as e:
+            log.exception("Error during diary deletion. %s", e)
+            return 0
+        return res["deleted"]
+
+    @classmethod
+    def delete_requestlog(cls, before):
+        try:
+            res = elasticmassurl.client.delete_by_query(
+                index=cls.REQUEST_LOG_INDEX, doc_type=cls.REQUEST_LOG_MAPPING,
+                body={
+                    "query": {
+                        "bool":{
+                            "filter": {
+                                "range": {
+                                    "datetime": {
+                                        "lte": int(before)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+        except TransportError as e:
+            log.exception("Error during request logs deletion. %s", e)
+            return 0
+        return res["deleted"]
+
     @staticmethod
     def get_values(res, return_empty=[], addid=True, listed=True):
         """Return a list of objs without ES metadata"""
@@ -368,6 +416,7 @@ class URLDiaries(object):
             return ret
 
         return [r.get("_source") for r in hits.get("hits", [])]
+
 
 _phrase_match = ["requestdata", "responsedata", "javascript"]
 
