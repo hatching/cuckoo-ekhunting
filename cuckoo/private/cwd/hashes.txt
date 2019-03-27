@@ -337,3 +337,6 @@ c06e07ba28230de640dc28025bebc7024aa8209f elasticsearch/massurl-requestlog.json
 32ed117fae015ebaf68712ff0d13dd1004926831 analyzer/windows/modules/packages/edge.py
 f097ce196bfe3115bd1c0c053a372bd748e81ecd analyzer/windows/modules/packages/ff.py
 6ca70c1745e7542b9c64cf0aa98c1c8e86c53be9 analyzer/windows/modules/packages/ie.py
+ae1dfdc814e2ea8fcbe156313e80ded6132c9d1d elasticsearch/massurl-diary.json
+da39a3ee5e6b4b0d3255bfef95601890afd80709 storage/files/.gitignore
+da39a3ee5e6b4b0d3255bfef95601890afd80709 storage/files/pcap/.gitignore
