@@ -17,8 +17,8 @@ import tarfile
 import time
 
 from cuckoo.common.colors import bold, red, yellow
-from cuckoo.common.config import emit_options, Config
-from cuckoo.common.elastic import elastic
+from cuckoo.common.config import emit_options, Config, config
+from cuckoo.common.elastic import elastic, elasticmassurl
 from cuckoo.common.exceptions import (
     CuckooOperationalError, CuckooDatabaseError, CuckooDependencyError
 )
@@ -401,6 +401,21 @@ def cuckoo_clean():
         template_name = "%s_template" % dated_index
         if elastic.client.indices.exists_template(template_name):
             elastic.client.indices.delete_template(template_name)
+
+    if elasticmassurl.init():
+        elasticmassurl.connect()
+
+        urldiaries = config("massurl:elasticsearch:urldiary_index")
+        requestlog = config("massurl:elasticsearch:related_index")
+        if urldiaries:
+            elasticmassurl.client.indices.delete(
+                index=urldiaries, ignore=[400, 404]
+            )
+
+        if requestlog:
+            elasticmassurl.client.indices.delete(
+                index=requestlog, ignore=[400, 404]
+            )
 
     # Paths to clean.
     paths = [
