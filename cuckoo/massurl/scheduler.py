@@ -14,6 +14,7 @@ from cuckoo.core.database import (
     TASK_REPORTED
 )
 from cuckoo.core.task import Task
+from cuckoo.massurl import cleanup
 from cuckoo.massurl import db as massurldb
 from cuckoo.massurl.signatures import run_signature, verify_sig
 from cuckoo.massurl import web
@@ -446,5 +447,6 @@ def massurl_scheduler():
     gevent.spawn(run_with_minimum_delay, task_creator, 10.0)
     gevent.spawn(run_with_minimum_delay, task_checker, 10.0)
     gevent.spawn(run_with_minimum_delay, signature_runner, 20.0)
+    gevent.spawn(run_with_minimum_delay, cleanup.clean, 3600.0)
     ev_client.subscribe(handle_massurldetection, "massurldetection")
     ev_client.subscribe(handle_massurltaskfailure, "massurltaskfailure")
