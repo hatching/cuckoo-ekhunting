@@ -38,7 +38,7 @@
     .scroll-y { overflow-y: auto; }
 
     .split-view-container {
-      order: 1;
+      // order: 1;
 
       &.closed {
         flex-basis: 45px;

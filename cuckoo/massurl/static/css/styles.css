@@ -54,6 +54,9 @@
     cursor: pointer;
     background-color: #fff;
     border-color: #d5d5d5; }
+  .editor-ui .editor .url-list > li textarea::selection, .diary-ui .columns > * > div ul textarea::selection,
+  .disabled-text-field::selection {
+    background: transparent; }
   .editor-ui .editor .url-list > li textarea:focus, .diary-ui .columns > * > div ul textarea:focus,
   .disabled-text-field:focus {
     outline: none; }
@@ -5799,23 +5802,21 @@ body {
       padding: 0 7px; }
     .split-view .columns .scroll-y, .split-view--vertical .columns .scroll-y {
       overflow-y: auto; }
-    .split-view .columns .split-view-container, .split-view--vertical .columns .split-view-container {
-      order: 1; }
-      .split-view .columns .split-view-container.closed, .split-view--vertical .columns .split-view-container.closed {
-        flex-basis: 45px;
-        flex-shrink: 0;
-        overflow: hidden;
-        order: 0; }
-        .split-view .columns .split-view-container.closed header, .split-view--vertical .columns .split-view-container.closed header {
-          font-size: 0;
-          text-align: center; }
-          .split-view .columns .split-view-container.closed header i, .split-view--vertical .columns .split-view-container.closed header i {
-            font-size: 16px; }
-        .split-view .columns .split-view-container.closed > div > *, .split-view--vertical .columns .split-view-container.closed > div > * {
-          visibility: hidden; }
-        .split-view .columns .split-view-container.closed:hover, .split-view--vertical .columns .split-view-container.closed:hover {
-          cursor: pointer;
-          background-color: #e5e5e5; }
+    .split-view .columns .split-view-container.closed, .split-view--vertical .columns .split-view-container.closed {
+      flex-basis: 45px;
+      flex-shrink: 0;
+      overflow: hidden;
+      order: 0; }
+      .split-view .columns .split-view-container.closed header, .split-view--vertical .columns .split-view-container.closed header {
+        font-size: 0;
+        text-align: center; }
+        .split-view .columns .split-view-container.closed header i, .split-view--vertical .columns .split-view-container.closed header i {
+          font-size: 16px; }
+      .split-view .columns .split-view-container.closed > div > *, .split-view--vertical .columns .split-view-container.closed > div > * {
+        visibility: hidden; }
+      .split-view .columns .split-view-container.closed:hover, .split-view--vertical .columns .split-view-container.closed:hover {
+        cursor: pointer;
+        background-color: #e5e5e5; }
 
 /*
   Defines a 100%x100% container (fluid to its parent) that will

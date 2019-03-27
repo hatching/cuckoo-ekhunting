@@ -60,14 +60,22 @@ let textareafy = ul => {
         s.style.height = '1px';
         s.style.height = `${(25+s.scrollHeight)}px`;
       }
-      sel.each((i,s)=>{
+      sel.each((i,s) => {
+
+        let isDisabled = false;
+        if(s.hasAttribute('disabled')) {
+          isDisabled = true;
+          s = s.parentNode;
+        }
+
         s.addEventListener('click', e => {
-          if(s.classList.contains('open')) {
-            s.classList.remove('open');
-            s.style.height = 'auto';
+          let t = isDisabled ? s.querySelector('textarea') : s;
+          if(t.classList.contains('open')) {
+            t.classList.remove('open');
+            t.style.height = 'auto';
           } else {
-            open(s);
-            s.classList.add('open');
+            open(t);
+            t.classList.add('open');
           }
         });
       });
@@ -116,6 +124,8 @@ function populateDiary(data={},el) {
 
     requestsList.render(requestsList.list.find('textarea'));
     javascriptList.render(javascriptList.list.find('textarea'));
+
+    console.log(javascriptList);
 
     // create hooks for displaying request logs
     requestsList.list.find('li').each(function() {
