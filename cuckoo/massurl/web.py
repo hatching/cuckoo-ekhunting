@@ -9,8 +9,6 @@ import datetime
 import gevent
 import json
 import logging
-import random
-import string
 import os
 
 from socks5man.manager import Manager
@@ -22,7 +20,6 @@ from gevent.queue import Queue
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
 
-from cuckoo.common.utils import parse_bool
 from cuckoo.massurl import db
 from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.massurl import schedutil
@@ -859,56 +856,6 @@ def signature_run(signature_id):
     return jsonify(URLDiaries.get_diaries(
         ids=results, return_fields="datetime,url,version"
     ))
-
-def random_string(minimum, maximum=None):
-    if maximum is None:
-        maximum = minimum
-
-    count = random.randint(minimum, maximum)
-    return "".join(random.choice(string.ascii_letters) for x in xrange(count))
-
-@app.route("/api/genalert")
-def gen_alerts():
-    notify = request.args.get("notify", False)
-    int_args = {
-        "targetgroup_id": request.args.get("targetgroup_id"),
-        "level": request.args.get("level", 2),
-        "count": request.args.get("count", 1)
-    }
-
-    for key, value in int_args.iteritems():
-        if value:
-            try:
-                int_args[key] = int(value)
-            except ValueError:
-                return json_error(400, "%s should be an integer!" % key)
-
-    if notify:
-        notify = parse_bool(notify)
-
-    group_name = None
-    if int_args["targetgroup_id"]:
-        targetgroup = db.find_group(group_id=int_args["targetgroup_id"])
-        if not targetgroup:
-            return json_error(404, "Target group does not exist")
-
-        group_name = targetgroup.name
-
-    for x in range(int_args["count"]):
-        alert = {
-            "level": int_args["level"],
-            "title": random_string(5, 30),
-            "content": random_string(80, 400),
-            "task_id": random.randint(1, 1000),
-            "url_group_name": group_name,
-            "timestamp": datetime.datetime.now(),
-            "target": random.choice(["http://example.com/somepage", None])
-        }
-        send_alert(notify=notify, **alert)
-
-        gevent.sleep(0.05)
-
-    return jsonify(message="OK")
 
 def ws_connect(ws):
     """Websocket connections for alerts are handled here. When a connection
