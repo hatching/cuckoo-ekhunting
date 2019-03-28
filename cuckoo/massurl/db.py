@@ -52,7 +52,9 @@ class Signature(Base, ToDict):
     content = Column(Text(), nullable=False)
     level = Column(Integer(), nullable=False, default=1)
     enabled = Column(Boolean(), nullable=False, default=True)
-    last_run = Column(Integer, nullable=False)
+    last_run = Column(
+        DateTime, nullable=False, default=datetime.datetime.utcnow
+    )
 
 class Alert(Base, ToDict):
     """Dashboard alert history"""
@@ -656,10 +658,7 @@ def update_settings_group(group_id, threshold, batch_size, batch_time):
 def add_signature(name, content, level=1, enabled=False):
     ses = db.Session()
 
-    sig = Signature(
-        name=name, content=content, level=level, enabled=enabled,
-        last_run=int(time.time()*1000)
-    )
+    sig = Signature(name=name, content=content, level=level, enabled=enabled)
     try:
         ses.add(sig)
         ses.commit()

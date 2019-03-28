@@ -8,6 +8,7 @@ import os
 import shutil
 
 from cuckoo.common.config import config
+from cuckoo.common.utils import to_millis
 from cuckoo.core.database import Task as DbTask
 from cuckoo.massurl import db
 from cuckoo.massurl.db import URLGroupTask
@@ -71,9 +72,6 @@ def clean_tasks(dt):
     finally:
         ses.close()
 
-def to_millis(dt):
-    return (dt - datetime.datetime.utcfromtimestamp(0)).total_seconds() * 1000
-
 def clean():
     if not config("massurl:retention:enabled"):
         return
@@ -99,7 +97,7 @@ def clean():
         before = datetime.datetime.utcnow() - datetime.timedelta(
             days=diary_days
         )
-        before_millis = int(to_millis(before))
+        before_millis = to_millis(before)
         log.debug("Removing URL diaries older than %s", before)
         deldiaries = URLDiaries.delete_urldiary(before=before_millis)
         delrequestlogs = URLDiaries.delete_requestlog(before=before_millis)

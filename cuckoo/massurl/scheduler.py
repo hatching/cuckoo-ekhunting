@@ -8,6 +8,7 @@ import time
 
 import gevent
 
+from cuckoo.common.utils import to_millis
 from cuckoo.core.database import (
     Database, Task as DbTask, Target, TASK_FAILED_ANALYSIS,
     TASK_FAILED_PROCESSING, TASK_FAILED_REPORTING, TASK_ABORTED, TASK_RUNNING,
@@ -16,14 +17,14 @@ from cuckoo.core.database import (
 from cuckoo.core.task import Task
 from cuckoo.massurl import cleanup
 from cuckoo.massurl import db as massurldb
-from cuckoo.massurl.signatures import run_signature, verify_sig
 from cuckoo.massurl import web
-from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.massurl.db import (
     URLGroup, URLGroupTask, URLGroupURL, URLGroupProfile
 )
 from cuckoo.massurl.realtime import ev_client
 from cuckoo.massurl.schedutil import schedule_time_next
+from cuckoo.massurl.signatures import run_signature, verify_sig
+from cuckoo.massurl.urldiary import URLDiaries
 from cuckoo.misc import cwd
 
 log = logging.getLogger(__name__)
@@ -302,7 +303,7 @@ def signature_runner():
             log.error("Invalid signature")
             continue
 
-        matches = run_signature(content, signature.last_run)
+        matches = run_signature(content, to_millis(signature.last_run))
         if not matches:
             continue
 
@@ -329,7 +330,7 @@ def signature_runner():
                         )
             )
         massurldb.update_signature(
-            signature_id=signature.id, last_run=int(time.time() * 1000)
+            signature_id=signature.id, last_run=datetime.datetime.utcnow()
         )
 
 def validate_message(message, extra_keys=[]):
