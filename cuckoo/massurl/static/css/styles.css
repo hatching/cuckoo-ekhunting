@@ -7453,6 +7453,9 @@ table.table {
     .configure-block.free {
       padding-left: 0;
       padding-right: 0; }
+    .configure-block.end-block {
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 30px; }
     .configure-block + .multi-select {
       background-color: #fff; }
       .configure-block + .multi-select.blue {

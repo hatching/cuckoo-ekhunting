@@ -3,6 +3,9 @@ import moment from 'moment';
 import autosize from 'autosize';
 import Scheduler from './scheduler';
 import Templates from './templates';
+import Prompt from './prompt';
+
+const prompt = new Prompt();
 
 const APIUrl = (endpoint=false,suf=false) => `/api/group${suf?'s':''}/${endpoint ? endpoint : '/'}`;
 const state = {
@@ -98,6 +101,8 @@ function scheduleReset(id) {
 // opens a pane for group settings
 function editorSettings($editor, data) {
 
+  let relatedMenuItem = $(`.editor-ui-left .url-groups li[data-id='${data.group.id}']`);
+
   $.get('/api/profile/list').done(profiles => {
 
     data.profiles = profiles;
@@ -126,6 +131,24 @@ function editorSettings($editor, data) {
       $.post(`/api/group/${data.group.id}/settings`, values).done(response => {
         $(`.url-groups a[href="open:${data.group.id}"]`).click();
       }).fail(err => console.log(err));
+    });
+
+    $settings.find("#delete-all-alerts").on('click', e => {
+      prompt.ask({
+        title: 'Clearing all alerts',
+        description: `All alerts for ${data.group.name} will be permanently deleted. Continue?`,
+        confirmText: 'Clear',
+        dismissText: 'Cancel',
+        icon: 'trash-alt'
+      }).then(() => {
+        $.post(`/api/alerts/delete`, {
+          clearall: true,
+          group_name: data.group.name
+        }).done(response => {
+          relatedMenuItem.find('.events-badge').text('0');
+          relatedMenuItem.find('.events-badge').removeClass('has-critical');
+        })
+      });
     });
 
     $settings.find('header [data-close]').on('click', e => {
