@@ -83,7 +83,9 @@ const Templates = {
           <em class="secundary">No group</em>
         {{/if}}
       </td>
-      <td class="icon-cell"><a href="#" data-expand-row><i class="fal"></i></a></td>
+      <td class="icon-cell" align="center">
+        <a href="#" data-expand-row><i class="fal"></i></a>
+      </td>
     </tr>
   `)(data),
 

@@ -209,14 +209,20 @@ table.table {
       }
     }
 
-    a[data-expand-row] {
-      display: block;
+    a[data-expand-row],
+    a[data-remove-row] {
+      display: inline-block;
       text-align: center;
+      margin: 0 2px;
+
       i {
         color: $default-base;
         font-size: 1.1em;
-        &:before { content: fa-content($fa-var-book); }
       }
+    }
+
+    a[data-expand-row] {
+      i:before { content: fa-content($fa-var-book); }
     }
 
     &.expanded {
