@@ -6147,6 +6147,8 @@ body {
   #top-level-alert.out .alert-outer {
     opacity: 0;
     transform: scale(0.5); }
+  #top-level-alert.no-alert {
+    display: none; }
 
 table.table {
   border-radius: 16px;
@@ -6238,6 +6240,12 @@ table.table {
       max-width: 300px;
       overflow: hidden;
       text-overflow: ellipsis; }
+    table.table thead th.empty-alert-message,
+    table.table tbody td.empty-alert-message,
+    table.table tfoot td.empty-alert-message {
+      text-align: center;
+      padding: 30px 0;
+      font-size: 18px; }
   table.table tbody > tr:nth-child(odd) {
     background-color: #FFF; }
     table.table tbody > tr:nth-child(odd)[data-row-style="danger"] {
@@ -7278,6 +7286,8 @@ table.table {
       box-sizing: border-box; }
       .content-overlay .network-body > div h4 {
         margin: 0 0 15px 0; }
+      .content-overlay .network-body > div p {
+        margin: 10px 0; }
     .content-overlay .network-body textarea {
       width: 100%;
       font-family: monospace;
