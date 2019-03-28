@@ -203,7 +203,7 @@ const Templates = {
             {{/each}}
           </ul>
         </div>
-        <div class="configure-block flex">
+        <div class="configure-block flex end-block">
           <a href="/settings/profiles"><small>Edit profiles</small></a>
           <div>
             <button class="button" id="save-group-profiles">Set profiles</button>
@@ -233,9 +233,18 @@ const Templates = {
             <p class="configure-block__description">Seconds</p>
           </div>
         </div>
-        <div class="configure-block flex">
+        <div class="configure-block flex end-block">
           <div>
             <button class="button" id="save-group-settings">Save settings</button>
+          </div>
+        </div>
+        <div class="configure-block">
+          <h4 class="configure-block__label">Miscelaneous</h4>
+          <p class="configure-block__description">Various other actions for this group</p>
+        </div>
+        <div class="configure-block flex">
+          <div>
+            <button class="button" id="delete-all-alerts">Delete all alerts</button>
           </div>
         </div>
       </section>
