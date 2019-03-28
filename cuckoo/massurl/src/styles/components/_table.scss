@@ -109,6 +109,12 @@ table.table {
       text-overflow: ellipsis;
     }
 
+    &.empty-alert-message {
+      text-align: center;
+      padding: 30px 0;
+      font-size: 18px;
+    }
+
   }
 
   tbody {

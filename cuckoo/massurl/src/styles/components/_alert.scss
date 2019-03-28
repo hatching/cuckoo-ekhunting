@@ -132,4 +132,7 @@
       transform: scale(0.5);
     }
   }
+  &.no-alert {
+    display: none;
+  }
 }

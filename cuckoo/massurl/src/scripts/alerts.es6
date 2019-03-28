@@ -148,6 +148,8 @@ function createInfoRow(alert, parent) {
 
 function topAlert($table, alert) {
 
+  if(!alert) return;
+
   // populate alert in top-level
   $("#top-level-alert").addClass('out');
 
@@ -300,24 +302,6 @@ function initAlerts($table) {
         });
       }
 
-      // $table.find('td').filter(function() {
-      //   return $(this).index() === index;
-      // }).sortElements(function(a,b) {
-      //   if(a.getAttribute('data-sort-number')) {
-      //     a = parseInt(a.getAttribute('data-sort-number'));
-      //     b = parseInt(b.getAttribute('data-sort-number'));
-      //     return a > b ?
-      //       inverse ? -1 : 1
-      //       : inverse ? 1 : -1;
-      //   } else {
-      //     return $.text([a]) > $.text([b]) ?
-      //       inverse ? -1 : 1
-      //       : inverse ? 1 : -1;
-      //   }
-      // }, function() {
-      //   return this.parentNode;
-      // });
-      // inverse = !inverse;
     });
 
   });
@@ -329,7 +313,18 @@ function initAlerts($table) {
       // constructs available alerts from API call
       response.alerts = alerts || [];
 
-      alerts.forEach(alert => addAlert(alert, $table));
+      if(alerts.length > 0) {
+        alerts.forEach(alert => addAlert(alert, $table));
+      } else {
+        $("#top-level-alert").addClass('no-alert');
+        $table.find('tbody').append(`
+          <tr>
+            <td colspan="7" class="empty-alert-message">
+              There are no alerts to display.
+            </td>
+          </tr>
+        `);
+      }
 
       if($table.find('tr.loading').length)
         $table.find('tr.loading').remove();
@@ -340,6 +335,8 @@ function initAlerts($table) {
       connectSocket(alert => {
         if(gid && alert.url_group_name !== decodeURIComponent(gid)) return;
         addAlert(alert, $table, 'prepend');
+        $("#top-level-alert").removeClass('no-alert');
+        $table.find('.empty-alert-message').remove();
       }).then(str => {
         response.stream = str;
         resolve(response || {});
