@@ -386,3 +386,7 @@ def str_to_datetime(strdt):
         except ValueError:
             continue
     return None
+
+def to_millis(dt):
+    m = (dt - datetime.datetime.utcfromtimestamp(0)).total_seconds() * 1000
+    return int(m)

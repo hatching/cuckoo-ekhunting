@@ -150,6 +150,7 @@ class URLDiaries(object):
             res = elasticmassurl.client.search(
                 index=cls.DIARY_INDEX, doc_type=cls.DIARY_MAPPING,
                 _source_include=return_fields, sort="datetime:desc",
+                size=len(ids),
                 body={
                     "query": {
                         "ids": {"values": ids}

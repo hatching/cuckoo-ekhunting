@@ -156,7 +156,6 @@ def signatures_view():
             sig.content = loaded
             sigs.append(sig.to_dict())
 
-    print sigs
     return render_template(
         "signatures.html", signatures=sigs
     )
