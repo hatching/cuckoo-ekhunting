@@ -6905,7 +6905,8 @@ table.table {
             padding: 2px 10px; }
         .editor-ui .editor .data-list li.paginate,
         .editor-ui .editor .default-list li.paginate {
-          padding: 10px; }
+          padding: 10px;
+          margin-bottom: 50px; }
           .editor-ui .editor .data-list li.paginate p,
           .editor-ui .editor .default-list li.paginate p {
             display: inline-block;
