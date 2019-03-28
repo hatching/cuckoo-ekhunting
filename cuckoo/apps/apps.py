@@ -405,7 +405,7 @@ def cuckoo_clean():
     if elasticmassurl.init():
         elasticmassurl.connect()
 
-        urldiaries = config("massurl:elasticsearch:urldiary_index")
+        urldiaries = config("massurl:elasticsearch:diary_index")
         requestlog = config("massurl:elasticsearch:related_index")
         if urldiaries:
             elasticmassurl.client.indices.delete(
