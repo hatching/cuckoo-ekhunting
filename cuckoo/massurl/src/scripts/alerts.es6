@@ -116,6 +116,7 @@ function createInfoRow(alert, parent) {
     // let url = 'https://images.pexels.com/photos/20787/pexels-photo.jpg?cs=srgb&dl=adorable-animal-cat-20787.jpg&fm=jpg';
     if(dpcap === false) {
       e.preventDefault();
+      url+='?exists=1';
       $.get(url).done(res => {
         dpcap = true;
         $(e.currentTarget).prop('download',url);
