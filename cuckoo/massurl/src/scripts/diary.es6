@@ -93,6 +93,7 @@ function loadDiary(id) {
 
 // populates a diary
 function populateDiary(data={},el) {
+
   let setHolder = (label,value) => {
     let ph = el.find(`[data-placeholder=${label}]`);
     if(ph.length) {
@@ -102,7 +103,7 @@ function populateDiary(data={},el) {
   };
   return new Promise((resolve, reject) => {
 
-    let { url, datetime, version, requested_urls, signatures, javascript } = data;
+    let { url, datetime, version, requested_urls, machine, browser, signatures, javascript } = data;
 
     let requestsContainer = el.find('#diary-requests');
     let signaturesContainer = el.find('#diary-signatures');
@@ -112,6 +113,8 @@ function populateDiary(data={},el) {
     setHolder('url', url);
     setHolder('datetime', moment(datetime).format('LLL'));
     setHolder('version', version);
+    setHolder('machine', machine);
+    setHolder('browser', browser);
 
     let overlayHandler = (view,data) => {
       let dialog = $(view(data));
