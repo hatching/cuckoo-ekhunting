@@ -40,7 +40,7 @@ def clean_tasks(dt):
 
     # Move PCAPS if enabled
     if config("massurl:retention:keep_pcap"):
-        pcaps = cwd("storage", "files", "pcaps")
+        pcaps = cwd("storage", "files", "pcap")
         if not os.path.exists(pcaps):
             os.makedirs(pcaps)
 

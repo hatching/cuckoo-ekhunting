@@ -591,7 +591,7 @@ def get_diary(diary_id):
 @app.route("/api/pcap/<int:task_id>")
 def get_pcap(task_id):
     task_pcap = cwd("dump.pcap", analysis=task_id)
-    moved_pcap = cwd("storage", "files", "pcaps", "%s.pcap" % task_id)
+    moved_pcap = cwd("storage", "files", "pcap", "%s.pcap" % task_id)
     if os.path.isfile(task_pcap):
         pcap_path = task_pcap
     elif os.path.isfile(moved_pcap):
