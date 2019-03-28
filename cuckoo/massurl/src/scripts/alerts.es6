@@ -92,46 +92,57 @@ function setAlertRead(data={}) {
 
 function createInfoRow(alert, parent) {
 
-  // remove if it already exists
-  if(parent.next().hasClass('info-expansion')) {
-    parent.removeClass('expanded');
-    parent.next().remove();
-    return;
+  let render = () => {
+    // remove if it already exists
+    if(parent.next().hasClass('info-expansion')) {
+      parent.removeClass('expanded');
+      parent.next().remove();
+      return;
+    }
+
+    let row = $(Templates.eventInfo(alert));
+    parent.after(row);
+    parent.addClass('expanded');
+
+    setAlertRead({
+      alert: alert.id
+    }).then(r => {
+      parent.find('td:first-child').removeClass('fill-base');
+    }).catch(e => console.log(e));
   }
 
-  let row = $(Templates.eventInfo(alert));
-  parent.after(row);
-  parent.addClass('expanded');
-
-  setAlertRead({
-    alert: alert.id
-  }).then(r => {
-    parent.find('td:first-child').removeClass('fill-base');
-  }).catch(e => console.log(e));
-
-  let dpcap = false;
-
-  row.find('#download-pcap').on('click', e => {
-    let url = $(e.currentTarget).attr('href');
-    // let url = 'https://images.pexels.com/photos/20787/pexels-photo.jpg?cs=srgb&dl=adorable-animal-cat-20787.jpg&fm=jpg';
-    if(dpcap === false) {
-      e.preventDefault();
-      $.get(url+'?exists=1').done(res => {
-        dpcap = true;
-        $(e.currentTarget).prop('download',url);
-        $(e.currentTarget).click();
-      }).fail(err => {
-        if($(e.currentTarget).next().is('p')) {
-          $(e.currentTarget).next().text(err.responseJSON.message);
-        } else {
-          $(e.currentTarget).after(`<p>${err.responseJSON.message}</p>`);
-        }
-      });
-    } else {
-      dpcap = false;
-      $(e.currentTarget).removeAttr('download');
-    }
+  let pcapurl = `/api/pcap/${alert.task_id}`;
+  $.get(pcapurl+'?exists=1').done(() => {
+    alert.PCAP_EXISTS = true;
+    render();
+  }).fail(() => {
+    alert.PCAP_EXISTS = false;
+    render();
   });
+
+
+  // let dpcap = false;
+  //
+  // row.find('#download-pcap').on('click', e => {
+  //   let url = $(e.currentTarget).attr('href');
+  //   if(dpcap === false) {
+  //     e.preventDefault();
+  //     $.get(url+'?exists=1').done(res => {
+  //       dpcap = true;
+  //       $(e.currentTarget).prop('download',url);
+  //       $(e.currentTarget).click();
+  //     }).fail(err => {
+  //       if($(e.currentTarget).next().is('p')) {
+  //         $(e.currentTarget).next().text(err.responseJSON.message);
+  //       } else {
+  //         $(e.currentTarget).after(`<p>${err.responseJSON.message}</p>`);
+  //       }
+  //     });
+  //   } else {
+  //     dpcap = false;
+  //     $(e.currentTarget).removeAttr('download');
+  //   }
+  // });
 
 }
 
