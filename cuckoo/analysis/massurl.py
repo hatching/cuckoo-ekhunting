@@ -508,14 +508,15 @@ class MassURL(AnalysisManager):
                 self.run_analysis()
 
         except Exception as e:
-            log.exception(
-                "Failure during analysis run of task #%s. %s", self.task.id, e
+            log.error(
+                "Failure during analysis run of task #%s. %s. %s",
+                self.task.id, e, traceback.format_exc()
             )
             try:
                 self.ev_client.send_event(
                     "massurltaskfailure", {
                         "taskid": self.task.id,
-                        "error": "%s" % traceback.format_exc(2),
+                        "error": "%s" % traceback.format_exc(4),
                         "status": self.analysis.status
                     }
                 )
