@@ -6337,14 +6337,17 @@ table.table {
             margin-right: 5px; }
           table.table tbody tr.info-expansion > td .meta-summary li:not(:first-child) {
             margin-left: 10px; }
-  table.table tbody tr a[data-expand-row] {
-    display: block;
-    text-align: center; }
-    table.table tbody tr a[data-expand-row] i {
+  table.table tbody tr a[data-expand-row],
+  table.table tbody tr a[data-remove-row] {
+    display: inline-block;
+    text-align: center;
+    margin: 0 2px; }
+    table.table tbody tr a[data-expand-row] i,
+    table.table tbody tr a[data-remove-row] i {
       color: #4A6FA5;
       font-size: 1.1em; }
-      table.table tbody tr a[data-expand-row] i:before {
-        content: "\f02d"; }
+  table.table tbody tr a[data-expand-row] i:before {
+    content: "\f02d"; }
   table.table tbody tr.expanded + .info-expansion {
     display: table-row; }
   table.table tbody tr.expanded [data-expand-row] i:before {
