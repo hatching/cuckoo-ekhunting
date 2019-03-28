@@ -2,6 +2,7 @@
   This file returns jquery with some custom plugins scoped to the constructor.
  */
 
+import beautify from 'js-beautify';
 import $ from 'jquery';
 
 //
@@ -62,10 +63,11 @@ $.fn.filterList = (function(){
   }
 })();
 
-//
-// handler for json POST requests
-//
+
 $.extend({
+  //
+  // handler for json POST requests
+  //
   jpost: (url,body={}) => {
     return $.ajax({
       type: 'POST',
@@ -74,7 +76,13 @@ $.extend({
       contentType: 'application/json',
       dataType: 'json'
     });
+  },
+  //
+  // js-beautify hook as jquery extension
+  //
+  beautify: str => {
+    return beautify(str, {});
   }
-})
+});
 
 export default $;

@@ -105,14 +105,16 @@ const Templates = {
         </ul>
         <h3>{{title}}</h3>
         <p>{{content}}</p>
+        <div>
         {{#if diary_id}}
           <a href="/diary/{{diary_id}}" class="button"><i class="far fa-book"></i> Show diary</a>
         {{/if}}
         {{#if task_id}}
-          <a href="/api/pcap/{{task_id}}" class="button">
+          <a href="/api/pcap/{{task_id}}" class="button" id="download-pcap">
             <i class="far fa-file-alt"></i> Download PCAP
           </a>
         {{/if}}
+        </div>
       </td>
     </tr>
   `)(data),
@@ -267,6 +269,24 @@ const Templates = {
       </div>
     </div>
   `)(data),
+
+  // render overlay with payload data
+  payloadView: data => Handlebars.compile(`
+    <div class="content-overlay">
+      <nav class="content-overlay__navbar">
+        <a href="#" class="close-dialog" title="Close view"><i class="fal fa-times"></i></a>
+      </nav>
+      <div class="content-overlay__dialog">
+        <div class="network-body">
+          <div>
+            <h4 class="content-overlay__title">JS payload</h4>
+            <p>Please note: This payload has been prettified.</p>
+            <textarea disabled>{{payload}}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  `)(data)
 
 };
 

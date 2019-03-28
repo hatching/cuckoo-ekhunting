@@ -54,6 +54,9 @@
     cursor: pointer;
     background-color: #fff;
     border-color: #d5d5d5; }
+  .editor-ui .editor .url-list > li textarea::selection, .diary-ui .columns > * > div ul textarea::selection,
+  .disabled-text-field::selection {
+    background: transparent; }
   .editor-ui .editor .url-list > li textarea:focus, .diary-ui .columns > * > div ul textarea:focus,
   .disabled-text-field:focus {
     outline: none; }
@@ -5791,30 +5794,29 @@ body {
     .split-view--vertical > * {
       box-sizing: border-box; }
       .split-view--vertical > *:not(header) {
-        flex-basis: 100%; }
+        flex-basis: 100%;
+        max-height: 100%; }
   .split-view .columns, .split-view--vertical .columns {
     margin: 0 15px; }
     .split-view .columns > *, .split-view--vertical .columns > * {
       padding: 0 7px; }
     .split-view .columns .scroll-y, .split-view--vertical .columns .scroll-y {
       overflow-y: auto; }
-    .split-view .columns .split-view-container, .split-view--vertical .columns .split-view-container {
-      order: 1; }
-      .split-view .columns .split-view-container.closed, .split-view--vertical .columns .split-view-container.closed {
-        flex-basis: 45px;
-        flex-shrink: 0;
-        overflow: hidden;
-        order: 0; }
-        .split-view .columns .split-view-container.closed header, .split-view--vertical .columns .split-view-container.closed header {
-          font-size: 0;
-          text-align: center; }
-          .split-view .columns .split-view-container.closed header i, .split-view--vertical .columns .split-view-container.closed header i {
-            font-size: 16px; }
-        .split-view .columns .split-view-container.closed > div > *, .split-view--vertical .columns .split-view-container.closed > div > * {
-          visibility: hidden; }
-        .split-view .columns .split-view-container.closed:hover, .split-view--vertical .columns .split-view-container.closed:hover {
-          cursor: pointer;
-          background-color: #e5e5e5; }
+    .split-view .columns .split-view-container.closed, .split-view--vertical .columns .split-view-container.closed {
+      flex-basis: 45px;
+      flex-shrink: 0;
+      overflow: hidden;
+      order: 0; }
+      .split-view .columns .split-view-container.closed header, .split-view--vertical .columns .split-view-container.closed header {
+        font-size: 0;
+        text-align: center; }
+        .split-view .columns .split-view-container.closed header i, .split-view--vertical .columns .split-view-container.closed header i {
+          font-size: 16px; }
+      .split-view .columns .split-view-container.closed > div > *, .split-view--vertical .columns .split-view-container.closed > div > * {
+        visibility: hidden; }
+      .split-view .columns .split-view-container.closed:hover, .split-view--vertical .columns .split-view-container.closed:hover {
+        cursor: pointer;
+        background-color: #e5e5e5; }
 
 /*
   Defines a 100%x100% container (fluid to its parent) that will
@@ -6306,6 +6308,12 @@ table.table {
         opacity: .7; }
       table.table tbody tr.info-expansion > td p {
         line-height: 22px; }
+      table.table tbody tr.info-expansion > td > div > * {
+        display: inline-block;
+        margin-right: 10px;
+        margin-top: 0;
+        margin-bottom: 0;
+        vertical-align: middle; }
       table.table tbody tr.info-expansion > td h3 {
         margin: 0 0 15px; }
       table.table tbody tr.info-expansion > td .meta-summary {
@@ -7236,6 +7244,9 @@ table.table {
     background-color: rgba(245, 245, 245, 0.8);
     border-radius: 8px;
     overflow-y: auto; }
+  .content-overlay__title {
+    padding-top: 25px;
+    font-size: 20px; }
   .content-overlay p {
     margin: 10px;
     padding: 10px;

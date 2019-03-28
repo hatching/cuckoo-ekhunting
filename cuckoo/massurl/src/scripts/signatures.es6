@@ -209,7 +209,7 @@ function deleteSignature(id) {
 
 function runSignature(id) {
   return new Promise((res, rej) => {
-    api.run(id,0,30).done(response => res(response)).fail(err => rej(err));
+    api.run(id,0,500).done(response => res(response)).fail(err => rej(err));
   });
 }
 

@@ -71,6 +71,10 @@
     border-color: #d5d5d5;
   }
 
+  &::selection {
+    background: transparent;
+  }
+
   &:focus { outline: none; }
 }
 

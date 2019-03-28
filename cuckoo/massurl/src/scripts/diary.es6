@@ -1,6 +1,6 @@
 import moment from 'moment';
 import autosize from 'autosize';
-import $ from 'jquery';
+import $ from './jquery-with-plugins';
 import Templates from './templates';
 
 const APIUrl = (endpoint=false) => `/api/diary/${endpoint ? endpoint : '/'}`;
@@ -60,14 +60,22 @@ let textareafy = ul => {
         s.style.height = '1px';
         s.style.height = `${(25+s.scrollHeight)}px`;
       }
-      sel.each((i,s)=>{
+      sel.each((i,s) => {
+
+        let isDisabled = false;
+        if(s.hasAttribute('disabled')) {
+          isDisabled = true;
+          s = s.parentNode;
+        }
+
         s.addEventListener('click', e => {
-          if(s.classList.contains('open')) {
-            s.classList.remove('open');
-            s.style.height = 'auto';
+          let t = isDisabled ? s.querySelector('textarea') : s;
+          if(t.classList.contains('open')) {
+            t.classList.remove('open');
+            t.style.height = 'auto';
           } else {
-            open(s);
-            s.classList.add('open');
+            open(t);
+            t.classList.add('open');
           }
         });
       });
@@ -105,6 +113,17 @@ function populateDiary(data={},el) {
     setHolder('datetime', moment(datetime).format('LLL'));
     setHolder('version', version);
 
+    let overlayHandler = (view,data) => {
+      let dialog = $(view(data));
+      $("body").append(dialog);
+      dialog.find('textarea').each((i, ta) => autosize(ta));
+      dialog.find('.close-dialog').on('click', e => {
+        e.preventDefault();
+        dialog.remove();
+      });
+      return dialog;
+    }
+
     // creates data fields
     let requestsList = textareafy(generateList(requested_urls, "url"));
     let signaturesList = generateList(signatures, '*', "default-list");
@@ -120,19 +139,15 @@ function populateDiary(data={},el) {
     // create hooks for displaying request logs
     requestsList.list.find('li').each(function() {
       let req = $(this).data('item');
-      // console.log(req);
-      let btn = $(`<button class="expand" data-request-log="${req.request_log}"><i class='fal fa-expand-alt'></i></button>`);
+      let btn = $(`<button class="expand" data-request-log="${req.request_log}" title="Expand for more information"><i class='fal fa-expand-alt'></i></button>`);
       $(this).prepend(btn);
 
       btn.on('click', evt => {
+        evt.preventDefault();
+        evt.stopPropagation();
         $.get(`/api/requestlog/${req.request_log}`).done(response => {
-          let dialog = $(Templates.requestView(response));
-          $("body").append(dialog);
+          let dialog = overlayHandler(Templates.requestView, response);
           dialog.find('textarea').each((i, ta) => autosize(ta));
-          dialog.find('.close-dialog').on('click', e => {
-            e.preventDefault();
-            dialog.remove();
-          });
         }).fail(err => console.log(err));
       });
     });
@@ -146,6 +161,22 @@ function populateDiary(data={},el) {
       $(item).prepend(collapse);
       collapse.on('click', e => collapse.nextAll('.key-value').toggleClass('hidden'));
       collapse.click();
+    });
+
+    javascriptList.list.find('li').each(function() {
+      let req = $(this).data('item');
+      let area = $(this).find('textarea');
+      let btn = $(`<button class="expand"><i class='fal fa-expand-alt'></i></button>`);
+      $(this).prepend(btn);
+
+      btn.on('click', evt => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        let dialog = overlayHandler(Templates.payloadView, {
+          payload: $.beautify(area.val()) // to do this, or not to do this.
+        });
+      });
+
     });
 
     let togglePane = e => e.currentTarget.parentNode.classList.toggle('closed');
