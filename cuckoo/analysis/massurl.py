@@ -684,6 +684,11 @@ class MassURL(AnalysisManager):
     def finalize(self, db):
         self.ev_client.stop()
         self.task.set_latest()
+
+        if self.machine.locked:
+            log.debug("Releasing machine lock on %s", self.machine.label)
+            self.machine = self.machinery.release(self.machine.label)
+
         self.release_machine_lock()
         with open(cwd("pids_targets.json", analysis=self.task.id), "wb") as fp:
             json.dump(self.all_pids_targets, fp, indent=2)
