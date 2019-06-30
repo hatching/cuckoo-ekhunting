@@ -345,6 +345,7 @@ class EventMessageServer(object):
         elif mes_type == "event":
             event = mes_body.get("event")
             if not event or not isinstance(event, basestring):
+                log.error("No event specified!")
                 return
 
             if mes_handler.address in self.whitelist:
@@ -435,6 +436,7 @@ class EventMessageServer(object):
 
         @param outsocks: A list of sockets that are ready to receive
         """
+        receivers = set()
         while not self.mesqueue.empty():
             prio, message, mes_handler, brdcast, disconn = self.mesqueue.get()
 
@@ -451,19 +453,23 @@ class EventMessageServer(object):
                 )
 
             if not receivers:
-                return
+                continue
 
+            cleanup = []
             for mes_handler in receivers:
                 if mes_handler.sock in outsocks:
                     try:
                         mes_handler.send_json_message(message)
                     except socket.error as e:
-                        log.error(
-                            "Failed to send message to: %r. Error: %s",
-                            mes_handler.address, e
-                        )
-                    if disconn:
-                        self.cleanup_client(mes_handler.sock)
+                        if e.errno not in (errno.EPIPE, errno.ECONNRESET):
+                            log.error(
+                                "Failed to send message to: %r. Error: %s",
+                                mes_handler.address, e
+                            )
+                        cleanup.append(mes_handler.sock)
+
+            for x in range(len(cleanup)):
+                self.cleanup_client(cleanup.pop())
 
     def _handle(self):
         """Handles incoming and outgoing messages"""
@@ -476,7 +482,8 @@ class EventMessageServer(object):
                 if code != errno.EINTR:
                     log.exception("Error while handling socket: %s", msg)
             except select.error as e:
-                log.exception("Select error: %s", e)
+                if e.errno != errno.EINTR:
+                    log.exception("Select error: %s", e)
 
             if not self.mesqueue.empty():
                 _i, outsocks, _e = select.select([], self.outsocks, [], 1)
@@ -512,7 +519,11 @@ class EventMessageServer(object):
                         )
 
                 else:
-                    mes_handler = self.mes_handlers[sock].get("handler")
+                    mes_handler = self.mes_handlers.get(
+                        sock, {}
+                    ).get("handler")
+                    if not mes_handler:
+                        continue
 
                     # Try to read incoming data until newline. If it fails,
                     # invalid data is sent, or no data is available, the
@@ -611,6 +622,7 @@ class MessageHandler(object):
 
     def close(self):
         try:
+            self.sock.shutdown(socket.SHUT_RDWR)
             self.sock.close()
         except socket.error:
             pass

@@ -1,5 +1,5 @@
 # Copyright (C) 2012-2013 Claudio Guarnieri.
-# Copyright (C) 2014-2018 Cuckoo Foundation.
+# Copyright (C) 2014-2019 Cuckoo Foundation.
 # This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
 # See the file 'docs/LICENSE' for copying permission.
 
@@ -34,11 +34,11 @@ BUFSIZE = 16 * 1024
 # Directories in which analysis-related files will be stored; also acts as
 # whitelist
 RESULT_UPLOADABLE = (
-    "files", "shots", "buffer",  "extracted", "memory", "package_files"
+    "files", "shots", "buffer",  "extracted", "memory", "package_files", "logs"
 )
-RESULT_DIRECTORIES = RESULT_UPLOADABLE + ("reports", "logs")
+RESULT_DIRECTORIES = RESULT_UPLOADABLE + ("reports",)
 
-# Prevent malicious clients from using potentially dangerious filenames
+# Prevent malicious clients from using potentially dangerous filenames
 # E.g. C API confusion by using null, or using the colon on NTFS (Alternate
 # Data Streams); XXX: just replace illegal chars?
 BANNED_PATH_CHARS = b'\x00:'
@@ -206,15 +206,14 @@ class FileUpload(ProtocolHandler):
             raise CuckooOperationalError(
                 "No dump path specified for file in task #%s" % self.task_id
             )
-            raise
 
-        dump_path = dump_path.replace("\\", "/")
+        dump_path = netlog_sanitize_fname(dump_path)
 
         path = self.header.get("path")
         pids = self.header.get("pids", [])
 
         log.debug("Task #%s: File upload for %r", self.task_id, dump_path)
-        file_path = os.path.join(self.storagepath, dump_path)
+        file_path = os.path.join(self.storagepath, dump_path.decode("utf-8"))
 
         try:
             self.fd = open_exclusive(file_path)
