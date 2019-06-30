@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import subprocess
+import thread
 import time
 
 from cuckoo.common.abstracts import Machinery
@@ -18,6 +19,39 @@ from cuckoo.common.exceptions import (
 from cuckoo.misc import Popen
 
 log = logging.getLogger(__name__)
+
+class IgnoreLock(object):
+    """Behaves like a Lock object. Always allows the creating thread to
+    ignore the lock. The lock is used to prevent Virtualbox start/stop race
+    conditions. In the event of Cuckoo stopping, the scheduler should always
+    be able to perform the stopping operation."""
+
+    def __init__(self):
+        self.parent = thread.get_ident()
+        self._takers = []
+
+    def acquire(self):
+        th_ident = thread.get_ident()
+        self._takers.append(th_ident)
+
+        if th_ident == self.parent:
+            return True
+
+        while self._takers[0] != th_ident:
+            time.sleep(0.5)
+
+        return True
+
+    def release(self):
+        self._takers.remove(thread.get_ident())
+
+    def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()
+
+_power_lock = IgnoreLock()
 
 class VirtualBox(Machinery):
     """Virtualization layer for VirtualBox."""
@@ -132,10 +166,13 @@ class VirtualBox(Machinery):
                 self.options.virtualbox.path, "startvm", label,
                 "--type", self.options.virtualbox.mode
             ]
-            _, err = Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                close_fds=True
-            ).communicate()
+
+            with _power_lock:
+                _, err = Popen(
+                    args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    close_fds=True
+                ).communicate()
+
             if err:
                 raise OSError(err)
         except OSError as e:
@@ -211,10 +248,12 @@ class VirtualBox(Machinery):
             args = [
                 self.options.virtualbox.path, "controlvm", label, "poweroff"
             ]
-            proc = Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                close_fds=True
-            )
+
+            with _power_lock:
+                proc = Popen(
+                    args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    close_fds=True
+                )
 
             # Sometimes VBoxManage stucks when stopping vm so we needed
             # to add a timeout and kill it after that.
@@ -263,7 +302,6 @@ class VirtualBox(Machinery):
                 command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 close_fds=True
             )
-
 
         except OSError as e:
             raise CuckooMachineError(

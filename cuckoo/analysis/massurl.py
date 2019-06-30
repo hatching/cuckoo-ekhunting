@@ -229,7 +229,7 @@ class MassURL(AnalysisManager):
             if not self.gm_wait_th.is_alive():
                 return
 
-            log.debug("Uploaded new block of %d URLs", len(self.curr_block))
+            log.info("Uploaded new block of %d URLs", len(self.curr_block))
 
             pkg_info = {}
             tries = len(self.curr_block) * 10
@@ -409,8 +409,9 @@ class MassURL(AnalysisManager):
             if waited >= 60:
                 log.error(
                     "Timeout for realtime onemon processor reached. No results"
-                    " received. Stopping analysis of URL current block: %r",
-                    self.curr_block.keys()
+                    " received. Stopping analysis of URL current block: %r. "
+                    "Was waiting for results of: %s",
+                    self.curr_block.keys(), wait_for
                 )
                 break
             waited += 0.5
