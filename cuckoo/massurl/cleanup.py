@@ -9,7 +9,7 @@ import shutil
 
 from cuckoo.common.config import config
 from cuckoo.common.utils import to_millis
-from cuckoo.core.database import Task as DbTask
+from cuckoo.core.database import Task as DbTask, tasks_tags, Error
 from cuckoo.massurl import db
 from cuckoo.massurl.db import URLGroupTask
 from cuckoo.massurl.urldiary import URLDiaries
@@ -63,6 +63,15 @@ def clean_tasks(dt):
     # delete tasks
     ses = db.db.Session()
     try:
+        # Remove relations with tasks that will be removed
+        db.db.engine.execute(
+            tasks_tags.delete().where(tasks_tags.c.task_id.in_(tasks))
+        )
+        db.db.engine.execute(
+            Error.__table__.delete().where(
+                Error.task_id.in_(tasks)
+            )
+        )
         db.db.engine.execute(
             DbTask.__table__.delete().where(
                 DbTask.id.in_(tasks)
