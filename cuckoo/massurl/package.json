@@ -37,7 +37,7 @@
     "json-to-sass-map": "1.0.1",
     "minimist": "1.2.0",
     "mustache": "2.3.0",
-    "node-sass": "4.9.0",
+    "node-sass": "4.13.1",
     "nodemon": "1.17.5",
     "normalize-scss": "7.0.1",
     "pretty": "2.0.0",
