@@ -52,7 +52,7 @@
     "glob-fs": "0.1.7",
     "handlebars": "4.0.11",
     "js-beautify": "^1.9.1",
-    "moment": "2.20.1",
+    "moment": "2.29.2",
     "node-notifier": "5.2.1"
   }
 }
